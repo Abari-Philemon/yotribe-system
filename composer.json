@@ -1,0 +1,8 @@
+{
+    "name": "afft/yotribe",
+    "description": "project",
+    "type": "library",
+    "require": {
+        "tecnickcom/tcpdf": "^6.10"
+    }
+}
