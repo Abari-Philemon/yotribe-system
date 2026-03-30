@@ -1,4 +1,9 @@
 <?php
-// Base URL of your system
-define('BASE_URL', 'http://192.168.1.187/yotribe-system');
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443)
+    ? "https://"
+    : "http://";
+
+$host = $_SERVER['HTTP_HOST'];
+
+define('BASE_URL', $protocol . $host . '/yotribe-system');
 ?>
