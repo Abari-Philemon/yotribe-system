@@ -107,7 +107,7 @@ $high_mortality = $stmt->fetchColumn();
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/maggot/index.php">Maggot Production</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/water/index.php">Water Quality</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/reports/index.php">Reports</a></li>
-        <li class="nav-item"><a class="nav-link text-danger" href="/app/auth/logout.php">Logout</a></li>
+        <li class="nav-item"><a class="nav-link text-danger" href="/yotribe-system/app/auth/logout.php">Logout</a></li>
     </ul>
 </nav>
 
