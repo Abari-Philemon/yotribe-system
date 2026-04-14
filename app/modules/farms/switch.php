@@ -10,7 +10,7 @@ if (!in_array($_SESSION['role'], ['owner','super_admin'])) {
 
 $farm_id = (int) ($_POST['farm_id'] ?? 0);
 
-$stmt = $pdo->prepare("SELECT id, name FROM farms WHERE id = ?");
+$stmt = $pdo->prepare("SELECT farm_id FROM farms WHERE id = ?");
 $stmt->execute([$farm_id]);
 $farm = $stmt->fetch(PDO::FETCH_ASSOC);
 
