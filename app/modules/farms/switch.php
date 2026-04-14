@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/farm_context.php';
+
+$farm_id = farm_id();
 
 if (!in_array($_SESSION['role'], ['owner','super_admin'])) {
     http_response_code(403);

@@ -1,6 +1,9 @@
 <?php
 require '../../middleware/auth_guard.php';
 require '../../config/database.php';
+require_once __DIR__ . '/../../middleware/farm_context.php';
+
+$farm_id = farm_id();
 require '../../config/config.php'; // For BASE_URL
 require_role(['storekeeper','manager','owner']);
 

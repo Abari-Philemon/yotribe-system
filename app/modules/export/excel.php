@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/farm_context.php';
+
+$farm_id = farm_id();
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;

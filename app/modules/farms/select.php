@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/farm_context.php';
+
+$farm_id = farm_id();
 
 /**
  * Role check

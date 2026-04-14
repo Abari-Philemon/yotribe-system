@@ -3,6 +3,9 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/farm_context.php';
+
+$farm_id = farm_id();
 
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);

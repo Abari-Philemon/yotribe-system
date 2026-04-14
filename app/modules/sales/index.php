@@ -1,6 +1,9 @@
 <?php
 require '../../middleware/auth_guard.php';
 require '../../config/database.php';
+require_once __DIR__ . '/../../middleware/farm_context.php';
+
+$farm_id = farm_id();
 
 // Only manager or owner can access
 require_role(['manager','owner']);
