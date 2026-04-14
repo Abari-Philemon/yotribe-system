@@ -2,13 +2,15 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
-
 /**
- * Role check
+ * Session
  */
-$role = $_SESSION['role'] ?? '';
+$role     = $_SESSION['role'] ?? '';
 $staff_id = $_SESSION['staff_id'] ?? 0;
 
+/**
+ * Allowed roles
+ */
 if (!in_array($role, ['super_admin', 'owner', 'manager'])) {
     http_response_code(403);
     exit('Unauthorized access');
@@ -23,7 +25,7 @@ switch ($role) {
         $stmt = $pdo->query("
             SELECT id, name, location
             FROM farms
-            ORDER BY name
+            ORDER BY name ASC
         ");
         break;
 
@@ -32,7 +34,7 @@ switch ($role) {
             SELECT id, name, location
             FROM farms
             WHERE owner_id = ?
-            ORDER BY name
+            ORDER BY name ASC
         ");
         $stmt->execute([$staff_id]);
         break;
@@ -41,9 +43,9 @@ switch ($role) {
         $stmt = $pdo->prepare("
             SELECT f.id, f.name, f.location
             FROM farms f
-            JOIN staff s ON s.farm_id = f.id
+            INNER JOIN staff s ON s.farm_id = f.id
             WHERE s.id = ?
-            LIMIT 1
+            ORDER BY f.name ASC
         ");
         $stmt->execute([$staff_id]);
         break;
@@ -55,13 +57,14 @@ $farms = $stmt->fetchAll(PDO::FETCH_ASSOC);
  * Auto-select if only one farm
  */
 if (count($farms) === 1) {
-    $_SESSION['farm_id']   = (int)$farms[0]['id'];
-    $_SESSION['farm_name'] = $farms[0]['name'];
+    $_SESSION['active_farm_id']   = (int)$farms[0]['id'];
+    $_SESSION['active_farm_name'] = $farms[0]['name'];
 
     header("Location: /yotribe-system/app/modules/dashboard/index.php");
     exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -97,6 +100,7 @@ if (count($farms) === 1) {
 <form method="post" action="switch.php">
 
 <div class="list-group mb-3">
+
 <?php foreach ($farms as $farm): ?>
     <label class="list-group-item d-flex justify-content-between align-items-center">
         <div>
@@ -106,9 +110,13 @@ if (count($farms) === 1) {
         <input type="radio" name="farm_id" value="<?= (int)$farm['id'] ?>" required>
     </label>
 <?php endforeach; ?>
+
 </div>
 
-<button class="btn btn-primary w-100">Continue to Dashboard</button>
+<button class="btn btn-primary w-100">
+    Continue to Dashboard
+</button>
+
 </form>
 
 <?php endif; ?>
