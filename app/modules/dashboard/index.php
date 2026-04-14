@@ -4,16 +4,12 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
 
+
 authorize('dashboard');
 
 /**
  * Farm context (from middleware)
- */
-function farm_name() {
-    return $_SESSION['farm_name'] ?? 'Default Farm';
-}
-$farm_id   = farm_id();
-$farm_name = farm_name();
+
 
 /**
  * KPI Queries
