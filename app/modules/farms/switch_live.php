@@ -61,6 +61,8 @@ switch ($role) {
         echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
         exit;
 }
+unset($_SESSION['active_farm_id']);
+unset($_SESSION['active_farm_name']);
 
 $farm = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -76,8 +78,8 @@ if (!$farm) {
 /**
  * ✅ SET ACTIVE FARM
  */
-$_SESSION['farm_id']   = (int)$farm['id'];
-$_SESSION['farm_name'] = $farm['name'];
+$_SESSION['active_farm_id']   = $farm['id'];
+$_SESSION['active_farm_name'] = $farm['name'];
 
 echo json_encode([
     'status' => 'success',
