@@ -12,9 +12,12 @@ authorize('dashboard');
 
 
 /**
+ *
  * KPI Queries
  */
 
+$farm_id   = farm_id();
+$farm_name = farm_name();
 // Biomass
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(estimated_weight_kg),0)
