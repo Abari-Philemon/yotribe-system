@@ -140,14 +140,18 @@ $high_mortality = (int)$stmt->fetchColumn();
 
 <!-- HEADER -->
 <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+
     <h1 class="h3">Executive Dashboard</h1>
 
-    <div>
-        <span class="badge bg-dark"><?= htmlspecialchars($farm_name) ?></span>
-        <small class="text-muted ms-2">
-            <?= htmlspecialchars($farm_size) ?> • <?= htmlspecialchars($farm_location) ?>
-        </small>
+    <div class="d-flex align-items-center gap-2">
+
+        <!-- FARM DROPDOWN -->
+        <select id="farmSwitcher" class="form-select form-select-sm" style="width:auto;">
+            <option>Loading farms...</option>
+        </select>
+
     </div>
+
 </div>
 
 <!-- KPI CARDS -->
@@ -251,6 +255,45 @@ fetch('charts.php?type=sales')
         }]
     }
 }));
+</script>
+<script>
+// Load farms into dropdown
+fetch('/yotribe-system/app/modules/farms/list.php')
+.then(res => res.json())
+.then(farms => {
+
+    const select = document.getElementById('farmSwitcher');
+    select.innerHTML = '';
+
+    farms.forEach(farm => {
+        const option = document.createElement('option');
+        option.value = farm.id;
+        option.text  = farm.name;
+
+        if (farm.id == <?= $farm_id ?>) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+    });
+});
+
+// Handle farm switch
+document.getElementById('farmSwitcher').addEventListener('change', function () {
+
+    fetch('/yotribe-system/app/modules/farms/switch_live.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'farm_id=' + this.value
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.status === 'success') {
+            location.reload(); // reload dashboard with new farm
+        }
+    });
+
+});
 </script>
 
 </body>
