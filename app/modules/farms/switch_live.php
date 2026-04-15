@@ -61,8 +61,7 @@ switch ($role) {
         echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
         exit;
 }
-unset($_SESSION['active_farm_id']);
-unset($_SESSION['active_farm_name']);
+
 
 $farm = $stmt->fetch(PDO::FETCH_ASSOC);
 
