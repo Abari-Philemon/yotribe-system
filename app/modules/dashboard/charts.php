@@ -3,57 +3,67 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
-
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['active_farm_id'])) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Farm context missing']);
+$farm_id = $_SESSION['farm_id'] ?? 0;
+
+if (!$farm_id) {
+    echo json_encode(['labels' => [], 'values' => []]);
     exit;
 }
 
-$farm_id = (int) $_SESSION['active_farm_id'];
-$type    = $_GET['type'] ?? '';
+$type = $_GET['type'] ?? '';
 
-$data = [
-    'labels' => [],
-    'values' => []
-];
+try {
 
-switch ($type) {
+    if ($type === 'biomass') {
 
-    case 'biomass':
         $stmt = $pdo->prepare("
-            SELECT DATE(created_at) d, SUM(estimated_weight_kg) v
+            SELECT DATE(created_at) as date,
+                   SUM(estimated_weight_kg) as total
             FROM fish_inventory
             WHERE farm_id = ?
-              AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            GROUP BY d
-            ORDER BY d
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+            LIMIT 7
         ");
-        break;
+        $stmt->execute([$farm_id]);
 
-    case 'sales':
+    } elseif ($type === 'sales') {
+
         $stmt = $pdo->prepare("
-            SELECT DATE(created_at) d, SUM(total_amount) v
+            SELECT DATE(created_at) as date,
+                   SUM(total_amount) as total
             FROM sales
             WHERE farm_id = ?
-              AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-            GROUP BY d
-            ORDER BY d
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+            LIMIT 7
         ");
-        break;
+        $stmt->execute([$farm_id]);
 
-    default:
-        echo json_encode(['error' => 'Invalid chart type']);
+    } else {
+        echo json_encode(['labels' => [], 'values' => []]);
         exit;
+    }
+
+    $labels = [];
+    $values = [];
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $labels[] = $row['date'];
+        $values[] = (float)$row['total'];
+    }
+
+    echo json_encode([
+        'labels' => $labels,
+        'values' => $values
+    ]);
+
+} catch (Exception $e) {
+    echo json_encode([
+        'labels' => [],
+        'values' => [],
+        'error' => $e->getMessage()
+    ]);
 }
-
-$stmt->execute([$farm_id]);
-
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $data['labels'][] = $row['d'];
-    $data['values'][] = (float) $row['v'];
-}
-
-echo json_encode($data);

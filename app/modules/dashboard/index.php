@@ -11,6 +11,9 @@ authorize('dashboard');
  * FARM CONTEXT (SECURE)
  */
 $farm_id = farm_id();
+echo "<pre>";
+print_r($_SESSION);
+exit;
 
 /**
  * FETCH FARM DETAILS
@@ -224,6 +227,7 @@ $high_mortality = (int)$stmt->fetchColumn();
 </main>
 </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const CSRF_TOKEN = "<?= csrf_token() ?>";
 </script>
