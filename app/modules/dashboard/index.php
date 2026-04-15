@@ -11,9 +11,7 @@ authorize('dashboard');
  * FARM CONTEXT (SECURE)
  */
 $farm_id = farm_id();
-echo "<pre>";
-print_r($_SESSION);
-exit;
+
 
 /**
  * FETCH FARM DETAILS
