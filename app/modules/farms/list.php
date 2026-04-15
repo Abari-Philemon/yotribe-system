@@ -2,13 +2,19 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
+header('Content-Type: application/json');
+
 $role     = $_SESSION['role'];
 $staff_id = $_SESSION['staff_id'];
 
 switch ($role) {
 
     case 'super_admin':
-        $stmt = $pdo->query("SELECT id, name FROM farms WHERE status='active'");
+        $stmt = $pdo->query("
+            SELECT id, name 
+            FROM farms 
+            WHERE status='active'
+        ");
         break;
 
     case 'owner':

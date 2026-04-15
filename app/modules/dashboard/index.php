@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
+require_once __DIR__ . '/../../middleware/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
 
 authorize('dashboard');
@@ -223,6 +224,9 @@ $high_mortality = (int)$stmt->fetchColumn();
 </main>
 </div>
 </div>
+<script>
+const CSRF_TOKEN = "<?= csrf_token() ?>";
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -283,13 +287,17 @@ document.getElementById('farmSwitcher').addEventListener('change', function () {
 
     fetch('/yotribe-system/app/modules/farms/switch_live.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'farm_id=' + this.value
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'farm_id=' + this.value + '&csrf_token=' + CSRF_TOKEN
     })
     .then(res => res.json())
     .then(res => {
         if (res.status === 'success') {
-            location.reload(); // reload dashboard with new farm
+            location.reload();
+        } else {
+            alert(res.message || 'Switch failed');
         }
     });
 
