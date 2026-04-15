@@ -4,20 +4,32 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
 
-
 authorize('dashboard');
 
 /**
- * Farm context (from middleware)
-
+ * FARM CONTEXT (SECURE)
+ */
+$farm_id = farm_id();
 
 /**
- *
- * KPI Queries
+ * FETCH FARM DETAILS
+ */
+$stmt = $pdo->prepare("
+    SELECT name, location, size
+    FROM farms
+    WHERE id = ?
+");
+$stmt->execute([$farm_id]);
+$farm = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$farm_name     = $farm['name'] ?? 'Unknown Farm';
+$farm_location = $farm['location'] ?? '';
+$farm_size     = ucfirst($farm['size'] ?? '');
+
+/**
+ * KPI QUERIES
  */
 
-$farm_id   = farm_id();
-$farm_name = farm_name();
 // Biomass
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(estimated_weight_kg),0)
@@ -89,10 +101,13 @@ $high_mortality = (int)$stmt->fetchColumn();
 <nav id="sidebar" class="col-md-2 d-md-block bg-light sidebar collapse vh-100">
     <div class="pt-3 text-center">
         <img src="/yotribe-system/public/uploads/logo8.png" class="img-fluid mb-2" style="max-height:140px">
-        <div class="fw-bold"><?= htmlspecialchars($farm_name) ?></div>
 
-        <!-- FARM SWITCH BUTTON -->
-        <a href="/yotribe-system/app/modules/farms/select.php" 
+        <div class="fw-bold"><?= htmlspecialchars($farm_name) ?></div>
+        <small class="text-muted d-block"><?= htmlspecialchars($farm_size) ?> Farm</small>
+        <small class="text-muted"><?= htmlspecialchars($farm_location) ?></small>
+
+        <!-- SWITCH FARM -->
+        <a href="/yotribe-system/app/modules/farms/select.php"
            class="btn btn-sm btn-outline-primary mt-2">
            Switch Farm
         </a>
@@ -126,7 +141,13 @@ $high_mortality = (int)$stmt->fetchColumn();
 <!-- HEADER -->
 <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h3">Executive Dashboard</h1>
-    <span class="badge bg-dark">Farm: <?= htmlspecialchars($farm_name) ?></span>
+
+    <div>
+        <span class="badge bg-dark"><?= htmlspecialchars($farm_name) ?></span>
+        <small class="text-muted ms-2">
+            <?= htmlspecialchars($farm_size) ?> • <?= htmlspecialchars($farm_location) ?>
+        </small>
+    </div>
 </div>
 
 <!-- KPI CARDS -->
@@ -149,21 +170,21 @@ $high_mortality = (int)$stmt->fetchColumn();
 <div class="col-md-3">
 <div class="card bg-info text-white shadow">
 <div class="card-body">
-<h6>Sales</h6>
+<h6>Total Sales (₦)</h6>
 <h4><?= number_format($total_sales,2) ?></h4>
 </div></div></div>
 
 <div class="col-md-3">
 <div class="card bg-warning text-dark shadow">
 <div class="card-body">
-<h6>Profit</h6>
+<h6>Net Profit (₦)</h6>
 <h4><?= number_format($profit,2) ?></h4>
 </div></div></div>
 
 <div class="col-md-3">
 <div class="card bg-secondary text-white shadow">
 <div class="card-body">
-<h6>Expenses</h6>
+<h6>Total Expenses (₦)</h6>
 <h4><?= number_format($total_expenses,2) ?></h4>
 </div></div></div>
 
@@ -202,8 +223,8 @@ $high_mortality = (int)$stmt->fetchColumn();
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-// Biomass Chart
-fetch('charts.php?type=biomass&farm_id=<?= $farm_id ?>')
+// Biomass Chart (secure - no farm_id in URL)
+fetch('charts.php?type=biomass')
 .then(r => r.json())
 .then(d => new Chart(document.getElementById('biomassChart'), {
     type: 'line',
@@ -218,7 +239,7 @@ fetch('charts.php?type=biomass&farm_id=<?= $farm_id ?>')
 }));
 
 // Sales Chart
-fetch('charts.php?type=sales&farm_id=<?= $farm_id ?>')
+fetch('charts.php?type=sales')
 .then(r => r.json())
 .then(d => new Chart(document.getElementById('salesChart'), {
     type: 'bar',
