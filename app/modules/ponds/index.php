@@ -1,0 +1,218 @@
+<?php
+require_once __DIR__ . '/../../middleware/auth_guard.php';
+require_once __DIR__ . '/../../middleware/farm_guard.php';
+require_once __DIR__ . '/../../config/database.php';
+
+/**
+ * FARM CONTEXT (MANDATORY)
+ */
+$farm_id   = farm_id();
+$farm_name = farm_name();
+
+/**
+ * FILTER INPUTS
+ */
+$section_id = $_GET['section_id'] ?? '';
+$type       = $_GET['type'] ?? '';
+$status     = $_GET['status'] ?? '';
+
+/**
+ * BASE QUERY
+ */
+$sql = "
+    SELECT p.*, s.name AS section_name
+    FROM ponds_tanks p
+    LEFT JOIN sections s ON s.id = p.section_id
+    WHERE p.farm_id = :farm_id
+";
+
+$params = ['farm_id' => $farm_id];
+
+/**
+ * APPLY FILTERS
+ */
+if (!empty($section_id)) {
+    $sql .= " AND p.section_id = :section_id";
+    $params['section_id'] = $section_id;
+}
+
+if (!empty($type)) {
+    $sql .= " AND p.pond_type = :type";
+    $params['type'] = $type;
+}
+
+if (!empty($status)) {
+    $sql .= " AND p.status = :status";
+    $params['status'] = $status;
+}
+
+$sql .= " ORDER BY p.pond_code ASC";
+
+/**
+ * EXECUTE
+ */
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$ponds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * LOAD FILTER DATA
+ */
+// Sections
+$sections = $pdo->prepare("
+    SELECT id, name FROM sections
+    WHERE farm_id = ?
+    ORDER BY name
+");
+$sections->execute([$farm_id]);
+$sections = $sections->fetchAll(PDO::FETCH_ASSOC);
+
+// Pond Types (distinct)
+$types = $pdo->query("
+    SELECT DISTINCT pond_type FROM ponds_tanks ORDER BY pond_type
+")->fetchAll(PDO::FETCH_COLUMN);
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pond Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-4">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Ponds & Tanks - <?= htmlspecialchars($farm_name) ?></h4>
+
+        <div>
+            <a href="/yotribe-system/app/modules/farms/select.php" class="btn btn-outline-secondary btn-sm">
+                Switch Farm
+            </a>
+            <a href="create.php" class="btn btn-primary btn-sm">
+                + Add Pond
+            </a>
+        </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form class="row g-2">
+
+                <!-- Section -->
+                <div class="col-md-3">
+                    <select name="section_id" class="form-select">
+                        <option value="">All Sections</option>
+                        <?php foreach ($sections as $s): ?>
+                            <option value="<?= $s['id'] ?>" <?= $section_id == $s['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($s['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Type -->
+                <div class="col-md-3">
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        <?php foreach ($types as $t): ?>
+                            <option value="<?= $t ?>" <?= $type == $t ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($t) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="active" <?= $status == 'active' ? 'selected' : '' ?>>Active</option>
+                        <option value="inactive" <?= $status == 'inactive' ? 'selected' : '' ?>>Inactive</option>
+                        <option value="maintenance" <?= $status == 'maintenance' ? 'selected' : '' ?>>Maintenance</option>
+                    </select>
+                </div>
+
+                <!-- Submit -->
+                <div class="col-md-3 d-grid">
+                    <button class="btn btn-dark">Filter</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card shadow">
+        <div class="card-body table-responsive">
+
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code</th>
+                        <th>Section</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Capacity</th>
+                        <th>Dimensions</th>
+                        <th>Volume (L)</th>
+                        <th>Status</th>
+                        <th width="140">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                <?php if (empty($ponds)): ?>
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">No ponds found</td>
+                    </tr>
+                <?php else: ?>
+
+                    <?php foreach ($ponds as $p): ?>
+                    <tr>
+                        <td><strong><?= htmlspecialchars($p['pond_code']) ?></strong></td>
+                        <td><?= htmlspecialchars($p['section_name'] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($p['pond_type']) ?></td>
+                        <td><?= htmlspecialchars($p['size_label']) ?></td>
+                        <td><?= number_format($p['capacity']) ?></td>
+                        <td>
+                            <?= $p['length_ft'] ?> x <?= $p['width_ft'] ?> ft
+                        </td>
+                        <td><?= number_format($p['volume_liters']) ?></td>
+
+                        <td>
+                            <span class="badge bg-<?= 
+                                $p['status'] === 'active' ? 'success' :
+                                ($p['status'] === 'maintenance' ? 'warning' : 'secondary')
+                            ?>">
+                                <?= ucfirst($p['status']) ?>
+                            </span>
+                        </td>
+
+                        <td>
+                            <a href="edit.php?id=<?= $p['id'] ?>" class="btn btn-sm btn-warning">Edit</a>
+
+                            <a href="delete.php?id=<?= $p['id'] ?>"
+                               onclick="return confirm('Delete this pond?')"
+                               class="btn btn-sm btn-danger">
+                               Delete
+                            </a>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+
+                <?php endif; ?>
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
