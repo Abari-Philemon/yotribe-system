@@ -15,7 +15,7 @@ $sections = $sections->fetchAll(PDO::FETCH_ASSOC);
 
 <select name="section_id" required>
 <?php foreach ($sections as $sec): ?>
-<option value="<?= $sec['id'] ?>"><?= $sec['name'] ?></option>
+<option value="<?= $sec['id'] ?>"><?= $sec['section_name'] ?></option>
 <?php endforeach; ?>
 </select>
 
