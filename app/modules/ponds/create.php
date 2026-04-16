@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../config/database.php';
 
 $farm_id = farm_id();
 
-$sections = $pdo->prepare("SELECT id, name FROM sections WHERE farm_id = ?");
+$sections = $pdo->prepare("SELECT id, name FROM farm_sections WHERE farm_id = ?");
 $sections->execute([$farm_id]);
 $sections = $sections->fetchAll(PDO::FETCH_ASSOC);
 ?>
