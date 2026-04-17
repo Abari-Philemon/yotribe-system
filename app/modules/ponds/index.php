@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
 /**
- * FARM CONTEXT (MANDATORY)
+ * FARM CONTEXT
  */
 $farm_id   = farm_id();
 $farm_name = farm_name();
@@ -12,17 +12,22 @@ $farm_name = farm_name();
 /**
  * FILTER INPUTS
  */
-$section_id = $_GET['section_id'] ?? '';
-$type       = $_GET['type'] ?? '';
-$status     = $_GET['status'] ?? '';
+$section_id     = $_GET['section_id'] ?? '';
+$sub_section_id = $_GET['sub_section_id'] ?? '';
+$type           = $_GET['type'] ?? '';
+$status         = $_GET['status'] ?? '';
 
 /**
  * BASE QUERY
  */
 $sql = "
-    SELECT p.*, s.name AS section_name
+    SELECT 
+        p.*,
+        s.name  AS section_name,
+        ss.name AS sub_section_name
     FROM ponds_tanks p
     LEFT JOIN sections s ON s.id = p.section_id
+    LEFT JOIN sub_sections ss ON ss.id = p.sub_section_id
     WHERE p.farm_id = :farm_id
 ";
 
@@ -34,6 +39,11 @@ $params = ['farm_id' => $farm_id];
 if (!empty($section_id)) {
     $sql .= " AND p.section_id = :section_id";
     $params['section_id'] = $section_id;
+}
+
+if (!empty($sub_section_id)) {
+    $sql .= " AND p.sub_section_id = :sub_section_id";
+    $params['sub_section_id'] = $sub_section_id;
 }
 
 if (!empty($type)) {
@@ -58,21 +68,39 @@ $ponds = $stmt->fetchAll(PDO::FETCH_ASSOC);
 /**
  * LOAD FILTER DATA
  */
-// Sections
+
+// Sections (per farm)
 $sections = $pdo->prepare("
-    SELECT id, name FROM sections
+    SELECT id, name 
+    FROM sections
     WHERE farm_id = ?
     ORDER BY name
 ");
 $sections->execute([$farm_id]);
 $sections = $sections->fetchAll(PDO::FETCH_ASSOC);
 
-// Pond Types (distinct)
-$types = $pdo->query("
-    SELECT DISTINCT pond_type FROM ponds_tanks ORDER BY pond_type
-")->fetchAll(PDO::FETCH_COLUMN);
+// Sub-sections (per farm)
+$sub_sections = $pdo->prepare("
+    SELECT id, name 
+    FROM sub_sections
+    WHERE farm_id = ?
+    ORDER BY name
+");
+$sub_sections->execute([$farm_id]);
+$sub_sections = $sub_sections->fetchAll(PDO::FETCH_ASSOC);
+
+// Pond Types (per farm only)
+$types = $pdo->prepare("
+    SELECT DISTINCT pond_type 
+    FROM ponds_tanks 
+    WHERE farm_id = ?
+    ORDER BY pond_type
+");
+$types->execute([$farm_id]);
+$types = $types->fetchAll(PDO::FETCH_COLUMN);
 
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -115,8 +143,20 @@ $types = $pdo->query("
                     </select>
                 </div>
 
-                <!-- Type -->
+                <!-- Sub-section -->
                 <div class="col-md-3">
+                    <select name="sub_section_id" class="form-select">
+                        <option value="">All Sub-sections</option>
+                        <?php foreach ($sub_sections as $ss): ?>
+                            <option value="<?= $ss['id'] ?>" <?= $sub_section_id == $ss['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($ss['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Type -->
+                <div class="col-md-2">
                     <select name="type" class="form-select">
                         <option value="">All Types</option>
                         <?php foreach ($types as $t): ?>
@@ -128,7 +168,7 @@ $types = $pdo->query("
                 </div>
 
                 <!-- Status -->
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <select name="status" class="form-select">
                         <option value="">All Status</option>
                         <option value="active" <?= $status == 'active' ? 'selected' : '' ?>>Active</option>
@@ -138,7 +178,7 @@ $types = $pdo->query("
                 </div>
 
                 <!-- Submit -->
-                <div class="col-md-3 d-grid">
+                <div class="col-md-2 d-grid">
                     <button class="btn btn-dark">Filter</button>
                 </div>
 
@@ -155,6 +195,7 @@ $types = $pdo->query("
                     <tr>
                         <th>Code</th>
                         <th>Section</th>
+                        <th>Sub-section</th>
                         <th>Type</th>
                         <th>Size</th>
                         <th>Capacity</th>
@@ -168,7 +209,7 @@ $types = $pdo->query("
                 <tbody>
                 <?php if (empty($ponds)): ?>
                     <tr>
-                        <td colspan="9" class="text-center text-muted">No ponds found</td>
+                        <td colspan="10" class="text-center text-muted">No ponds found</td>
                     </tr>
                 <?php else: ?>
 
@@ -176,16 +217,23 @@ $types = $pdo->query("
                     <tr>
                         <td><strong><?= htmlspecialchars($p['pond_code']) ?></strong></td>
                         <td><?= htmlspecialchars($p['section_name'] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($p['sub_section_name'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($p['pond_type']) ?></td>
                         <td><?= htmlspecialchars($p['size_label']) ?></td>
                         <td><?= number_format($p['capacity']) ?></td>
+
                         <td>
+                        <?php if (!empty($p['length_ft']) && !empty($p['width_ft'])): ?>
                             <?= $p['length_ft'] ?> x <?= $p['width_ft'] ?> ft
+                        <?php else: ?>
+                            —
+                        <?php endif; ?>
                         </td>
+
                         <td><?= number_format($p['volume_liters']) ?></td>
 
                         <td>
-                            <span class="badge bg-<?= 
+                            <span class="badge bg-<?=
                                 $p['status'] === 'active' ? 'success' :
                                 ($p['status'] === 'maintenance' ? 'warning' : 'secondary')
                             ?>">
