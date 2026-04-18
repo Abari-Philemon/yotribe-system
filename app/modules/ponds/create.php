@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../config/database.php';
 $farm_id = farm_id();
 
 /**
- * LOAD SECTIONS (BY FARM)
+ * LOAD SECTIONS
  */
 $stmt = $pdo->prepare("
     SELECT id, name 
@@ -18,7 +18,7 @@ $stmt->execute([$farm_id]);
 $sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /**
- * LOAD SUB-SECTIONS (BY FARM)
+ * LOAD SUB-SECTIONS
  */
 $stmt = $pdo->prepare("
     SELECT id, section_id, name 
@@ -28,6 +28,11 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$farm_id]);
 $subsections = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * SAFETY: Ensure JSON is always valid
+ */
+$subsections_json = json_encode($subsections, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 ?>
 
 <!DOCTYPE html>
@@ -55,7 +60,7 @@ $subsections = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <select name="section_id" id="section" class="form-select" required>
         <option value="">Select Section</option>
         <?php foreach ($sections as $sec): ?>
-            <option value="<?= $sec['id'] ?>">
+            <option value="<?= (int)$sec['id'] ?>">
                 <?= htmlspecialchars($sec['name']) ?>
             </option>
         <?php endforeach; ?>
@@ -125,27 +130,50 @@ $subsections = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </form>
 
 <script>
-// ALL SUBSECTIONS FROM PHP
-const subSections = <?= json_encode($subsections) ?>;
+document.addEventListener('DOMContentLoaded', function () {
 
-const sectionSelect = document.getElementById('section');
-const subSelect = document.getElementById('subsection');
+    // SAFE JSON LOAD
+    const subSections = <?= $subsections_json ?>;
 
-sectionSelect.addEventListener('change', function () {
+    const sectionSelect = document.getElementById('section');
+    const subSelect = document.getElementById('subsection');
 
-    const sectionId = this.value;
+    // DEBUG (remove later)
+    console.log("Subsections:", subSections);
 
-    // RESET
-    subSelect.innerHTML = '<option value="">Select Sub Section</option>';
+    sectionSelect.addEventListener('change', function () {
 
-    // FILTER + APPEND
-    subSections.forEach(sub => {
-        if (sub.section_id == sectionId) {
+        const sectionId = parseInt(this.value);
+
+        // RESET DROPDOWN
+        subSelect.innerHTML = '<option value="">Select Sub Section</option>';
+
+        if (!sectionId) return;
+
+        let found = false;
+
+        subSections.forEach(sub => {
+
+            if (parseInt(sub.section_id) === sectionId) {
+
+                found = true;
+
+                const opt = document.createElement('option');
+                opt.value = sub.id;
+                opt.textContent = sub.name;
+
+                subSelect.appendChild(opt);
+            }
+        });
+
+        // OPTIONAL UX FEEDBACK
+        if (!found) {
             const opt = document.createElement('option');
-            opt.value = sub.id;
-            opt.textContent = sub.name;
+            opt.textContent = 'No sub-sections found';
+            opt.disabled = true;
             subSelect.appendChild(opt);
         }
+
     });
 
 });
