@@ -199,6 +199,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 </script>
+<script>
+console.log("SUB SECTIONS:", <?= json_encode($subsections) ?>);
+</script>
 
 </body>
 </html>
