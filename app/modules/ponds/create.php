@@ -200,7 +200,23 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <script>
-console.log("SUB SECTIONS:", <?= json_encode($subsections) ?>);
+const subSections = <?= json_encode($subsections) ?>;
+
+const sectionEl = document.getElementById('section');
+const subEl     = document.getElementById('subsection');
+const preview   = document.getElementById('pond_code_preview');
+
+subEl.addEventListener('change', function () {
+
+    const subId = parseInt(this.value);
+    if (!subId) return;
+
+    const sub = subSections.find(s => s.id == subId);
+    if (!sub) return;
+
+    // temporary preview (real one comes from backend)
+    preview.value = sub.code + '-XX';
+});
 </script>
 
 </body>

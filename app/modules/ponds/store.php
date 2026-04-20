@@ -2,6 +2,12 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../helpers/pond_code_helper.php';
+
+$section_id     = (int) $_POST['section_id'];
+$sub_section_id = (int) $_POST['sub_section_id'];
+
+$pond_code = generatePondCode($pdo, $farm_id, $section_id, $sub_section_id);
 
 $farm_id = farm_id();
 
