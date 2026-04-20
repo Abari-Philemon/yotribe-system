@@ -43,17 +43,14 @@ try {
      * VALIDATE SUB-SECTION
      */
     $stmt = $pdo->prepare("
-        SELECT code FROM sub_sections 
+        SELECT id FROM sub_sections
         WHERE id = ? AND section_id = ? AND farm_id = ?
     ");
     $stmt->execute([$sub_section_id, $section_id, $farm_id]);
-    $sub = $stmt->fetch();
 
-    if (!$sub) {
-        throw new Exception("Invalid sub-section");
+    if (!$stmt->fetch()) {
+        throw new Exception("Invalid sub-section selection");
     }
-
-    $sub_code = $sub['code'] ?? '';
 
     /**
      * FARM SUFFIX
