@@ -81,6 +81,17 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$farm_id]);
 $high_mortality = (int)$stmt->fetchColumn();
+
+$stmt = $pdo->prepare("
+    SELECT pa.*, p.pond_code 
+    FROM pond_alerts pa
+    JOIN ponds_tanks p ON p.id = pa.pond_id
+    WHERE pa.farm_id = ?
+    ORDER BY pa.id DESC
+    LIMIT 5
+");
+$stmt->execute([farm_id()]);
+$alerts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -221,6 +232,25 @@ $high_mortality = (int)$stmt->fetchColumn();
 <canvas id="salesChart"></canvas>
 </div></div></div>
 
+</div>
+<div class="card mt-4">
+<div class="card-body">
+<h6>⚠ Capacity Alerts</h6>
+
+<?php if (empty($alerts)): ?>
+    <p class="text-muted">No alerts</p>
+<?php else: ?>
+    <?php foreach ($alerts as $a): ?>
+        <div class="alert alert-<?= 
+            $a['level'] === 'critical' ? 'danger' :
+            ($a['level'] === 'high' ? 'warning' : 'info')
+        ?>">
+            <strong><?= $a['pond_code'] ?></strong> — <?= $a['message'] ?>
+        </div>
+    <?php endforeach; ?>
+<?php endif; ?>
+
+</div>
 </div>
 
 </main>

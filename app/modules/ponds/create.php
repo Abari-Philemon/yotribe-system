@@ -6,22 +6,22 @@ require_once __DIR__ . '/../../config/database.php';
 $farm_id = farm_id();
 
 /**
- * LOAD SECTIONS
+ * LOAD SECTIONS (WITH CODE)
  */
 $stmt = $pdo->prepare("
-    SELECT id, name 
+    SELECT id, name, code 
     FROM sections 
-    WHERE farm_id = ? 
+    WHERE farm_id = ?
     ORDER BY name
 ");
 $stmt->execute([$farm_id]);
 $sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /**
- * LOAD SUB-SECTIONS
+ * LOAD SUB-SECTIONS (WITH CODE)
  */
 $stmt = $pdo->prepare("
-    SELECT id, section_id, name 
+    SELECT id, section_id, name, code 
     FROM sub_sections 
     WHERE farm_id = ?
     ORDER BY name
@@ -30,15 +30,37 @@ $stmt->execute([$farm_id]);
 $subsections = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /**
- * SAFETY: Ensure JSON is always valid
+ * COUNT EXISTING PONDS PER SECTION
  */
-$subsections_json = json_encode($subsections, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+$stmt = $pdo->prepare("
+    SELECT section_id, COUNT(*) as total
+    FROM ponds_tanks
+    WHERE farm_id = ?
+    GROUP BY section_id
+");
+$stmt->execute([$farm_id]);
+$counts_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$counts = [];
+foreach ($counts_raw as $c) {
+    $counts[$c['section_id']] = $c['total'];
+}
+
+/**
+ * SAFE JSON
+ */
+$sections_json     = json_encode($sections, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+$subsections_json  = json_encode($subsections, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+$counts_json       = json_encode($counts);
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
 <title>Create Pond</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
@@ -47,12 +69,6 @@ $subsections_json = json_encode($subsections, JSON_HEX_TAG | JSON_HEX_APOS | JSO
 <h4>Create Pond / Tank</h4>
 
 <form method="POST" action="store.php" class="card p-3">
-
-<!-- Pond Code -->
-<div class="mb-3">
-    <label>Pond Code</label>
-    <input type="text" name="pond_code" class="form-control" required>
-</div>
 
 <!-- SECTION -->
 <div class="mb-3">
@@ -73,6 +89,12 @@ $subsections_json = json_encode($subsections, JSON_HEX_TAG | JSON_HEX_APOS | JSO
     <select name="sub_section_id" id="subsection" class="form-select" required>
         <option value="">Select Sub Section</option>
     </select>
+</div>
+
+<!-- LIVE CODE PREVIEW -->
+<div class="mb-3">
+    <label>Generated Pond Code</label>
+    <input type="text" id="pond_code_preview" class="form-control fw-bold" readonly>
 </div>
 
 <!-- TYPE -->
@@ -132,31 +154,26 @@ $subsections_json = json_encode($subsections, JSON_HEX_TAG | JSON_HEX_APOS | JSO
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // SAFE JSON LOAD
-    const subSections = <?= $subsections_json ?>;
+    const subSections = <?= json_encode($subsections) ?>;
 
     const sectionSelect = document.getElementById('section');
-    const subSelect = document.getElementById('subsection');
+    const subSelect     = document.getElementById('subsection');
 
-    // DEBUG (remove later)
-    console.log("Subsections:", subSections);
+    function loadSubSections(sectionId) {
 
-    sectionSelect.addEventListener('change', function () {
-
-        const sectionId = parseInt(this.value);
-
-        // RESET DROPDOWN
+        // RESET
         subSelect.innerHTML = '<option value="">Select Sub Section</option>';
 
         if (!sectionId) return;
 
-        let found = false;
+        let matched = 0;
 
         subSections.forEach(sub => {
 
-            if (parseInt(sub.section_id) === sectionId) {
+            // FORCE TYPE MATCH
+            if (parseInt(sub.section_id) === parseInt(sectionId)) {
 
-                found = true;
+                matched++;
 
                 const opt = document.createElement('option');
                 opt.value = sub.id;
@@ -166,14 +183,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // OPTIONAL UX FEEDBACK
-        if (!found) {
+        // DEBUG FEEDBACK
+        if (matched === 0) {
             const opt = document.createElement('option');
-            opt.textContent = 'No sub-sections found';
+            opt.textContent = 'No sub-sections available';
             opt.disabled = true;
             subSelect.appendChild(opt);
         }
+    }
 
+    // EVENT
+    sectionSelect.addEventListener('change', function () {
+        loadSubSections(this.value);
     });
 
 });
