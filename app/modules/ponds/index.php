@@ -123,6 +123,9 @@ $types = $types->fetchAll(PDO::FETCH_COLUMN);
             <a href="create.php" class="btn btn-primary btn-sm">
                 + Add Pond
             </a>
+            <a href="bulk_create.php" class="btn btn-primary btn-sm">
+                + Create Bulk
+            </a>
         </div>
     </div>
 
