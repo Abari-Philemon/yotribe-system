@@ -3,17 +3,27 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
-$farm_id = farm_id();
+$farm_id   = farm_id();
 $farm_name = farm_name();
 
 /**
  * LOAD DATA
  */
-$sections = $pdo->prepare("SELECT id, name FROM sections WHERE farm_id=? ORDER BY name");
+$sections = $pdo->prepare("
+    SELECT id, name 
+    FROM sections 
+    WHERE farm_id = ?
+    ORDER BY name
+");
 $sections->execute([$farm_id]);
 $sections = $sections->fetchAll(PDO::FETCH_ASSOC);
 
-$subsections = $pdo->prepare("SELECT id, section_id, name, code FROM sub_sections WHERE farm_id=? ORDER BY name");
+$subsections = $pdo->prepare("
+    SELECT id, section_id, name, code 
+    FROM sub_sections 
+    WHERE farm_id = ?
+    ORDER BY name
+");
 $subsections->execute([$farm_id]);
 $subsections = $subsections->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -30,9 +40,9 @@ $subsections = $subsections->fetchAll(PDO::FETCH_ASSOC);
     background: #f8f9fa;
     border: 1px dashed #ccc;
     padding: 10px;
-    font-size: 14px;
-    height: 120px;
+    height: 140px;
     overflow-y: auto;
+    font-size: 14px;
 }
 </style>
 </head>
@@ -57,13 +67,12 @@ $subsections = $subsections->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="row g-3">
 
-<!-- LEFT SIDE -->
+<!-- LEFT PANEL -->
 <div class="col-md-7">
-
 <div class="card shadow-sm">
 <div class="card-body">
 
-<h6 class="mb-3">Pond Configuration</h6>
+<h6 class="mb-3">Configuration</h6>
 
 <!-- SECTION -->
 <div class="mb-3">
@@ -96,8 +105,8 @@ $subsections = $subsections->fetchAll(PDO::FETCH_ASSOC);
 
 <!-- CAPACITY -->
 <div class="col-md-6 mb-3">
-    <label class="form-label">Capacity per Pond</label>
-    <input type="number" name="capacity" class="form-control" required>
+    <label class="form-label">Capacity (Fish)</label>
+    <input type="number" name="capacity" id="capacity" class="form-control" required>
 </div>
 
 </div>
@@ -111,25 +120,52 @@ $subsections = $subsections->fetchAll(PDO::FETCH_ASSOC);
     </select>
 </div>
 
+<hr>
+
+<h6 class="mb-3">Physical Properties</h6>
+
+<div class="row">
+
+<div class="col-md-6 mb-3">
+    <label class="form-label">Size Label</label>
+    <input type="text" name="size_label" class="form-control" placeholder="e.g 20x20 or 1000L">
+</div>
+
+<div class="col-md-3 mb-3">
+    <label class="form-label">Length (ft)</label>
+    <input type="number" step="0.01" name="length_ft" id="length" class="form-control">
+</div>
+
+<div class="col-md-3 mb-3">
+    <label class="form-label">Width (ft)</label>
+    <input type="number" step="0.01" name="width_ft" id="width" class="form-control">
+</div>
+
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Volume (Liters)</label>
+    <input type="number" step="0.01" name="volume_liters" id="volume" class="form-control">
+</div>
+
 <button class="btn btn-primary w-100">
     Generate Ponds
 </button>
 
 </div>
 </div>
-
 </div>
 
-<!-- RIGHT SIDE (LIVE PREVIEW) -->
+<!-- RIGHT PANEL -->
 <div class="col-md-5">
 
 <div class="card shadow-sm">
 <div class="card-body">
 
-<h6 class="mb-3">Preview</h6>
+<h6>Preview</h6>
 
 <div id="preview" class="preview-box text-muted">
-    Select a sub-section and quantity to preview pond codes
+    Select sub-section and quantity
 </div>
 
 <hr>
@@ -155,6 +191,9 @@ const subs = <?= json_encode($subsections) ?>;
 const sectionEl = document.getElementById('section');
 const subEl     = document.getElementById('subsection');
 const qtyEl     = document.getElementById('quantity');
+const lengthEl  = document.getElementById('length');
+const widthEl   = document.getElementById('width');
+const volumeEl  = document.getElementById('volume');
 
 const previewBox = document.getElementById('preview');
 const summaryBox = document.getElementById('summary');
@@ -190,7 +229,22 @@ sectionEl.addEventListener('change', function () {
 });
 
 /**
- * PREVIEW GENERATOR
+ * AUTO VOLUME CALC
+ */
+function autoVolume() {
+    const l = parseFloat(lengthEl.value);
+    const w = parseFloat(widthEl.value);
+
+    if (l && w) {
+        volumeEl.value = Math.round(l * w * 28.3);
+    }
+}
+
+lengthEl.addEventListener('input', autoVolume);
+widthEl.addEventListener('input', autoVolume);
+
+/**
+ * PREVIEW
  */
 function updatePreview() {
 
@@ -198,7 +252,7 @@ function updatePreview() {
     const qty   = parseInt(qtyEl.value) || 0;
 
     if (!subId || qty <= 0) {
-        previewBox.innerHTML = "Select valid inputs to preview";
+        previewBox.innerHTML = "Select valid inputs";
         summaryBox.innerHTML = "No configuration yet";
         return;
     }
@@ -213,9 +267,7 @@ function updatePreview() {
         html += sub.code + '-' + seq + '<br>';
     }
 
-    if (qty > 20) {
-        html += '...';
-    }
+    if (qty > 20) html += '...';
 
     previewBox.innerHTML = html;
 
