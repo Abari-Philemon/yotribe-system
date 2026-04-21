@@ -99,7 +99,7 @@ try {
      */
     $stmt = $pdo->prepare("
         INSERT INTO pond_stocking 
-        (pond_id, quantity, current_count, status)
+        (pond_id, stock_count, current_count, status)
         VALUES (?, ?, ?, 'active')
     ");
     $stmt->execute([$pond_id, $qty, $qty]);
