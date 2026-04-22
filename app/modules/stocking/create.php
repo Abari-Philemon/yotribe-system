@@ -50,7 +50,7 @@ $pondStock = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 /**
  * STOCKING RATIO
  */
-$ratio = getStockingRatio($pdo);
+
 ?>
 
 <!DOCTYPE html>
