@@ -11,18 +11,30 @@ try {
     $pdo->beginTransaction();
 
     /**
+     * -----------------------------------------
      * SAFE INPUTS
+     * -----------------------------------------
      */
     $pond_id  = isset($_POST['pond_id']) ? (int)$_POST['pond_id'] : 0;
     $batch_id = isset($_POST['batch_id']) ? (int)$_POST['batch_id'] : 0;
     $qty      = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 0;
 
-    if ($pond_id <= 0) throw new Exception("Pond is required");
-    if ($batch_id <= 0) throw new Exception("Batch is required");
-    if ($qty <= 0) throw new Exception("Invalid quantity");
+    if ($pond_id <= 0) {
+        throw new Exception("Pond is required");
+    }
+
+    if ($batch_id <= 0) {
+        throw new Exception("Batch is required");
+    }
+
+    if ($qty <= 0) {
+        throw new Exception("Invalid quantity");
+    }
 
     /**
-     * LOCK BATCH
+     * -----------------------------------------
+     * LOCK BATCH (CRITICAL)
+     * -----------------------------------------
      */
     $stmt = $pdo->prepare("
         SELECT id, current_count, status, avg_weight_g
@@ -34,7 +46,9 @@ try {
 
     $batch = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$batch) throw new Exception("Invalid batch");
+    if (!$batch) {
+        throw new Exception("Invalid batch");
+    }
 
     if ($batch['status'] !== 'active') {
         throw new Exception("Batch is not active");
@@ -45,60 +59,39 @@ try {
     }
 
     /**
-     * LOCK POND
+     * -----------------------------------------
+     * LOCK POND (CRITICAL)
+     * -----------------------------------------
+     * We call helper AFTER lock to avoid race conditions
      */
     $stmt = $pdo->prepare("
-        SELECT volume_liters, capacity
+        SELECT id
         FROM ponds_tanks
         WHERE id = ? AND farm_id = ?
         FOR UPDATE
     ");
     $stmt->execute([$pond_id, $farm_id]);
 
-    $pond = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$pond) throw new Exception("Invalid pond");
-
-    if ($pond['volume_liters'] <= 0) {
-        throw new Exception("Pond volume not set");
+    if (!$stmt->fetch()) {
+        throw new Exception("Invalid pond");
     }
 
     /**
-     * CALCULATE LIMIT
+     * -----------------------------------------
+     * VALIDATE STOCKING (CENTRAL ENGINE)
+     * -----------------------------------------
      */
-   
+    validateStocking($pdo, $pond_id, $farm_id, $qty);
 
     /**
-     * CURRENT STOCK (FARM SAFE)
-     */
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(current_count),0)
-        FROM pond_stocking
-        WHERE pond_id = ?
-        AND farm_id = ?
-        AND status = 'active'
-    ");
-    $stmt->execute([$pond_id, $farm_id]);
-
-    $current_stock = (int)$stmt->fetchColumn();
-
-    if ($current_stock >= $max_allowed) {
-        throw new Exception("Pond is already full");
-    }
-
-    $remaining = $max_allowed - $current_stock;
-
-    if ($qty > $remaining) {
-        throw new Exception("Pond limit exceeded. Max you can add is {$remaining}");
-    }
-
-    /**
-     * INSERT STOCKING
+     * -----------------------------------------
+     * INSERT STOCKING RECORD
+     * -----------------------------------------
      */
     $stmt = $pdo->prepare("
         INSERT INTO pond_stocking
-        (farm_id, pond_id, batch_id, stocked_count, current_count, avg_weight_g, stocking_date)
-        VALUES (?, ?, ?, ?, ?, ?, CURDATE())
+        (farm_id, pond_id, batch_id, stocked_count, current_count, avg_weight_g, stocking_date, status)
+        VALUES (?, ?, ?, ?, ?, ?, CURDATE(), 'active')
     ");
 
     $stmt->execute([
@@ -107,11 +100,13 @@ try {
         $batch_id,
         $qty,
         $qty,
-        $batch['avg_weight_g'] // <-- FIXED
+        $batch['avg_weight_g'] ?? 0
     ]);
 
     /**
-     * REDUCE BATCH
+     * -----------------------------------------
+     * UPDATE BATCH INVENTORY
+     * -----------------------------------------
      */
     $stmt = $pdo->prepare("
         UPDATE fish_batches
@@ -121,7 +116,9 @@ try {
     $stmt->execute([$qty, $batch_id]);
 
     /**
-     * AUTO CLOSE BATCH
+     * -----------------------------------------
+     * AUTO CLOSE BATCH IF EMPTY
+     * -----------------------------------------
      */
     $stmt = $pdo->prepare("
         UPDATE fish_batches
@@ -131,6 +128,11 @@ try {
     ");
     $stmt->execute([$batch_id]);
 
+    /**
+     * -----------------------------------------
+     * COMMIT TRANSACTION
+     * -----------------------------------------
+     */
     $pdo->commit();
 
     header("Location: index.php?success=1");
