@@ -66,8 +66,7 @@ try {
     /**
      * CALCULATE LIMIT
      */
-    $max_by_volume = calculateMaxStock($pdo, $pond['volume_liters']);
-    $max_allowed   = min($max_by_volume, (int)$pond['capacity']);
+   
 
     /**
      * CURRENT STOCK (FARM SAFE)
