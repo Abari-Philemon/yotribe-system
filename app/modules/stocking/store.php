@@ -10,19 +10,22 @@ try {
 
     $pdo->beginTransaction();
 
-    $pond_id  = (int) $_POST['pond_id'];
-    $batch_id = (int) $_POST['batch_id'];
-    $qty      = (int) $_POST['quantity'];
+    /**
+     * SAFE INPUTS
+     */
+    $pond_id  = isset($_POST['pond_id']) ? (int)$_POST['pond_id'] : 0;
+    $batch_id = isset($_POST['batch_id']) ? (int)$_POST['batch_id'] : 0;
+    $qty      = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 0;
 
-    if ($qty <= 0) {
-        throw new Exception("Invalid quantity");
-    }
+    if ($pond_id <= 0) throw new Exception("Pond is required");
+    if ($batch_id <= 0) throw new Exception("Batch is required");
+    if ($qty <= 0) throw new Exception("Invalid quantity");
 
     /**
      * LOCK BATCH
      */
     $stmt = $pdo->prepare("
-        SELECT id, current_count, status
+        SELECT id, current_count, status, avg_weight_g
         FROM fish_batches
         WHERE id = ? AND farm_id = ?
         FOR UPDATE
@@ -67,27 +70,31 @@ try {
     $max_allowed   = min($max_by_volume, (int)$pond['capacity']);
 
     /**
-     * CURRENT STOCK IN POND (IMPORTANT CHANGE)
+     * CURRENT STOCK (FARM SAFE)
      */
     $stmt = $pdo->prepare("
         SELECT COALESCE(SUM(current_count),0)
         FROM pond_stocking
         WHERE pond_id = ?
+        AND farm_id = ?
         AND status = 'active'
     ");
-    $stmt->execute([$pond_id]);
+    $stmt->execute([$pond_id, $farm_id]);
 
     $current_stock = (int)$stmt->fetchColumn();
 
-    $new_total = $current_stock + $qty;
+    if ($current_stock >= $max_allowed) {
+        throw new Exception("Pond is already full");
+    }
 
-    if ($new_total > $max_allowed) {
-        $remaining = $max_allowed - $current_stock;
-        throw new Exception("Pond limit exceeded. You can only add {$remaining}");
+    $remaining = $max_allowed - $current_stock;
+
+    if ($qty > $remaining) {
+        throw new Exception("Pond limit exceeded. Max you can add is {$remaining}");
     }
 
     /**
-     * INSERT INTO pond_stocking
+     * INSERT STOCKING
      */
     $stmt = $pdo->prepare("
         INSERT INTO pond_stocking
@@ -100,8 +107,8 @@ try {
         $pond_id,
         $batch_id,
         $qty,
-        $qty, // <-- critical
-        0
+        $qty,
+        $batch['avg_weight_g'] // <-- FIXED
     ]);
 
     /**
