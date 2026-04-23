@@ -111,19 +111,89 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$farm_id]);
 $stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 $attention = [];
 $growth_data = [];
 $feeding_data = [];
 $fcr_data = [];
 
+/**
+ * LOAD ALL REQUIRED DATA IN BULK (OPTIMIZED)
+ */
+$stmt = $pdo->prepare("
+    SELECT 
+        ps.pond_id,
+        ps.batch_id,
+        ps.current_count,
+        ps.avg_weight_g,
+        p.pond_code
+    FROM pond_stocking ps
+    JOIN ponds_tanks p ON p.id = ps.pond_id
+    WHERE ps.farm_id = ? AND ps.status = 'active'
+");
+$stmt->execute([$farm_id]);
+$stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * PRELOAD FEED TODAY (GROUPED)
+ */
+$stmt = $pdo->prepare("
+    SELECT pond_id, SUM(quantity_kg) AS fed_today
+    FROM feeding_logs
+    WHERE farm_id = ? AND date = CURDATE()
+    GROUP BY pond_id
+");
+$stmt->execute([$farm_id]);
+$feed_today_map = [];
+foreach ($stmt->fetchAll() as $f) {
+    $feed_today_map[$f['pond_id']] = (float)$f['fed_today'];
+}
+
+/**
+ * PRELOAD GROWTH RANGE
+ */
+$stmt = $pdo->prepare("
+    SELECT pond_id, batch_id,
+           MIN(avg_weight_g) AS start_w,
+           MAX(avg_weight_g) AS end_w
+    FROM fish_growth_logs
+    WHERE farm_id = ?
+    GROUP BY pond_id, batch_id
+");
+$stmt->execute([$farm_id]);
+
+$growth_map = [];
+foreach ($stmt->fetchAll() as $g) {
+    $key = $g['pond_id'].'_'.$g['batch_id'];
+    $growth_map[$key] = $g;
+}
+
+/**
+ * PRELOAD TOTAL FEED (PER POND)
+ */
+$stmt = $pdo->prepare("
+    SELECT pond_id, SUM(quantity_kg) AS total_feed
+    FROM feeding_logs
+    WHERE farm_id = ?
+    GROUP BY pond_id
+");
+$stmt->execute([$farm_id]);
+
+$feed_total_map = [];
+foreach ($stmt->fetchAll() as $f) {
+    $feed_total_map[$f['pond_id']] = (float)$f['total_feed'];
+}
+
+/**
+ * LOOP (CLEAN + FAST)
+ */
 foreach ($stocks as $s) {
 
     $pond_id  = $s['pond_id'];
     $batch_id = $s['batch_id'];
+    $key      = $pond_id.'_'.$batch_id;
 
     /**
-     * GROWTH
+     * GROWTH INTELLIGENCE
      */
     $sgr       = calculateSGR($pdo, $pond_id, $batch_id);
     $predicted = predictNextWeight($pdo, $pond_id, $batch_id);
@@ -137,19 +207,13 @@ foreach ($stocks as $s) {
     ];
 
     if ($alert) {
-        $attention[] = "{$s['pond_code']}: {$alert}";
+        $attention[$s['pond_code']] = "{$s['pond_code']}: {$alert}";
     }
 
     /**
-     * FEEDING TODAY
+     * FEEDING CONTROL
      */
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(quantity_kg),0)
-        FROM feeding_logs
-        WHERE pond_id = ? AND date = CURDATE()
-    ");
-    $stmt->execute([$pond_id]);
-    $fed_today = (float)$stmt->fetchColumn();
+    $fed_today = $feed_today_map[$pond_id] ?? 0;
 
     if ($s['current_count'] > 0 && $s['avg_weight_g'] > 0) {
 
@@ -168,48 +232,41 @@ foreach ($stocks as $s) {
         ];
 
         if ($fed_today > $recommended) {
-            $attention[] = "{$s['pond_code']}: Overfeeding detected";
+            $attention[$s['pond_code'].'_feed'] = "{$s['pond_code']}: Overfeeding detected";
         }
     }
 
     /**
-     * FCR (IMPROVED)
+     * TRUE FCR (SCIENTIFIC)
      */
-    $stmt = $pdo->prepare("
-        SELECT 
-            SUM(fl.quantity_kg) AS feed,
-            MIN(gl.avg_weight_g) AS start_w,
-            MAX(gl.avg_weight_g) AS end_w
-        FROM feeding_logs fl
-        JOIN fish_growth_logs gl 
-            ON gl.batch_id = ? AND gl.pond_id = ?
-        WHERE fl.pond_id = ?
-    ");
-    $stmt->execute([$batch_id, $pond_id, $pond_id]);
-    $f = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (isset($growth_map[$key]) && isset($feed_total_map[$pond_id])) {
 
-    if ($f && $f['end_w'] > $f['start_w']) {
+        $g = $growth_map[$key];
 
-        $weight_gain = $f['end_w'] - $f['start_w'];
-        $biomass_gain = ($weight_gain * $s['current_count']) / 1000;
+        if ($g['end_w'] > $g['start_w']) {
 
-        if ($biomass_gain > 0) {
-            $fcr = $f['feed'] / $biomass_gain;
+            $weight_gain = $g['end_w'] - $g['start_w'];
+            $biomass_gain = ($weight_gain * $s['current_count']) / 1000;
 
-            $fcr_data[] = [
-                'pond' => $s['pond_code'],
-                'fcr'  => $fcr
-            ];
+            if ($biomass_gain > 0) {
 
-            if ($fcr > 2) {
-                $attention[] = "{$s['pond_code']}: Poor FCR";
+                $fcr = $feed_total_map[$pond_id] / $biomass_gain;
+
+                $fcr_data[] = [
+                    'pond' => $s['pond_code'],
+                    'fcr'  => $fcr
+                ];
+
+                if ($fcr > 2) {
+                    $attention[$s['pond_code'].'_fcr'] = "{$s['pond_code']}: Poor FCR";
+                }
             }
         }
     }
 }
 
 /**
- * MORTALITY SPIKE (SMARTER)
+ * MORTALITY SPIKE
  */
 $stmt = $pdo->prepare("
     SELECT p.pond_code, SUM(m.dead_count) AS deaths
@@ -223,9 +280,14 @@ $stmt->execute([$farm_id]);
 
 foreach ($stmt->fetchAll() as $m) {
     if ($m['deaths'] > 30) {
-        $attention[] = "{$m['pond_code']}: Mortality spike ({$m['deaths']})";
+        $attention[$m['pond_code'].'_mort'] = "{$m['pond_code']}: Mortality spike ({$m['deaths']})";
     }
 }
+
+/**
+ * FINAL CLEAN ARRAY
+ */
+$attention = array_values($attention);
 ?>
 
 <!DOCTYPE html>
