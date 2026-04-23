@@ -7,6 +7,8 @@ require_once __DIR__ . '/../../config/database.php';
 
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
+$stmt = $pdo->query("SELECT * FROM feed_store ORDER BY updated_at DESC");
+$feeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $farm_id = farm_id();
 
