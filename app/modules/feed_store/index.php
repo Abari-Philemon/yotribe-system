@@ -8,8 +8,54 @@ require_once __DIR__ . '/../../config/database.php';
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
 
-$stmt = $pdo->query("SELECT * FROM feed_store ORDER BY updated_at DESC");
-$feeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$farm_id = farm_id();
+
+/**
+ * SUMMARY (GROUPED)
+ */
+$stmt = $pdo->prepare("
+    SELECT 
+        feed_type,
+        SUM(quantity_kg) AS total_qty,
+        AVG(cost_per_kg) AS avg_cost,
+        SUM(quantity_kg * cost_per_kg) AS total_value
+    FROM feed_store
+    WHERE farm_id = ?
+    GROUP BY feed_type
+");
+$stmt->execute([$farm_id]);
+$summary = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * BATCH DETAILS (FIFO VIEW)
+ */
+$stmt = $pdo->prepare("
+    SELECT *
+    FROM feed_store
+    WHERE farm_id = ?
+    ORDER BY updated_at ASC
+");
+$stmt->execute([$farm_id]);
+$batches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * ALERTS
+ */
+$alerts = [];
+
+foreach ($summary as $s) {
+    if ($s['total_qty'] < 50) {
+        $alerts[] = "Low stock: {$s['feed_type']} ({$s['total_qty']} kg left)";
+    }
+}
+
+foreach ($batches as $b) {
+    $days = (time() - strtotime($b['updated_at'])) / 86400;
+
+    if ($days > 30 && $b['quantity_kg'] > 0) {
+        $alerts[] = "Old stock: {$b['feed_type']} batch {$b['batch_no']} ({$b['quantity_kg']} kg)";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -97,6 +143,19 @@ $feeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </table>
                 </div>
             </div>
+            <div class="alert alert-warning">
+        <strong>⚠ Feed Alerts</strong>
+
+        <?php if(empty($alerts)): ?>
+            <div class="text-muted">No issues detected</div>
+        <?php else: ?>
+            <ul class="mb-0">
+                <?php foreach($alerts as $a): ?>
+                    <li><?= htmlspecialchars($a) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+        </div>
 
         </main>
     </div>
