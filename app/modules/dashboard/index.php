@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../middleware/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
 
+
 authorize('dashboard');
 
 /**
@@ -92,6 +93,139 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([farm_id()]);
 $alerts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+require_once __DIR__ . '/../../helpers/growth_helper.php';
+
+/**
+ * LOAD ACTIVE STOCKING
+ */
+$stmt = $pdo->prepare("
+    SELECT 
+        ps.pond_id,
+        ps.batch_id,
+        ps.current_count,
+        ps.avg_weight_g,
+        p.pond_code
+    FROM pond_stocking ps
+    JOIN ponds_tanks p ON p.id = ps.pond_id
+    WHERE ps.farm_id = ? AND ps.status = 'active'
+");
+$stmt->execute([$farm_id]);
+$stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$attention = [];
+$growth_data = [];
+$feeding_data = [];
+$fcr_data = [];
+
+foreach ($stocks as $s) {
+
+    $pond_id  = $s['pond_id'];
+    $batch_id = $s['batch_id'];
+
+    /**
+     * GROWTH
+     */
+    $sgr       = calculateSGR($pdo, $pond_id, $batch_id);
+    $predicted = predictNextWeight($pdo, $pond_id, $batch_id);
+    $alert     = growthAlert($pdo, $pond_id, $batch_id);
+
+    $growth_data[] = [
+        'pond' => $s['pond_code'],
+        'sgr'  => $sgr,
+        'pred' => $predicted,
+        'alert'=> $alert
+    ];
+
+    if ($alert) {
+        $attention[] = "{$s['pond_code']}: {$alert}";
+    }
+
+    /**
+     * FEEDING TODAY
+     */
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(quantity_kg),0)
+        FROM feeding_logs
+        WHERE pond_id = ? AND date = CURDATE()
+    ");
+    $stmt->execute([$pond_id]);
+    $fed_today = (float)$stmt->fetchColumn();
+
+    if ($s['current_count'] > 0 && $s['avg_weight_g'] > 0) {
+
+        $biomass = ($s['current_count'] * $s['avg_weight_g']) / 1000;
+
+        if ($s['avg_weight_g'] < 50) $rate = 0.05;
+        elseif ($s['avg_weight_g'] < 200) $rate = 0.03;
+        else $rate = 0.02;
+
+        $recommended = $biomass * $rate;
+
+        $feeding_data[] = [
+            'pond' => $s['pond_code'],
+            'recommended' => $recommended,
+            'actual' => $fed_today
+        ];
+
+        if ($fed_today > $recommended) {
+            $attention[] = "{$s['pond_code']}: Overfeeding detected";
+        }
+    }
+
+    /**
+     * FCR (IMPROVED)
+     */
+    $stmt = $pdo->prepare("
+        SELECT 
+            SUM(fl.quantity_kg) AS feed,
+            MIN(gl.avg_weight_g) AS start_w,
+            MAX(gl.avg_weight_g) AS end_w
+        FROM feeding_logs fl
+        JOIN fish_growth_logs gl 
+            ON gl.batch_id = ? AND gl.pond_id = ?
+        WHERE fl.pond_id = ?
+    ");
+    $stmt->execute([$batch_id, $pond_id, $pond_id]);
+    $f = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($f && $f['end_w'] > $f['start_w']) {
+
+        $weight_gain = $f['end_w'] - $f['start_w'];
+        $biomass_gain = ($weight_gain * $s['current_count']) / 1000;
+
+        if ($biomass_gain > 0) {
+            $fcr = $f['feed'] / $biomass_gain;
+
+            $fcr_data[] = [
+                'pond' => $s['pond_code'],
+                'fcr'  => $fcr
+            ];
+
+            if ($fcr > 2) {
+                $attention[] = "{$s['pond_code']}: Poor FCR";
+            }
+        }
+    }
+}
+
+/**
+ * MORTALITY SPIKE (SMARTER)
+ */
+$stmt = $pdo->prepare("
+    SELECT p.pond_code, SUM(m.dead_count) AS deaths
+    FROM mortality_logs m
+    JOIN ponds_tanks p ON p.id = m.pond_id
+    WHERE m.farm_id = ?
+    AND m.date >= CURDATE() - INTERVAL 3 DAY
+    GROUP BY m.pond_id
+");
+$stmt->execute([$farm_id]);
+
+foreach ($stmt->fetchAll() as $m) {
+    if ($m['deaths'] > 30) {
+        $attention[] = "{$m['pond_code']}: Mortality spike ({$m['deaths']})";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -158,6 +292,19 @@ $alerts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
 
     <h1 class="h3">Executive Dashboard</h1>
+    <div class="alert alert-danger shadow-sm">
+    <strong>⚠ Attention Required</strong>
+
+    <?php if (empty($attention)): ?>
+        <div class="text-muted">No critical issues detected</div>
+    <?php else: ?>
+        <ul class="mb-0">
+            <?php foreach ($attention as $a): ?>
+                <li><?= htmlspecialchars($a) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+    </div>
 
     <div class="d-flex align-items-center gap-2">
 
@@ -215,6 +362,64 @@ $alerts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <h4><?= $high_mortality ?> Today</h4>
 </div></div></div>
 
+</div>
+<div class="card mt-4 shadow">
+<div class="card-body">
+<h6>Growth Intelligence</h6>
+
+<table class="table table-sm">
+<tr><th>Pond</th><th>SGR</th><th>Prediction</th><th>Status</th></tr>
+
+<?php foreach ($growth_data as $g): ?>
+<tr>
+<td><?= $g['pond'] ?></td>
+<td><?= $g['sgr'] ?? '-' ?>%</td>
+<td><?= $g['pred'] ? round($g['pred'],2).'g' : '-' ?></td>
+<td><?= $g['alert'] ?? 'OK' ?></td>
+</tr>
+<?php endforeach; ?>
+
+</table>
+</div>
+</div>
+<div class="card mt-4 shadow">
+<div class="card-body">
+<h6>Feeding Control (Today)</h6>
+
+<table class="table table-sm">
+<tr><th>Pond</th><th>Recommended</th><th>Actual</th></tr>
+
+<?php foreach ($feeding_data as $f): ?>
+<tr>
+<td><?= $f['pond'] ?></td>
+<td><?= round($f['recommended'],2) ?> kg</td>
+<td class="<?= $f['actual'] > $f['recommended'] ? 'text-danger' : 'text-success' ?>">
+<?= round($f['actual'],2) ?> kg
+</td>
+</tr>
+<?php endforeach; ?>
+
+</table>
+</div>
+</div>
+<div class="card mt-4 shadow">
+<div class="card-body">
+<h6>FCR Monitoring</h6>
+
+<table class="table table-sm">
+<tr><th>Pond</th><th>FCR</th></tr>
+
+<?php foreach ($fcr_data as $f): ?>
+<tr>
+<td><?= $f['pond'] ?></td>
+<td class="<?= $f['fcr'] > 2 ? 'text-danger' : 'text-success' ?>">
+<?= round($f['fcr'],2) ?>
+</td>
+</tr>
+<?php endforeach; ?>
+
+</table>
+</div>
 </div>
 
 <!-- CHARTS -->
