@@ -134,6 +134,7 @@ $alerts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/ponds/index.php">Ponds</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/stocking/index.php">Stocking</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/mortality/index.php">Mortality</a></li>
+        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/growth/index.php">Growth</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/hatchery/index.php">Hatchery</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/maggot/index.php">Maggot Production</a></li>
         <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/water/index.php">Water Quality</a></li>
