@@ -195,11 +195,10 @@ $stmt->execute([$farm_id]);
 $total_stock = $stmt->fetchColumn();
 
 $stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(quantity_kg),0)
-    FROM feed_store_logs
-    WHERE farm_id = ?
-      AND movement_type='issue'
-      AND DATE(created_at)=CURDATE()
+SELECT COALESCE(SUM(issued),0)
+FROM feed_store_logs
+WHERE farm_id = ?
+AND DATE(date)=CURDATE()
 ");
 $stmt->execute([$farm_id]);
 $today_issue = $stmt->fetchColumn();
