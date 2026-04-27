@@ -54,45 +54,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             /**
              * CREATE STOCK BATCH
              */
-            $stmt = $pdo->prepare("
-                INSERT INTO feed_store (
-                    feed_type,
-                    farm_id,
-                    batch_no,
-                    received_date,
-                    manufacture_date,
-                    expiry_date,
-                    supplier_name,
-                    quantity_kg,
-                    initial_quantity_kg,
-                    cost_per_kg,
-                    total_cost,
-                    status,
-                    notes,
-                    bag_count,
-                    bag_weight_kg
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ");
+        $stmt = $pdo->prepare("
+        INSERT INTO feed_store (
+            feed_type,
+            farm_id,
+            batch_no,
+            received_date,
+            manufacture_date,
+            expiry_date,
+            supplier_name,
+            quantity_kg,
+            initial_quantity_kg,
+            cost_per_kg,
+            total_cost,
+            low_stock_level,
+            status,
+            notes,
+            bag_count,
+            bag_weight_kg
+        ) VALUES (
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+        )
+        ");
 
-            $stmt->execute([
-                $feed_type,
-                $farm_id,
-                $batch_no,
-                $received_date,
-                $manufacture_date,
-                $expiry_date,
-                $supplier_name,
-                $quantity_kg,
-                $quantity_kg,
-                $cost_per_kg,
-                $total_cost,
-                'active',
-                $notes,
-                $bag_count,
-                $bag_weight_kg
-            ]);
-
-            /**
+        $stmt->execute([
+            $feed_type,
+            $farm_id,
+            $batch_no,
+            $received_date,
+            $manufacture_date,
+            $expiry_date,
+            $supplier_name,
+            $quantity_kg,
+            $quantity_kg,
+            $cost_per_kg,
+            $total_cost,
+            50,
+            'active',
+            $notes,
+            $bag_count,
+            $bag_weight_kg
+        ]);
+                    /**
              * STORE LOG
              */
             $stmt = $pdo->prepare("
