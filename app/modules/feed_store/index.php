@@ -10,13 +10,13 @@ require_role(['super_admin','storekeeper','manager','owner']);
 $farm_id = farm_id();
 
 /**
- * SUMMARY KPI
+ * KPI SUMMARY
  */
 $stmt = $pdo->prepare("
     SELECT
-        COALESCE(SUM(quantity_kg),0) AS total_stock,
-        COALESCE(SUM(total_cost),0) AS stock_value,
-        COUNT(*) AS total_batches
+        COALESCE(SUM(quantity_kg),0) total_stock,
+        COALESCE(SUM(quantity_kg * cost_per_kg),0) stock_value,
+        COUNT(*) total_batches
     FROM feed_store
     WHERE farm_id = ?
 ");
@@ -30,28 +30,28 @@ $stmt = $pdo->prepare("
     SELECT COUNT(*)
     FROM feed_store
     WHERE farm_id = ?
-      AND quantity_kg > 0
-      AND quantity_kg <= low_stock_level
+    AND quantity_kg > 0
+    AND quantity_kg <= low_stock_level
 ");
 $stmt->execute([$farm_id]);
-$low_stock_count = (int)$stmt->fetchColumn();
+$low_stock = (int)$stmt->fetchColumn();
 
 /**
- * EXPIRING WITHIN 30 DAYS
+ * EXPIRING
  */
 $stmt = $pdo->prepare("
     SELECT COUNT(*)
     FROM feed_store
     WHERE farm_id = ?
-      AND expiry_date IS NOT NULL
-      AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
-      AND status = 'active'
+    AND expiry_date IS NOT NULL
+    AND expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+    AND status='active'
 ");
 $stmt->execute([$farm_id]);
-$expiring_count = (int)$stmt->fetchColumn();
+$expiring = (int)$stmt->fetchColumn();
 
 /**
- * MAIN STOCK LIST
+ * STOCK LIST
  */
 $stmt = $pdo->prepare("
     SELECT *
@@ -60,51 +60,155 @@ $stmt = $pdo->prepare("
     ORDER BY
         CASE WHEN status='active' THEN 1 ELSE 2 END,
         received_date ASC,
-        updated_at DESC
+        id DESC
 ");
 $stmt->execute([$farm_id]);
-$feeds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-function badgeStatus($status){
-    if($status === 'active') return 'success';
-    if($status === 'finished') return 'secondary';
-    if($status === 'expired') return 'danger';
-    return 'dark';
+function statusColor($status){
+    return match($status){
+        'active'   => 'success',
+        'finished' => 'secondary',
+        'expired'  => 'danger',
+        default    => 'dark'
+    };
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Feed Store | Yotribe Agro</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-body{
-    background:#f5f7fb;
+:root{
+    --primary:#0d6efd;
+    --dark:#111827;
+    --muted:#6b7280;
+    --card:#ffffff;
+    --bg:#f4f7fb;
+    --line:#e5e7eb;
 }
+
+body{
+    background:var(--bg);
+    font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--dark);
+}
+
 .sidebar{
     min-height:100vh;
+    background:#fff;
+    border-right:1px solid var(--line);
 }
-.card{
-    border:none;
-    border-radius:16px;
+
+.brand{
+    font-weight:800;
+    letter-spacing:.4px;
 }
-.kpi{
+
+.nav-link{
+    color:#374151;
+    border-radius:10px;
+    padding:10px 14px;
+}
+
+.nav-link:hover{
+    background:#eef4ff;
+    color:var(--primary);
+}
+
+.nav-link.active{
+    background:linear-gradient(135deg,#0d6efd,#084298);
+    color:#fff !important;
+}
+
+.page-title{
+    font-weight:800;
+    font-size:28px;
+}
+
+.sub-title{
+    color:var(--muted);
+    font-size:14px;
+}
+
+.glass-card{
+    background:rgba(255,255,255,.9);
+    border:1px solid rgba(255,255,255,.8);
+    border-radius:18px;
+    box-shadow:0 10px 25px rgba(0,0,0,.06);
+}
+
+.kpi-card{
+    padding:20px;
+    border-radius:18px;
     color:#fff;
+    min-height:120px;
 }
-.kpi h3{
-    margin:0;
-    font-weight:700;
+
+.kpi-card small{
+    opacity:.9;
+    font-size:13px;
 }
+
+.kpi-card h3{
+    margin-top:10px;
+    font-weight:800;
+}
+
+.kpi-1{background:linear-gradient(135deg,#0d6efd,#0a58ca);}
+.kpi-2{background:linear-gradient(135deg,#198754,#157347);}
+.kpi-3{background:linear-gradient(135deg,#f59e0b,#d97706);}
+.kpi-4{background:linear-gradient(135deg,#dc3545,#b02a37);}
+
+.table-wrap{
+    border-radius:18px;
+    overflow:hidden;
+}
+
 .table thead th{
+    background:#111827;
+    color:#fff;
+    font-size:13px;
+    border:none;
     white-space:nowrap;
 }
-.small-muted{
-    font-size:13px;
-    color:#6c757d;
+
+.table tbody td{
+    vertical-align:middle;
+    border-color:#f1f1f1;
+}
+
+.badge-soft{
+    padding:7px 10px;
+    border-radius:30px;
+}
+
+.search-box{
+    border-radius:12px;
+    padding:10px 14px;
+}
+
+.top-actions .btn{
+    border-radius:12px;
+    padding:10px 16px;
+}
+
+.stock-number{
+    font-weight:700;
+}
+
+.feed-name{
+    font-weight:700;
+}
+
+.muted{
+    color:var(--muted);
+    font-size:12px;
 }
 </style>
 </head>
@@ -114,183 +218,188 @@ body{
 <div class="row">
 
 <!-- SIDEBAR -->
-<nav class="col-md-2 bg-white shadow-sm sidebar p-3">
-    <h5 class="fw-bold mb-4">Yotribe Agro</h5>
+<div class="col-md-2 sidebar p-4">
 
-    <ul class="nav flex-column gap-2">
-        <li><a href="../dashboard/index.php" class="nav-link">Dashboard</a></li>
-        <li><a href="../feeding/index.php" class="nav-link">Feeding</a></li>
-        <li><a href="index.php" class="nav-link active fw-bold text-primary">Feed Store</a></li>
-        <li><a href="received.php" class="nav-link">Receive Feed</a></li>
-        <li><a href="issue.php" class="nav-link">Issue Feed</a></li>
-        <li><a href="logs.php" class="nav-link">Logs</a></li>
-    </ul>
-</nav>
+<div class="brand fs-4 mb-4">Yotribe Agro</div>
+
+<ul class="nav flex-column gap-2">
+<li><a href="../dashboard/index.php" class="nav-link">Dashboard</a></li>
+<li><a href="../feeding/index.php" class="nav-link">Feeding</a></li>
+<li><a href="index.php" class="nav-link active">Feed Store</a></li>
+<li><a href="received.php" class="nav-link">Receive Feed</a></li>
+<li><a href="issue.php" class="nav-link">Issue Feed</a></li>
+<li><a href="logs.php" class="nav-link">Logs</a></li>
+</ul>
+
+</div>
 
 <!-- MAIN -->
-<main class="col-md-10 p-4">
+<div class="col-md-10 p-4">
 
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <div>
-        <h3 class="mb-1">Feed Store Inventory</h3>
-        <div class="small-muted">Real-time stock position by batch (FIFO ready)</div>
-    </div>
+<!-- HEADER -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+<div>
+<div class="page-title">Feed Store Control Center</div>
+<div class="sub-title">Inventory intelligence, FIFO readiness, batch visibility and stock alerts.</div>
+</div>
 
-    <div class="d-flex gap-2">
-        <a href="received.php" class="btn btn-success">+ Receive Feed</a>
-        <a href="issue.php" class="btn btn-primary">Issue Feed</a>
-        <a href="logs.php" class="btn btn-dark">Logs</a>
-    </div>
+<div class="top-actions d-flex gap-2">
+<a href="received.php" class="btn btn-success">+ Receive Feed</a>
+<a href="issue.php" class="btn btn-primary">Issue Feed</a>
+<a href="logs.php" class="btn btn-dark">View Logs</a>
+</div>
 </div>
 
 <!-- KPI -->
 <div class="row g-3 mb-4">
 
 <div class="col-md-3">
-<div class="card bg-primary kpi shadow-sm p-3">
-<div>Total Stock</div>
+<div class="kpi-card kpi-1">
+<small>Total Stock</small>
 <h3><?= number_format($summary['total_stock'],2) ?> kg</h3>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="card bg-success kpi shadow-sm p-3">
-<div>Inventory Value</div>
+<div class="kpi-card kpi-2">
+<small>Inventory Value</small>
 <h3>₦<?= number_format($summary['stock_value'],2) ?></h3>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="card bg-warning text-dark shadow-sm p-3">
-<div>Low Stock Batches</div>
-<h3><?= $low_stock_count ?></h3>
+<div class="kpi-card kpi-3 text-dark">
+<small>Low Stock Alerts</small>
+<h3><?= $low_stock ?></h3>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="card bg-danger kpi shadow-sm p-3">
-<div>Expiring Soon</div>
-<h3><?= $expiring_count ?></h3>
+<div class="kpi-card kpi-4">
+<small>Expiring Soon</small>
+<h3><?= $expiring ?></h3>
 </div>
 </div>
 
 </div>
 
-<!-- TABLE -->
-<div class="card shadow-sm">
-<div class="card-body">
+<!-- TABLE CARD -->
+<div class="glass-card p-4">
 
-<div class="table-responsive">
-<table class="table table-hover align-middle">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+<h5 class="mb-0 fw-bold">Current Batch Inventory</h5>
 
-<thead class="table-dark">
+<input type="text" id="searchInput" class="form-control search-box" placeholder="Search feed / batch / supplier..." style="max-width:320px;">
+</div>
+
+<div class="table-responsive table-wrap">
+
+<table class="table table-hover align-middle mb-0" id="stockTable">
+
+<thead>
 <tr>
-<th>#</th>
-<th>Feed Type</th>
-<th>Batch No</th>
-<th>Qty (kg)</th>
+<th>Feed</th>
+<th>Batch</th>
+<th>Stock</th>
 <th>Bags</th>
-<th>Bag Size</th>
-<th>Cost/Kg</th>
-<th>Total Cost</th>
+<th>Cost</th>
 <th>Supplier</th>
 <th>Received</th>
 <th>Expiry</th>
 <th>Status</th>
-<th>Alerts</th>
+<th>Alert</th>
 </tr>
 </thead>
 
 <tbody>
 
-<?php if($feeds): ?>
-<?php foreach($feeds as $i => $f): ?>
+<?php foreach($rows as $r): ?>
 
 <?php
-$alertText = [];
+$alert = 'OK';
+$alertClass = 'success';
 
-if ($f['quantity_kg'] <= $f['low_stock_level'] && $f['quantity_kg'] > 0) {
-    $alertText[] = 'Low Stock';
+if ($r['quantity_kg'] <= $r['low_stock_level'] && $r['quantity_kg'] > 0){
+    $alert = 'Low Stock';
+    $alertClass = 'warning';
 }
 
-if (!empty($f['expiry_date']) && $f['expiry_date'] <= date('Y-m-d', strtotime('+30 days'))) {
-    $alertText[] = 'Near Expiry';
+if (!empty($r['expiry_date']) && $r['expiry_date'] <= date('Y-m-d', strtotime('+30 days'))){
+    $alert = 'Near Expiry';
+    $alertClass = 'danger';
 }
 
-if ($f['quantity_kg'] <= 0 && $f['status'] === 'active') {
-    $alertText[] = 'Should Finish';
+if ($r['status'] === 'expired'){
+    $alert = 'Expired';
+    $alertClass = 'danger';
 }
 ?>
 
 <tr>
-<td><?= $i + 1 ?></td>
-
 <td>
-<strong><?= htmlspecialchars($f['feed_type']) ?></strong>
-</td>
-
-<td><?= htmlspecialchars($f['batch_no']) ?></td>
-
-<td>
-<?= number_format($f['quantity_kg'],2) ?>
-</td>
-
-<td><?= (int)$f['bag_count'] ?></td>
-
-<td><?= number_format($f['bag_weight_kg'],2) ?> kg</td>
-
-<td>₦<?= number_format($f['cost_per_kg'],2) ?></td>
-
-<td>₦<?= number_format($f['total_cost'],2) ?></td>
-
-<td><?= htmlspecialchars($f['supplier_name']) ?></td>
-
-<td><?= $f['received_date'] ?></td>
-
-<td>
-<?= $f['expiry_date'] ? $f['expiry_date'] : '-' ?>
+<div class="feed-name"><?= htmlspecialchars($r['feed_type']) ?></div>
+<div class="muted"><?= number_format($r['bag_weight_kg'],2) ?>kg bags</div>
 </td>
 
 <td>
-<span class="badge bg-<?= badgeStatus($f['status']) ?>">
-<?= ucfirst($f['status']) ?>
+<strong><?= htmlspecialchars($r['batch_no']) ?></strong>
+</td>
+
+<td class="stock-number">
+<?= number_format($r['quantity_kg'],2) ?> kg
+</td>
+
+<td>
+<?= (int)$r['bag_count'] ?>
+</td>
+
+<td>
+₦<?= number_format($r['cost_per_kg'],2) ?>/kg
+<div class="muted">₦<?= number_format($r['total_cost'],2) ?></div>
+</td>
+
+<td><?= htmlspecialchars($r['supplier_name']) ?></td>
+
+<td><?= $r['received_date'] ?></td>
+
+<td><?= $r['expiry_date'] ?: '-' ?></td>
+
+<td>
+<span class="badge bg-<?= statusColor($r['status']) ?> badge-soft">
+<?= ucfirst($r['status']) ?>
 </span>
 </td>
 
 <td>
-<?php if($alertText): ?>
-<?php foreach($alertText as $a): ?>
-<span class="badge bg-danger me-1"><?= $a ?></span>
-<?php endforeach; ?>
-<?php else: ?>
-<span class="text-muted">OK</span>
-<?php endif; ?>
+<span class="badge bg-<?= $alertClass ?> badge-soft">
+<?= $alert ?>
+</span>
 </td>
 
 </tr>
 
 <?php endforeach; ?>
-<?php else: ?>
-
-<tr>
-<td colspan="13" class="text-center text-muted py-4">
-No feed inventory found.
-</td>
-</tr>
-
-<?php endif; ?>
 
 </tbody>
 </table>
-</div>
 
 </div>
 </div>
 
-</main>
+</div>
 </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function () {
+    const value = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#stockTable tbody tr');
+
+    rows.forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
+    });
+});
+</script>
+
 </body>
 </html>
