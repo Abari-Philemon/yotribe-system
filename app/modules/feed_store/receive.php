@@ -30,17 +30,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $feed_type         = trim($_POST['feed_type']);
     $batch_no          = trim($_POST['batch_no']);
     $received_date     = $_POST['received_date'];
-    $manufacture_date  = $_POST['manufacture_date'] ?: null;
-    $expiry_date       = $_POST['expiry_date'] ?: null;
+    $manufacture_date  = !empty($_POST['manufacture_date']) ? $_POST['manufacture_date'] : null;
+    $expiry_date       = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
     $supplier_name     = trim($_POST['supplier_name']);
     $bag_count         = (int)$_POST['bag_count'];
     $bag_weight_kg     = (float)$_POST['bag_weight_kg'];
     $cost_per_bag      = (float)$_POST['cost_per_bag'];
     $notes             = trim($_POST['notes']);
 
-    if ($bag_count <= 0 || $bag_weight_kg <= 0 || $cost_per_bag < 0) {
+    if ($feed_type === '') {
+        $message = "Feed type is required.";
+        $alert = "danger";
+
+    } elseif ($batch_no === '') {
+        $message = "Batch number is required.";
+        $alert = "danger";
+
+    } elseif ($bag_count <= 0 || $bag_weight_kg <= 0 || $cost_per_bag < 0) {
         $message = "Invalid values supplied.";
         $alert = "danger";
+
     } else {
 
         $quantity_kg = $bag_count * $bag_weight_kg;
@@ -52,51 +61,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             /**
-             * CREATE STOCK BATCH
+             * DUPLICATE BATCH CHECK
              */
-        $stmt = $pdo->prepare("
-        INSERT INTO feed_store (
-            feed_type,
-            farm_id,
-            batch_no,
-            received_date,
-            manufacture_date,
-            expiry_date,
-            supplier_name,
-            quantity_kg,
-            initial_quantity_kg,
-            cost_per_kg,
-            total_cost,
-            low_stock_level,
-            status,
-            notes,
-            bag_count,
-            bag_weight_kg
-        ) VALUES (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-        )
-        ");
+            $stmt = $pdo->prepare("
+                SELECT id
+                FROM feed_store
+                WHERE farm_id = ? AND batch_no = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$farm_id, $batch_no]);
 
-        $stmt->execute([
-            $feed_type,
-            $farm_id,
-            $batch_no,
-            $received_date,
-            $manufacture_date,
-            $expiry_date,
-            $supplier_name,
-            $quantity_kg,
-            $quantity_kg,
-            $cost_per_kg,
-            $total_cost,
-            50,
-            'active',
-            $notes,
-            $bag_count,
-            $bag_weight_kg
-        ]);
-                    /**
-             * STORE LOG
+            if ($stmt->fetch()) {
+                throw new Exception("Batch number already exists.");
+            }
+
+            /**
+             * INSERT STOCK
+             */
+            $stmt = $pdo->prepare("
+                INSERT INTO feed_store (
+                    feed_type,
+                    farm_id,
+                    batch_no,
+                    received_date,
+                    manufacture_date,
+                    expiry_date,
+                    supplier_name,
+                    quantity_kg,
+                    initial_quantity_kg,
+                    cost_per_kg,
+                    total_cost,
+                    low_stock_level,
+                    status,
+                    notes,
+                    bag_count,
+                    bag_weight_kg
+                ) VALUES (
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                )
+            ");
+
+            $stmt->execute([
+                $feed_type,
+                $farm_id,
+                $batch_no,
+                $received_date,
+                $manufacture_date,
+                $expiry_date,
+                $supplier_name,
+                $quantity_kg,
+                $quantity_kg,
+                $cost_per_kg,
+                $total_cost,
+                50,
+                'active',
+                $notes,
+                $bag_count,
+                $bag_weight_kg
+            ]);
+
+            /**
+             * INSERT LOG
+             * IMPORTANT FIXED: 11 placeholders after CURDATE()
              */
             $stmt = $pdo->prepare("
                 INSERT INTO feed_store_logs (
@@ -118,22 +144,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
 
             $stmt->execute([
-                $feed_type,
-                $batch_no,
-                0,
-                $quantity_kg,
-                0,
-                $quantity_kg,
-                'STORE RECEIPT',
-                $_SESSION['staff_id'],
-                $_SESSION['staff_id'],
-                'Feed received into store'
+                $farm_id,                    // farm_id
+                $feed_type,                 // feed_type
+                $batch_no,                  // batch_no
+                0,                          // opening_stock
+                $quantity_kg,               // received
+                0,                          // issued
+                $quantity_kg,               // closing_stock
+                'STORE RECEIPT',            // issued_to
+                $_SESSION['staff_id'],      // authorized_by
+                $_SESSION['staff_id'],      // storekeeper
+                'Feed received into store'  // remarks
             ]);
 
             $pdo->commit();
 
             $message = "Feed received successfully.";
-            $alert   = "success";
+            $alert = "success";
 
         } catch (Exception $e) {
 
@@ -142,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = $e->getMessage();
-            $alert   = "danger";
+            $alert = "danger";
         }
     }
 }
@@ -183,7 +210,7 @@ body{
 
 <?php if($message): ?>
 <div class="alert alert-<?= $alert ?>">
-    <?= htmlspecialchars($message) ?>
+<?= htmlspecialchars($message) ?>
 </div>
 <?php endif; ?>
 
@@ -198,12 +225,12 @@ body{
 
 <div class="col-md-4">
 <label class="form-label">Feed Type</label>
-<input type="text" name="feed_type" class="form-control" required placeholder="e.g Coppens 2mm">
+<input type="text" name="feed_type" class="form-control" required>
 </div>
 
 <div class="col-md-4">
 <label class="form-label">Batch No</label>
-<input type="text" name="batch_no" class="form-control" required placeholder="Auto / Supplier Batch">
+<input type="text" name="batch_no" class="form-control" required>
 </div>
 
 <div class="col-md-4">
@@ -228,7 +255,7 @@ body{
 
 <div class="col-md-4">
 <label class="form-label">Bag Count</label>
-<input type="number" name="bag_count" id="bag_count" class="form-control" required value="1">
+<input type="number" name="bag_count" id="bag_count" class="form-control" value="1" required>
 </div>
 
 <div class="col-md-4">
@@ -279,7 +306,6 @@ body{
 
 <script>
 function calc(){
-
     let bags = parseFloat(document.getElementById('bag_count').value) || 0;
     let size = parseFloat(document.getElementById('bag_weight_kg').value) || 0;
     let cost = parseFloat(document.getElementById('cost_per_bag').value) || 0;
