@@ -148,36 +148,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              * LOG RECEIVE
              */
             $stmt = $pdo->prepare("
-                INSERT INTO feed_store_logs
-                (
-                    idempotency_key,
-                    date,
-                    farm_id,
-                    stock_owner_farm_id,
-                    warehouse_id,
-                    feed_store_id,
-                    feed_type,
-                    batch_no,
-                    opening_stock,
-                    received,
-                    issued,
-                    closing_stock,
-                    balance_after,
-                    issued_to,
-                    unit_cost,
-                    total_cost,
-                    movement_type,
-                    reference_no,
-                    authorized_by,
-                    storekeeper,
-                    approved_at,
-                    remarks,
-                    status
-                )
-                VALUES
-                (
-                    ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-                )
+            INSERT INTO feed_store_logs (
+                idempotency_key,
+                date,
+                farm_id,
+                stock_owner_farm_id,
+                warehouse_id,
+                feed_store_id,
+                feed_type,
+                batch_no,
+                opening_stock,
+                received,
+                issued,
+                closing_stock,
+                balance_after,
+                issued_to,
+                unit_cost,
+                total_cost,
+                running_value,
+                movement_type,
+                status,
+                reference_no,
+                authorized_by,
+                approved_at,
+                requested_by,
+                storekeeper,
+                issued_at,
+                remarks
+            ) VALUES (
+                ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+            )
             ");
 
             $stmt->execute([
