@@ -7,7 +7,9 @@ require_once __DIR__ . '/../../config/database.php';
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
 
-$farm_id = farm_id();
+$farm_id  = farm_id();                 // consuming farm
+$staff_id = $_SESSION['staff_id'];
+
 $message = '';
 $alert   = 'success';
 
@@ -19,7 +21,7 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 /**
- * HANDLE ISSUE
+ * POST : ISSUE FEED
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -27,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         empty($_POST['csrf_token']) ||
         !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
     ) {
-        die('Invalid CSRF Token');
+        die('Invalid CSRF token');
     }
 
     $feed_type = trim($_POST['feed_type'] ?? '');
@@ -36,8 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $remarks   = trim($_POST['remarks'] ?? '');
 
     if ($feed_type === '' || $pond_id <= 0 || $qty <= 0) {
-        $message = "Please complete all required fields.";
-        $alert   = "danger";
+        $message = 'Please complete all required fields.';
+        $alert   = 'danger';
     } else {
 
         try {
@@ -45,107 +47,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             /**
-             * VALIDATE POND
+             * VALIDATE DESTINATION POND
              */
             $stmt = $pdo->prepare("
                 SELECT id, pond_code
                 FROM ponds_tanks
-                WHERE id = ? AND farm_id = ?
+                WHERE id = ?
+                AND farm_id = ?
                 FOR UPDATE
             ");
             $stmt->execute([$pond_id, $farm_id]);
             $pond = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$pond) {
-                throw new Exception("Invalid pond selected.");
+                throw new Exception('Invalid pond selected.');
             }
 
             /**
              * FIFO STOCK
+             * Universal store
+             * farm_id in feed_store = owner farm that bought stock
              */
             $stmt = $pdo->prepare("
                 SELECT *
                 FROM feed_store
-                WHERE farm_id = ?
-                  AND feed_type = ?
-                  AND quantity_kg > 0
-                  AND status = 'active'
+                WHERE feed_type = ?
+                AND status = 'active'
+                AND quantity_kg > 0
+                AND (expiry_date IS NULL OR expiry_date >= CURDATE())
                 ORDER BY received_date ASC, id ASC
                 FOR UPDATE
             ");
-            $stmt->execute([$farm_id, $feed_type]);
+            $stmt->execute([$feed_type]);
             $stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (!$stocks) {
-                throw new Exception("No stock available for {$feed_type}");
+                throw new Exception('No active stock available.');
             }
 
             $available = array_sum(array_column($stocks, 'quantity_kg'));
 
             if ($available < $qty) {
                 throw new Exception(
-                    "Only " . number_format($available,2) . "kg available."
+                    'Only '.number_format($available,2).' kg available.'
                 );
             }
 
-            $remaining  = $qty;
-            $total_cost = 0;
+            $remaining = $qty;
+            $usedRows  = 0;
 
-            foreach ($stocks as $stock) {
+            foreach ($stocks as $row) {
 
-                if ($remaining <= 0) break;
+                if ($remaining <= 0) {
+                    break;
+                }
 
-                $take = min($remaining, $stock['quantity_kg']);
-                $new_qty = $stock['quantity_kg'] - $take;
-                $cost = $take * $stock['cost_per_kg'];
+                $take = min($remaining, $row['quantity_kg']);
 
-                $status = $new_qty <= 0 ? 'finished' : 'active';
+                $opening = (float)$row['quantity_kg'];
+                $closing = $opening - $take;
+                $cost    = $take * $row['cost_per_kg'];
 
+                $status = $closing <= 0 ? 'finished' : 'active';
+
+                /**
+                 * UPDATE STOCK
+                 */
                 $stmt = $pdo->prepare("
                     UPDATE feed_store
-                    SET quantity_kg = ?,
-                        status = ?,
-                        updated_at = NOW()
+                    SET quantity_kg   = ?,
+                        available_kg  = ?,
+                        status        = ?,
+                        last_issue_date = CURDATE(),
+                        updated_at    = NOW()
                     WHERE id = ?
                 ");
-                $stmt->execute([$new_qty, $status, $stock['id']]);
+                $stmt->execute([
+                    $closing,
+                    $closing,
+                    $status,
+                    $row['id']
+                ]);
 
+                /**
+                 * LOG MOVEMENT
+                 * farm_id = consuming farm
+                 * stock_owner_farm_id = farm that bought stock
+                 */
                 $stmt = $pdo->prepare("
                     INSERT INTO feed_store_logs
                     (
-                        farm_id, feed_store_id, pond_id,
-                        feed_type, batch_no, movement_type,
-                        quantity_kg, unit_cost, total_cost,
-                        remarks, done_by, created_at
+                        idempotency_key,
+                        date,
+                        farm_id,
+                        stock_owner_farm_id,
+                        warehouse_id,
+                        feed_store_id,
+                        feed_type,
+                        batch_no,
+                        opening_stock,
+                        received,
+                        issued,
+                        closing_stock,
+                        balance_after,
+                        issued_to,
+                        pond_id,
+                        unit_cost,
+                        total_cost,
+                        movement_type,
+                        reference_no,
+                        authorized_by,
+                        storekeeper,
+                        approved_at,
+                        issued_at,
+                        remarks,
+                        status
                     )
                     VALUES
                     (
-                        ?, ?, ?, ?, ?, 'issue',
-                        ?, ?, ?, ?, ?, NOW()
+                        ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                     )
                 ");
 
                 $stmt->execute([
+                    uniqid('ISS-'),
                     $farm_id,
-                    $stock['id'],
-                    $pond_id,
+                    $row['farm_id'],
+                    1,
+                    $row['id'],
                     $feed_type,
-                    $stock['batch_no'],
+                    $row['batch_no'],
+                    $opening,
+                    0,
                     $take,
-                    $stock['cost_per_kg'],
+                    $closing,
+                    $closing,
+                    $pond['pond_code'],
+                    $pond_id,
+                    $row['cost_per_kg'],
                     $cost,
+                    'issue',
+                    'REF-'.date('YmdHis'),
+                    $staff_id,
+                    $staff_id,
+                    date('Y-m-d H:i:s'),
+                    date('Y-m-d H:i:s'),
                     $remarks,
-                    $_SESSION['staff_id']
+                    'posted'
                 ]);
 
                 $remaining -= $take;
-                $total_cost += $cost;
+                $usedRows++;
             }
 
             $pdo->commit();
 
-            $message = "{$qty}kg issued to {$pond['pond_code']} successfully.";
-            $alert   = "success";
+            $message = number_format($qty,2)." kg issued to {$pond['pond_code']} using FIFO ({$usedRows} batch(es)).";
+            $alert   = 'success';
 
         } catch (Exception $e) {
 
@@ -154,25 +212,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = $e->getMessage();
-            $alert   = "danger";
+            $alert   = 'danger';
         }
     }
 }
 
 /**
- * LOAD DATA
+ * LOAD FEEDS
  */
-$stmt = $pdo->prepare("
+$stmt = $pdo->query("
     SELECT DISTINCT feed_type
     FROM feed_store
-    WHERE farm_id = ?
-      AND quantity_kg > 0
-      AND status = 'active'
+    WHERE quantity_kg > 0
+    AND status = 'active'
     ORDER BY feed_type
 ");
-$stmt->execute([$farm_id]);
 $feeds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
+/**
+ * LOAD PONDS FOR CURRENT FARM
+ */
 $stmt = $pdo->prepare("
     SELECT id, pond_code, pond_type
     FROM ponds_tanks
@@ -183,22 +242,21 @@ $stmt->execute([$farm_id]);
 $ponds = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /**
- * DASHBOARD STATS
+ * KPI
  */
-$stmt = $pdo->prepare("
+$stmt = $pdo->query("
     SELECT COALESCE(SUM(quantity_kg),0)
     FROM feed_store
-    WHERE farm_id = ?
-      AND status='active'
+    WHERE status='active'
 ");
-$stmt->execute([$farm_id]);
 $total_stock = $stmt->fetchColumn();
 
 $stmt = $pdo->prepare("
-SELECT COALESCE(SUM(issued),0)
-FROM feed_store_logs
-WHERE farm_id = ?
-AND DATE(date)=CURDATE()
+    SELECT COALESCE(SUM(issued),0)
+    FROM feed_store_logs
+    WHERE farm_id = ?
+    AND date = CURDATE()
+    AND movement_type='issue'
 ");
 $stmt->execute([$farm_id]);
 $today_issue = $stmt->fetchColumn();
@@ -208,176 +266,139 @@ $today_issue = $stmt->fetchColumn();
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Issue Feed</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-body{
-    background:#f4f7fb;
+body{background:#f5f7fb}
+.cardx{
+border:none;
+border-radius:18px;
+box-shadow:0 15px 35px rgba(0,0,0,.05);
 }
-.top-card{
-    border:none;
-    border-radius:18px;
-    box-shadow:0 10px 25px rgba(0,0,0,.06);
-}
-.form-card{
-    border:none;
-    border-radius:18px;
-    box-shadow:0 10px 30px rgba(0,0,0,.07);
-}
-.header-box{
-    background:linear-gradient(135deg,#0d6efd,#0dcaf0);
-    color:#fff;
-    border-radius:18px;
-    padding:25px;
-}
-.btn-main{
-    border-radius:12px;
-    padding:12px 18px;
-    font-weight:600;
+.hero{
+background:linear-gradient(135deg,#0d6efd,#20c997);
+color:#fff;
+padding:28px;
+border-radius:18px;
 }
 .form-control,.form-select{
-    border-radius:12px;
-    padding:12px;
+border-radius:12px;
+padding:12px;
 }
-.label{
-    font-weight:600;
-    margin-bottom:6px;
+.btnx{
+border-radius:12px;
+padding:12px 18px;
+font-weight:600;
 }
-.stat{
-    font-size:28px;
-    font-weight:700;
+.kpi{
+font-size:30px;
+font-weight:700;
 }
 </style>
 </head>
-
 <body>
 
 <div class="container py-5">
 
-    <!-- Header -->
-    <div class="header-box mb-4">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h2 class="mb-1">🐟 Feed Issue Center</h2>
-                <div class="opacity-75">
-                    Fully Automated FIFO Feed Distribution
-                </div>
-            </div>
+<div class="hero mb-4">
+<div class="row align-items-center">
+<div class="col-md-8">
+<h2 class="mb-1">Automated Feed Issue Center</h2>
+<div class="opacity-75">Universal Store • FIFO Engine • Multi Farm</div>
+</div>
+<div class="col-md-4 text-md-end mt-3 mt-md-0">
+<a href="index.php" class="btn btn-light btnx">← Back Store</a>
+</div>
+</div>
+</div>
 
-            <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                <a href="index.php" class="btn btn-light btn-main">
-                    ← Back to Store
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="row g-4 mb-4">
 
-    <!-- Stats -->
-    <div class="row g-4 mb-4">
+<div class="col-md-6">
+<div class="cardx p-4 bg-white">
+<small class="text-muted">Total Store Stock</small>
+<div class="kpi text-primary"><?= number_format($total_stock,2) ?> kg</div>
+</div>
+</div>
 
-        <div class="col-md-6">
-            <div class="card top-card p-4">
-                <small class="text-muted">Current Feed Stock</small>
-                <div class="stat text-primary">
-                    <?= number_format($total_stock,2) ?> kg
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card top-card p-4">
-                <small class="text-muted">Issued Today</small>
-                <div class="stat text-success">
-                    <?= number_format($today_issue,2) ?> kg
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <?php if($message): ?>
-        <div class="alert alert-<?= $alert ?> shadow-sm rounded-4">
-            <?= htmlspecialchars($message) ?>
-        </div>
-    <?php endif; ?>
-
-    <!-- Form -->
-    <div class="card form-card">
-        <div class="card-body p-4">
-
-            <h4 class="mb-4">Issue Feed Automatically</h4>
-
-            <form method="POST">
-                <input type="hidden"
-                       name="csrf_token"
-                       value="<?= $_SESSION['csrf_token'] ?>">
-
-                <div class="row g-4">
-
-                    <div class="col-md-6">
-                        <label class="label">Feed Type</label>
-                        <select name="feed_type"
-                                class="form-select"
-                                required>
-                            <option value="">Select Feed</option>
-                            <?php foreach($feeds as $feed): ?>
-                                <option value="<?= $feed ?>">
-                                    <?= $feed ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="label">Destination Pond</label>
-                        <select name="pond_id"
-                                class="form-select"
-                                required>
-                            <option value="">Select Pond</option>
-                            <?php foreach($ponds as $pond): ?>
-                                <option value="<?= $pond['id'] ?>">
-                                    <?= $pond['pond_code'] ?>
-                                    (<?= $pond['pond_type'] ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="label">Quantity (kg)</label>
-                        <input type="number"
-                               step="0.01"
-                               min="0.01"
-                               name="quantity_kg"
-                               class="form-control"
-                               placeholder="Enter quantity"
-                               required>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="label">Remarks</label>
-                        <input type="text"
-                               name="remarks"
-                               class="form-control"
-                               placeholder="Optional note">
-                    </div>
-
-                    <div class="col-12 mt-2">
-                        <button class="btn btn-primary btn-main w-100">
-                            🚀 Auto Issue Feed (FIFO)
-                        </button>
-                    </div>
-
-                </div>
-            </form>
-
-        </div>
-    </div>
+<div class="col-md-6">
+<div class="cardx p-4 bg-white">
+<small class="text-muted">Your Farm Used Today</small>
+<div class="kpi text-success"><?= number_format($today_issue,2) ?> kg</div>
+</div>
+</div>
 
 </div>
 
+<?php if($message): ?>
+<div class="alert alert-<?= $alert ?> rounded-4 shadow-sm">
+<?= htmlspecialchars($message) ?>
+</div>
+<?php endif; ?>
+
+<div class="cardx bg-white">
+<div class="p-4">
+
+<h4 class="mb-4">Issue Feed Automatically</h4>
+
+<form method="POST">
+
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+
+<div class="row g-4">
+
+<div class="col-md-6">
+<label class="mb-2 fw-semibold">Feed Type</label>
+<select name="feed_type" class="form-select" required>
+<option value="">Select Feed</option>
+<?php foreach($feeds as $f): ?>
+<option value="<?= htmlspecialchars($f) ?>">
+<?= htmlspecialchars($f) ?>
+</option>
+<?php endforeach; ?>
+</select>
+</div>
+
+<div class="col-md-6">
+<label class="mb-2 fw-semibold">Destination Pond</label>
+<select name="pond_id" class="form-select" required>
+<option value="">Select Pond</option>
+<?php foreach($ponds as $p): ?>
+<option value="<?= $p['id'] ?>">
+<?= $p['pond_code'] ?> (<?= $p['pond_type'] ?>)
+</option>
+<?php endforeach; ?>
+</select>
+</div>
+
+<div class="col-md-6">
+<label class="mb-2 fw-semibold">Quantity (kg)</label>
+<input type="number" step="0.01" min="0.01" name="quantity_kg"
+class="form-control" required>
+</div>
+
+<div class="col-md-6">
+<label class="mb-2 fw-semibold">Remarks</label>
+<input type="text" name="remarks" class="form-control"
+placeholder="Optional note">
+</div>
+
+<div class="col-12">
+<button class="btn btn-primary btnx w-100">
+🚀 Auto Issue Feed (FIFO)
+</button>
+</div>
+
+</div>
+
+</form>
+
+</div>
+</div>
+
+</div>
 </body>
 </html>

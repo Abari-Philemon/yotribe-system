@@ -7,62 +7,72 @@ require_once __DIR__ . '/../../config/database.php';
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
 
-$farm_id = farm_id();
+/**
+ * UNIVERSAL STORE
+ * feed_store.farm_id = purchasing / owning farm
+ */
+
+$current_farm_id = farm_id();
 
 /**
- * KPI SUMMARY
+ * KPI SUMMARY (ALL STOCK)
  */
-$stmt = $pdo->prepare("
+$stmt = $pdo->query("
     SELECT
         COALESCE(SUM(quantity_kg),0) total_stock,
         COALESCE(SUM(quantity_kg * cost_per_kg),0) stock_value,
         COUNT(*) total_batches
     FROM feed_store
-    WHERE farm_id = ?
+    WHERE status IN ('active','finished')
 ");
-$stmt->execute([$farm_id]);
 $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 
 /**
  * LOW STOCK
  */
-$stmt = $pdo->prepare("
+$stmt = $pdo->query("
     SELECT COUNT(*)
     FROM feed_store
-    WHERE farm_id = ?
-    AND quantity_kg > 0
+    WHERE quantity_kg > 0
     AND quantity_kg <= low_stock_level
 ");
-$stmt->execute([$farm_id]);
 $low_stock = (int)$stmt->fetchColumn();
 
 /**
  * EXPIRING
  */
-$stmt = $pdo->prepare("
+$stmt = $pdo->query("
     SELECT COUNT(*)
     FROM feed_store
-    WHERE farm_id = ?
-    AND expiry_date IS NOT NULL
+    WHERE expiry_date IS NOT NULL
     AND expiry_date <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+    AND quantity_kg > 0
     AND status='active'
 ");
-$stmt->execute([$farm_id]);
 $expiring = (int)$stmt->fetchColumn();
+
+/**
+ * FARMS
+ */
+$stmt = $pdo->query("
+    SELECT id,name
+    FROM farms
+    ORDER BY name
+");
+$farms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /**
  * STOCK LIST
  */
-$stmt = $pdo->prepare("
-    SELECT *
-    FROM feed_store
-    WHERE farm_id = ?
+$stmt = $pdo->query("
+    SELECT fs.*, f.name farm_name
+    FROM feed_store fs
+    LEFT JOIN farms f ON f.id = fs.farm_id
     ORDER BY
-        CASE WHEN status='active' THEN 1 ELSE 2 END,
-        received_date ASC,
-        id DESC
+        CASE WHEN fs.status='active' THEN 1 ELSE 2 END,
+        fs.received_date ASC,
+        fs.id ASC
 ");
-$stmt->execute([$farm_id]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 function statusColor($status){
@@ -79,136 +89,96 @@ function statusColor($status){
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Feed Store | Yotribe Agro</title>
+<title>Feed Store Control Center</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
 :root{
-    --primary:#0d6efd;
-    --dark:#111827;
-    --muted:#6b7280;
-    --card:#ffffff;
-    --bg:#f4f7fb;
-    --line:#e5e7eb;
+--bg:#eef2f7;
+--card:#ffffff;
+--line:#e5e7eb;
+--text:#0f172a;
+--muted:#64748b;
 }
 
 body{
-    background:var(--bg);
-    font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
-    color:var(--dark);
+background:var(--bg);
+font-family:Inter,Segoe UI,Arial,sans-serif;
+color:var(--text);
 }
 
 .sidebar{
-    min-height:100vh;
-    background:#fff;
-    border-right:1px solid var(--line);
+min-height:100vh;
+background:#fff;
+border-right:1px solid var(--line);
 }
 
 .brand{
-    font-weight:800;
-    letter-spacing:.4px;
+font-weight:800;
+font-size:24px;
 }
 
 .nav-link{
-    color:#374151;
-    border-radius:10px;
-    padding:10px 14px;
+color:#334155;
+padding:11px 14px;
+border-radius:12px;
 }
 
 .nav-link:hover{
-    background:#eef4ff;
-    color:var(--primary);
+background:#eff6ff;
 }
 
 .nav-link.active{
-    background:linear-gradient(135deg,#0d6efd,#084298);
-    color:#fff !important;
+background:linear-gradient(135deg,#2563eb,#1d4ed8);
+color:#fff !important;
 }
 
-.page-title{
-    font-weight:800;
-    font-size:28px;
+.hero{
+background:linear-gradient(135deg,#0f172a,#1d4ed8);
+color:#fff;
+border-radius:22px;
+padding:28px;
+box-shadow:0 15px 35px rgba(0,0,0,.08);
 }
 
-.sub-title{
-    color:var(--muted);
-    font-size:14px;
+.cardx{
+background:#fff;
+border:none;
+border-radius:20px;
+box-shadow:0 10px 30px rgba(0,0,0,.05);
 }
 
-.glass-card{
-    background:rgba(255,255,255,.9);
-    border:1px solid rgba(255,255,255,.8);
-    border-radius:18px;
-    box-shadow:0 10px 25px rgba(0,0,0,.06);
-}
-
-.kpi-card{
-    padding:20px;
-    border-radius:18px;
-    color:#fff;
-    min-height:120px;
-}
-
-.kpi-card small{
-    opacity:.9;
-    font-size:13px;
-}
-
-.kpi-card h3{
-    margin-top:10px;
-    font-weight:800;
-}
-
-.kpi-1{background:linear-gradient(135deg,#0d6efd,#0a58ca);}
-.kpi-2{background:linear-gradient(135deg,#198754,#157347);}
-.kpi-3{background:linear-gradient(135deg,#f59e0b,#d97706);}
-.kpi-4{background:linear-gradient(135deg,#dc3545,#b02a37);}
-
-.table-wrap{
-    border-radius:18px;
-    overflow:hidden;
+.metric{
+font-size:30px;
+font-weight:800;
 }
 
 .table thead th{
-    background:#111827;
-    color:#fff;
-    font-size:13px;
-    border:none;
-    white-space:nowrap;
+white-space:nowrap;
+background:#111827;
+color:#fff;
+border:none;
+font-size:13px;
 }
 
-.table tbody td{
-    vertical-align:middle;
-    border-color:#f1f1f1;
+.table td{
+vertical-align:middle;
 }
 
 .badge-soft{
-    padding:7px 10px;
-    border-radius:30px;
+padding:8px 12px;
+border-radius:50px;
 }
 
-.search-box{
-    border-radius:12px;
-    padding:10px 14px;
+.search{
+border-radius:14px;
+padding:11px 14px;
 }
 
-.top-actions .btn{
-    border-radius:12px;
-    padding:10px 16px;
-}
-
-.stock-number{
-    font-weight:700;
-}
-
-.feed-name{
-    font-weight:700;
-}
-
-.muted{
-    color:var(--muted);
-    font-size:12px;
+.small-muted{
+font-size:12px;
+color:#64748b;
 }
 </style>
 </head>
@@ -220,13 +190,13 @@ body{
 <!-- SIDEBAR -->
 <div class="col-md-2 sidebar p-4">
 
-<div class="brand fs-4 mb-4">Yotribe Agro</div>
+<div class="brand mb-4">Yotribe Agro</div>
 
 <ul class="nav flex-column gap-2">
 <li><a href="../dashboard/index.php" class="nav-link">Dashboard</a></li>
 <li><a href="../feeding/index.php" class="nav-link">Feeding</a></li>
 <li><a href="index.php" class="nav-link active">Feed Store</a></li>
-<li><a href="received.php" class="nav-link">Receive Feed</a></li>
+<li><a href="receive.php" class="nav-link">Receive Feed</a></li>
 <li><a href="issue.php" class="nav-link">Issue Feed</a></li>
 <li><a href="logs.php" class="nav-link">Logs</a></li>
 </ul>
@@ -236,73 +206,90 @@ body{
 <!-- MAIN -->
 <div class="col-md-10 p-4">
 
-<!-- HEADER -->
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-<div>
-<div class="page-title">Feed Store Control Center</div>
-<div class="sub-title">Inventory intelligence, FIFO readiness, batch visibility and stock alerts.</div>
+<!-- HERO -->
+<div class="hero mb-4">
+<div class="row align-items-center">
+<div class="col-md-8">
+<h2 class="mb-1">📦 Universal Feed Store</h2>
+<div class="opacity-75">
+One physical store • Multi-farm ownership tracking • FIFO ready
+</div>
 </div>
 
-<div class="top-actions d-flex gap-2">
-<a href="received.php" class="btn btn-success">+ Receive Feed</a>
-<a href="issue.php" class="btn btn-primary">Issue Feed</a>
-<a href="logs.php" class="btn btn-dark">View Logs</a>
+<div class="col-md-4 text-md-end mt-3 mt-md-0">
+<a href="receive.php" class="btn btn-success btn-sm">+ Receive</a>
+<a href="issue.php" class="btn btn-light btn-sm">Issue Feed</a>
+<a href="logs.php" class="btn btn-outline-light btn-sm">Logs</a>
+</div>
 </div>
 </div>
 
 <!-- KPI -->
-<div class="row g-3 mb-4">
+<div class="row g-4 mb-4">
 
 <div class="col-md-3">
-<div class="kpi-card kpi-1">
-<small>Total Stock</small>
-<h3><?= number_format($summary['total_stock'],2) ?> kg</h3>
+<div class="cardx p-4">
+<small class="text-muted">Total Stock</small>
+<div class="metric text-primary">
+<?= number_format($summary['total_stock'],2) ?> kg
 </div>
-</div>
-
-<div class="col-md-3">
-<div class="kpi-card kpi-2">
-<small>Inventory Value</small>
-<h3>₦<?= number_format($summary['stock_value'],2) ?></h3>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="kpi-card kpi-3 text-dark">
-<small>Low Stock Alerts</small>
-<h3><?= $low_stock ?></h3>
+<div class="cardx p-4">
+<small class="text-muted">Inventory Value</small>
+<div class="metric text-success">
+₦<?= number_format($summary['stock_value'],2) ?>
+</div>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="kpi-card kpi-4">
-<small>Expiring Soon</small>
-<h3><?= $expiring ?></h3>
+<div class="cardx p-4">
+<small class="text-muted">Low Stock Alerts</small>
+<div class="metric text-warning">
+<?= $low_stock ?>
+</div>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="cardx p-4">
+<small class="text-muted">Expiring Soon</small>
+<div class="metric text-danger">
+<?= $expiring ?>
+</div>
 </div>
 </div>
 
 </div>
 
-<!-- TABLE CARD -->
-<div class="glass-card p-4">
+<!-- TABLE -->
+<div class="cardx p-4">
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-<h5 class="mb-0 fw-bold">Current Batch Inventory</h5>
+<h5 class="fw-bold mb-0">Current Batch Inventory</h5>
 
-<input type="text" id="searchInput" class="form-control search-box" placeholder="Search feed / batch / supplier..." style="max-width:320px;">
+<input type="text"
+id="searchInput"
+class="form-control search"
+style="max-width:340px"
+placeholder="Search feed / batch / supplier / farm">
 </div>
 
-<div class="table-responsive table-wrap">
+<div class="table-responsive">
 
 <table class="table table-hover align-middle mb-0" id="stockTable">
 
 <thead>
 <tr>
 <th>Feed</th>
+<th>Owner Farm</th>
 <th>Batch</th>
-<th>Stock</th>
+<th>Available</th>
 <th>Bags</th>
-<th>Cost</th>
+<th>Rate</th>
 <th>Supplier</th>
 <th>Received</th>
 <th>Expiry</th>
@@ -336,16 +323,21 @@ if ($r['status'] === 'expired'){
 ?>
 
 <tr>
+
 <td>
-<div class="feed-name"><?= htmlspecialchars($r['feed_type']) ?></div>
-<div class="muted"><?= number_format($r['bag_weight_kg'],2) ?>kg bags</div>
+<div class="fw-bold"><?= htmlspecialchars($r['feed_type']) ?></div>
+<div class="small-muted"><?= number_format($r['bag_weight_kg'],2) ?>kg bags</div>
 </td>
 
 <td>
-<strong><?= htmlspecialchars($r['batch_no']) ?></strong>
+<span class="badge bg-primary badge-soft">
+<?= htmlspecialchars($r['farm_name'] ?? 'Unknown') ?>
+</span>
 </td>
 
-<td class="stock-number">
+<td><?= htmlspecialchars($r['batch_no']) ?></td>
+
+<td class="fw-bold">
 <?= number_format($r['quantity_kg'],2) ?> kg
 </td>
 
@@ -355,7 +347,9 @@ if ($r['status'] === 'expired'){
 
 <td>
 ₦<?= number_format($r['cost_per_kg'],2) ?>/kg
-<div class="muted">₦<?= number_format($r['total_cost'],2) ?></div>
+<div class="small-muted">
+₦<?= number_format($r['total_cost'],2) ?>
+</div>
 </td>
 
 <td><?= htmlspecialchars($r['supplier_name']) ?></td>
@@ -381,6 +375,7 @@ if ($r['status'] === 'expired'){
 <?php endforeach; ?>
 
 </tbody>
+
 </table>
 
 </div>
@@ -396,7 +391,8 @@ document.getElementById('searchInput').addEventListener('keyup', function () {
     const rows = document.querySelectorAll('#stockTable tbody tr');
 
     rows.forEach(row => {
-        row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
+        row.style.display =
+            row.innerText.toLowerCase().includes(value) ? '' : 'none';
     });
 });
 </script>
