@@ -7,30 +7,31 @@ require_once __DIR__ . '/../../config/database.php';
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
 
-$farm_id  = farm_id();                 // Farm paying for stock
-$staff_id = $_SESSION['staff_id'];
+$farm_id     = farm_id();                 // Farm paying for purchase
+$warehouse_id = 1;                       // Main universal warehouse
+$staff_id    = $_SESSION['staff_id'];
 
 $message = '';
 $alert   = 'success';
 
-/* =========================================================
-   CSRF
-========================================================= */
+/**
+ * CSRF
+ */
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-/* =========================================================
-   AUTO BATCH NUMBER
-========================================================= */
-function makeBatchNo(): string
+/**
+ * AUTO BATCH
+ */
+function makeBatchNo()
 {
-    return 'FB-' . date('YmdHis') . '-' . random_int(100,999);
+    return 'FB-' . date('YmdHis') . '-' . rand(100,999);
 }
 
-/* =========================================================
-   HANDLE POST
-========================================================= */
+/**
+ * HANDLE RECEIVE
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (
@@ -40,17 +41,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('Invalid CSRF token');
     }
 
-    $feed_type        = trim($_POST['feed_type'] ?? '');
-    $batch_no         = trim($_POST['batch_no'] ?? '');
-    $received_date    = $_POST['received_date'] ?? date('Y-m-d');
-    $manufacture_date = !empty($_POST['manufacture_date']) ? $_POST['manufacture_date'] : null;
-    $expiry_date      = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
-    $supplier_name    = trim($_POST['supplier_name'] ?? '');
-    $bag_count        = (int)($_POST['bag_count'] ?? 0);
-    $bag_weight_kg    = (float)($_POST['bag_weight_kg'] ?? 0);
-    $cost_per_bag     = (float)($_POST['cost_per_bag'] ?? 0);
-    $low_stock_level  = (float)($_POST['low_stock_level'] ?? 50);
-    $notes            = trim($_POST['notes'] ?? '');
+    $feed_type         = trim($_POST['feed_type'] ?? '');
+    $batch_no          = trim($_POST['batch_no'] ?? '');
+    $received_date     = $_POST['received_date'] ?? date('Y-m-d');
+    $manufacture_date  = $_POST['manufacture_date'] ?: null;
+    $expiry_date       = $_POST['expiry_date'] ?: null;
+    $supplier_name     = trim($_POST['supplier_name'] ?? '');
+    $bag_count         = (int)($_POST['bag_count'] ?? 0);
+    $bag_weight_kg     = (float)($_POST['bag_weight_kg'] ?? 0);
+    $cost_per_bag      = (float)($_POST['cost_per_bag'] ?? 0);
+    $low_stock_level   = (float)($_POST['low_stock_level'] ?? 50);
+    $notes             = trim($_POST['notes'] ?? '');
 
     if ($batch_no === '') {
         $batch_no = makeBatchNo();
@@ -58,25 +59,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($feed_type === '') {
         $message = 'Feed type is required.';
-        $alert   = 'danger';
+        $alert = 'danger';
 
     } elseif ($bag_count <= 0 || $bag_weight_kg <= 0 || $cost_per_bag < 0) {
-        $message = 'Invalid quantity / bag size / cost.';
-        $alert   = 'danger';
+        $message = 'Invalid values supplied.';
+        $alert = 'danger';
 
     } else {
 
-        $quantity_kg = $bag_count * $bag_weight_kg;
-        $cost_per_kg = $cost_per_bag / $bag_weight_kg;
-        $total_cost  = $bag_count * $cost_per_bag;
+        $quantity_kg      = $bag_count * $bag_weight_kg;
+        $available_kg     = $quantity_kg;
+        $cost_per_kg      = $cost_per_bag / $bag_weight_kg;
+        $total_cost       = $bag_count * $cost_per_bag;
 
         try {
 
             $pdo->beginTransaction();
 
-            /* =============================================
-               UNIQUE BATCH CHECK
-            ============================================= */
+            /**
+             * UNIQUE BATCH
+             */
             $stmt = $pdo->prepare("
                 SELECT id
                 FROM feed_store
@@ -86,23 +88,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$batch_no]);
 
             if ($stmt->fetch()) {
-                throw new Exception('Batch number already exists.');
+                throw new Exception("Batch number already exists.");
             }
 
-            /* =============================================
-               INSERT STOCK
-               farm_id = stock owner / paying farm
-            ============================================= */
+            /**
+             * INSERT STORE STOCK
+             */
             $stmt = $pdo->prepare("
-                INSERT INTO feed_store (
+                INSERT INTO feed_store
+                (
                     feed_type,
                     farm_id,
+                    warehouse_id,
                     batch_no,
                     received_date,
                     manufacture_date,
                     expiry_date,
                     supplier_name,
                     quantity_kg,
+                    damaged_kg,
+                    reserved_kg,
+                    available_kg,
                     initial_quantity_kg,
                     cost_per_kg,
                     total_cost,
@@ -111,22 +117,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     notes,
                     bag_count,
                     bag_weight_kg,
+                    unit_cost_per_bag,
                     created_at,
                     updated_at
-                ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
+                )
+                VALUES
+                (
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
                 )
             ");
 
             $stmt->execute([
                 $feed_type,
                 $farm_id,
+                $warehouse_id,
                 $batch_no,
                 $received_date,
                 $manufacture_date,
                 $expiry_date,
                 $supplier_name,
                 $quantity_kg,
+                0,
+                0,
+                $available_kg,
                 $quantity_kg,
                 $cost_per_kg,
                 $total_cost,
@@ -134,16 +147,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'active',
                 $notes,
                 $bag_count,
-                $bag_weight_kg
+                $bag_weight_kg,
+                $cost_per_bag
             ]);
 
             $stock_id = $pdo->lastInsertId();
 
-            /* =============================================
-               INSERT LEDGER LOG
-            ============================================= */
+            /**
+             * INSERT MOVEMENT LOG
+             */
             $stmt = $pdo->prepare("
-                INSERT INTO feed_store_logs (
+                INSERT INTO feed_store_logs
+                (
                     idempotency_key,
                     date,
                     farm_id,
@@ -158,6 +173,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     closing_stock,
                     balance_after,
                     issued_to,
+                    pond_id,
+                    fish_batch_id,
+                    batch_source_id,
                     unit_cost,
                     total_cost,
                     running_value,
@@ -170,8 +188,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     storekeeper,
                     issued_at,
                     remarks
-                ) VALUES (
-                    ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                )
+                VALUES
+                (
+                    ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )
             ");
 
@@ -179,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 uniqid('REC-'),
                 $farm_id,
                 $farm_id,
-                1,
+                $warehouse_id,
                 $stock_id,
                 $feed_type,
                 $batch_no,
@@ -189,6 +209,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $quantity_kg,
                 $quantity_kg,
                 'MAIN STORE',
+                null,
+                null,
+                null,
                 $cost_per_kg,
                 $total_cost,
                 $total_cost,
@@ -200,13 +223,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $staff_id,
                 $staff_id,
                 date('Y-m-d H:i:s'),
-                'Feed received into warehouse'
+                $notes ?: 'Feed received into warehouse'
             ]);
 
             $pdo->commit();
 
             $message = "Feed received successfully. Batch: {$batch_no}";
-            $alert   = 'success';
+            $alert = 'success';
 
         } catch (Exception $e) {
 
@@ -215,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = $e->getMessage();
-            $alert   = 'danger';
+            $alert = 'danger';
         }
     }
 }
@@ -231,34 +254,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <style>
 body{
-background:#f3f6fb;
-font-family:Segoe UI,Arial,sans-serif;
+    background:#f4f7fb;
 }
 .hero{
-background:linear-gradient(135deg,#198754,#20c997);
-color:#fff;
-border-radius:20px;
-padding:28px;
-box-shadow:0 15px 30px rgba(0,0,0,.08);
+    background:linear-gradient(135deg,#198754,#20c997);
+    color:#fff;
+    padding:28px;
+    border-radius:18px;
 }
 .cardx{
-background:#fff;
-border:none;
-border-radius:20px;
-box-shadow:0 15px 30px rgba(0,0,0,.05);
+    border:none;
+    border-radius:18px;
+    box-shadow:0 15px 35px rgba(0,0,0,.05);
 }
 .form-control,.form-select{
-border-radius:12px;
-padding:12px;
+    border-radius:12px;
+    padding:12px;
 }
 .btnx{
-border-radius:12px;
-padding:12px 18px;
-font-weight:700;
-}
-.calc{
-background:#f8fafc;
-font-weight:700;
+    border-radius:12px;
+    padding:12px 18px;
+    font-weight:600;
 }
 </style>
 </head>
@@ -266,19 +282,13 @@ font-weight:700;
 
 <div class="container py-5">
 
-<!-- HERO -->
 <div class="hero mb-4">
-<div class="row align-items-center">
-<div class="col-md-8">
-<h2 class="mb-1">📦 Feed Receiving Center</h2>
-<div class="opacity-75">
-Warehouse intake • Ownership tracking • Batch costing
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+<div>
+<h2 class="mb-1">Feed Receiving Center</h2>
+<div class="opacity-75">Universal Warehouse Intake • Cost Ownership Tracking</div>
 </div>
-</div>
-
-<div class="col-md-4 text-md-end mt-3 mt-md-0">
 <a href="index.php" class="btn btn-light btnx">← Back Store</a>
-</div>
 </div>
 </div>
 
@@ -288,82 +298,52 @@ Warehouse intake • Ownership tracking • Batch costing
 </div>
 <?php endif; ?>
 
-<!-- FORM -->
-<div class="cardx p-4">
-
-<h4 class="mb-4">Receive Feed Into Store</h4>
+<div class="cardx bg-white">
+<div class="p-4">
 
 <form method="POST">
-
-<input type="hidden"
-name="csrf_token"
-value="<?= $_SESSION['csrf_token'] ?>">
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
 <div class="row g-4">
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Feed Type</label>
-<input type="text"
-name="feed_type"
-class="form-control"
-placeholder="e.g Coppens 2mm"
-required>
+<input type="text" name="feed_type" class="form-control" required>
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Batch Number</label>
-<input type="text"
-name="batch_no"
-class="form-control"
-placeholder="Leave blank for auto batch">
+<label class="fw-semibold mb-2">Batch No</label>
+<input type="text" name="batch_no" class="form-control" placeholder="Leave blank for auto">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Supplier Name</label>
-<input type="text"
-name="supplier_name"
-class="form-control">
+<label class="fw-semibold mb-2">Supplier</label>
+<input type="text" name="supplier_name" class="form-control">
 </div>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Received Date</label>
-<input type="date"
-name="received_date"
-value="<?= date('Y-m-d') ?>"
-class="form-control"
-required>
+<input type="date" name="received_date" value="<?= date('Y-m-d') ?>" class="form-control">
 </div>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Manufacture Date</label>
-<input type="date"
-name="manufacture_date"
-class="form-control">
+<input type="date" name="manufacture_date" class="form-control">
 </div>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Expiry Date</label>
-<input type="date"
-name="expiry_date"
-class="form-control">
+<input type="date" name="expiry_date" class="form-control">
 </div>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Bag Count</label>
-<input type="number"
-min="1"
-value="1"
-name="bag_count"
-id="bag_count"
-class="form-control"
-required>
+<input type="number" name="bag_count" id="bag_count" value="1" class="form-control">
 </div>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Bag Size</label>
-<select name="bag_weight_kg"
-id="bag_weight_kg"
-class="form-select">
+<select name="bag_weight_kg" id="bag_weight_kg" class="form-select">
 <option value="15">15kg</option>
 <option value="5">5kg</option>
 <option value="25">25kg</option>
@@ -371,81 +351,50 @@ class="form-select">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Cost Per Bag (₦)</label>
-<input type="number"
-step="0.01"
-name="cost_per_bag"
-id="cost_per_bag"
-class="form-control"
-required>
+<label class="fw-semibold mb-2">Cost Per Bag</label>
+<input type="number" step="0.01" name="cost_per_bag" id="cost_per_bag" class="form-control">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Low Stock Alert (kg)</label>
-<input type="number"
-step="0.01"
-name="low_stock_level"
-value="50"
-class="form-control">
+<label class="fw-semibold mb-2">Low Stock Alert</label>
+<input type="number" step="0.01" name="low_stock_level" value="50" class="form-control">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Total Quantity</label>
-<input type="text"
-id="total_kg"
-class="form-control calc"
-readonly>
+<label class="fw-semibold mb-2">Total KG</label>
+<input type="text" id="total_kg" class="form-control bg-light" readonly>
 </div>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Cost / KG</label>
-<input type="text"
-id="cost_per_kg"
-class="form-control calc"
-readonly>
+<input type="text" id="cost_per_kg" class="form-control bg-light" readonly>
 </div>
 
-<div class="col-md-6">
-<label class="fw-semibold mb-2">Total Cost</label>
-<input type="text"
-id="total_cost"
-class="form-control calc"
-readonly>
-</div>
-
-<div class="col-md-6">
+<div class="col-md-12">
 <label class="fw-semibold mb-2">Notes</label>
-<input type="text"
-name="notes"
-class="form-control">
+<input type="text" name="notes" class="form-control">
 </div>
 
 <div class="col-12">
-<button class="btn btn-success btnx w-100">
-📥 Receive Feed Stock
-</button>
+<button class="btn btn-success btnx w-100">📦 Receive Feed</button>
 </div>
 
 </div>
 </form>
+
+</div>
 </div>
 
 </div>
 
 <script>
 function calc(){
+let bags = parseFloat(document.getElementById('bag_count').value)||0;
+let size = parseFloat(document.getElementById('bag_weight_kg').value)||0;
+let cost = parseFloat(document.getElementById('cost_per_bag').value)||0;
 
-let bags = parseFloat(document.getElementById('bag_count').value) || 0;
-let size = parseFloat(document.getElementById('bag_weight_kg').value) || 0;
-let cost = parseFloat(document.getElementById('cost_per_bag').value) || 0;
-
-let totalKg   = bags * size;
-let totalCost = bags * cost;
-let perKg     = size > 0 ? cost / size : 0;
-
-document.getElementById('total_kg').value   = totalKg.toFixed(2) + ' kg';
-document.getElementById('cost_per_kg').value = perKg.toFixed(2);
-document.getElementById('total_cost').value = totalCost.toFixed(2);
+document.getElementById('total_kg').value = (bags*size).toFixed(2)+' kg';
+document.getElementById('cost_per_kg').value = size>0 ? (cost/size).toFixed(2) : '0.00';
 }
 
 document.querySelectorAll('#bag_count,#bag_weight_kg,#cost_per_bag')
