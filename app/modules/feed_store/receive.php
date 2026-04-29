@@ -147,64 +147,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             /**
              * LOG RECEIVE
              */
-            $stmt = $pdo->prepare("
-            INSERT INTO feed_store_logs (
-                idempotency_key,
-                date,
-                farm_id,
-                stock_owner_farm_id,
-                warehouse_id,
-                feed_store_id,
-                feed_type,
-                batch_no,
-                opening_stock,
-                received,
-                issued,
-                closing_stock,
-                balance_after,
-                issued_to,
-                unit_cost,
-                total_cost,
-                running_value,
-                movement_type,
-                status,
-                reference_no,
-                authorized_by,
-                approved_at,
-                requested_by,
-                storekeeper,
-                issued_at,
-                remarks
-            ) VALUES (
-                ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-            )
-            ");
+/* =========================================================
+   FIX FOR receive.php
+   SQLSTATE[21S01] Column count doesn't match value count
+   =========================================================
 
-            $stmt->execute([
-                uniqid('REC-'),
-                $farm_id,
-                $farm_id,
-                1,
-                $stock_id,
-                $feed_type,
-                $batch_no,
-                0,
-                $quantity_kg,
-                0,
-                $quantity_kg,
-                $quantity_kg,
-                'MAIN STORE',
-                $cost_per_kg,
-                $total_cost,
-                'receive',
-                'PO-' . date('YmdHis'),
-                $staff_id,
-                $staff_id,
-                date('Y-m-d H:i:s'),
-                'Feed received into warehouse',
-                'posted'
-            ]);
+   PROBLEM:
+   Your INSERT INTO feed_store_logs column list has 26 columns,
+   but the VALUES placeholders / execute array are mismatched
+   and also in wrong order.
 
+   Replace ONLY the LOG RECEIVE block with this corrected version.
+========================================================= */
+
+/**
+ * LOG RECEIVE
+ */
+    $stmt = $pdo->prepare("
+    INSERT INTO feed_store_logs (
+        idempotency_key,
+        date,
+        farm_id,
+        stock_owner_farm_id,
+        warehouse_id,
+        feed_store_id,
+        feed_type,
+        batch_no,
+        opening_stock,
+        received,
+        issued,
+        closing_stock,
+        balance_after,
+        issued_to,
+        unit_cost,
+        total_cost,
+        running_value,
+        movement_type,
+        status,
+        reference_no,
+        authorized_by,
+        approved_at,
+        requested_by,
+        storekeeper,
+        issued_at,
+        remarks
+    ) VALUES (
+        ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+    )
+    ");
+
+    $stmt->execute([
+        uniqid('REC-'),              // idempotency_key
+        $farm_id,                   // farm_id
+        $farm_id,                   // stock_owner_farm_id
+        1,                          // warehouse_id
+        $stock_id,                  // feed_store_id
+        $feed_type,                 // feed_type
+        $batch_no,                  // batch_no
+        0,                          // opening_stock
+        $quantity_kg,               // received
+        0,                          // issued
+        $quantity_kg,               // closing_stock
+        $quantity_kg,               // balance_after
+        'MAIN STORE',               // issued_to
+        $cost_per_kg,               // unit_cost
+        $total_cost,                // total_cost
+        $total_cost,                // running_value
+        'receive',                  // movement_type
+        'posted',                   // status
+        'PO-' . date('YmdHis'),     // reference_no
+        $staff_id,                  // authorized_by
+        date('Y-m-d H:i:s'),        // approved_at
+        $staff_id,                  // requested_by
+        $staff_id,                  // storekeeper
+        date('Y-m-d H:i:s'),        // issued_at
+        'Feed received into warehouse'
+    ]);
             $pdo->commit();
 
             $message = 'Feed received successfully. Batch: '.$batch_no;
