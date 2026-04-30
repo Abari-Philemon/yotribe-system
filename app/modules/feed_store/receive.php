@@ -157,42 +157,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              * INSERT MOVEMENT LOG
              */
             $stmt = $pdo->prepare("
-                INSERT INTO feed_store_logs
-                (
-                    idempotency_key,
-                    date,
-                    farm_id,
-                    stock_owner_farm_id,
-                    warehouse_id,
-                    feed_store_id,
-                    feed_type,
-                    batch_no,
-                    opening_stock,
-                    received,
-                    issued,
-                    closing_stock,
-                    balance_after,
-                    issued_to,
-                    pond_id,
-                    fish_batch_id,
-                    batch_source_id,
-                    unit_cost,
-                    total_cost,
-                    running_value,
-                    movement_type,
-                    status,
-                    reference_no,
-                    authorized_by,
-                    approved_at,
-                    requested_by,
-                    storekeeper,
-                    issued_at,
-                    remarks
-                )
-                VALUES
-                (
-                    ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-                )
+            INSERT INTO feed_store_logs
+            (
+                idempotency_key,
+                date,
+                farm_id,
+                stock_owner_farm_id,
+                warehouse_id,
+                feed_store_id,
+                feed_type,
+                batch_no,
+                opening_stock,
+                received,
+                issued,
+                closing_stock,
+                balance_after,
+                issued_to,
+                pond_id,
+                fish_batch_id,
+                batch_source_id,
+                unit_cost,
+                total_cost,
+                running_value,
+                movement_type,
+                status,
+                reference_no,
+                authorized_by,
+                approved_at,
+                requested_by,
+                storekeeper,
+                issued_at,
+                remarks
+            )
+            VALUES
+            (
+            ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+            )
             ");
 
             $stmt->execute([
