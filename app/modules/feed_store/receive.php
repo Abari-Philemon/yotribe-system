@@ -7,9 +7,9 @@ require_once __DIR__ . '/../../config/database.php';
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
 
-$farm_id     = farm_id();                 // Farm paying for purchase
-$warehouse_id = 1;                       // Main universal warehouse
-$staff_id    = $_SESSION['staff_id'];
+$farm_id      = farm_id();
+$warehouse_id = 1;
+$staff_id     = $_SESSION['staff_id'];
 
 $message = '';
 $alert   = 'success';
@@ -41,195 +41,220 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('Invalid CSRF token');
     }
 
-    $feed_type         = trim($_POST['feed_type'] ?? '');
-    $batch_no          = trim($_POST['batch_no'] ?? '');
-    $received_date     = $_POST['received_date'] ?? date('Y-m-d');
-    $manufacture_date  = $_POST['manufacture_date'] ?: null;
-    $expiry_date       = $_POST['expiry_date'] ?: null;
-    $supplier_name     = trim($_POST['supplier_name'] ?? '');
-    $bag_count         = (int)($_POST['bag_count'] ?? 0);
-    $bag_weight_kg     = (float)($_POST['bag_weight_kg'] ?? 0);
-    $cost_per_bag      = (float)($_POST['cost_per_bag'] ?? 0);
-    $low_stock_level   = (float)($_POST['low_stock_level'] ?? 50);
-    $notes             = trim($_POST['notes'] ?? '');
+    $batch_no         = trim($_POST['batch_no']) ?: makeBatchNo();
+    $received_date    = $_POST['received_date'] ?? date('Y-m-d');
+    $manufacture_date = $_POST['manufacture_date'] ?: null;
+    $expiry_date      = $_POST['expiry_date'] ?: null;
+    $supplier_name    = trim($_POST['supplier_name'] ?? '');
+    $notes            = trim($_POST['notes'] ?? '');
 
-    if ($batch_no === '') {
-        $batch_no = makeBatchNo();
-    }
+    $feed_types = $_POST['feed_type'] ?? [];
+    $bag_counts = $_POST['bag_count'] ?? [];
+    $bag_sizes  = $_POST['bag_weight_kg'] ?? [];
+    $costs      = $_POST['cost_per_bag'] ?? [];
 
-    if ($feed_type === '') {
-        $message = 'Feed type is required.';
-        $alert = 'danger';
-
-    } elseif ($bag_count <= 0 || $bag_weight_kg <= 0 || $cost_per_bag < 0) {
-        $message = 'Invalid values supplied.';
-        $alert = 'danger';
-
+    if (empty($feed_types)) {
+        $message = "Please add at least one feed line.";
+        $alert = "danger";
     } else {
-
-        $quantity_kg      = $bag_count * $bag_weight_kg;
-        $available_kg     = $quantity_kg;
-        $cost_per_kg      = $cost_per_bag / $bag_weight_kg;
-        $total_cost       = $bag_count * $cost_per_bag;
 
         try {
 
             $pdo->beginTransaction();
 
             /**
-             * UNIQUE BATCH
+             * CHECK UNIQUE BATCH
              */
-            $stmt = $pdo->prepare("
-                SELECT id
-                FROM feed_store
-                WHERE batch_no = ?
-                LIMIT 1
-            ");
+            $stmt = $pdo->prepare("SELECT id FROM feed_batches WHERE batch_no=? LIMIT 1");
             $stmt->execute([$batch_no]);
-
             if ($stmt->fetch()) {
-                throw new Exception("Batch number already exists.");
+                throw new Exception("Batch already exists.");
             }
 
             /**
-             * INSERT STORE STOCK
+             * CREATE BATCH HEADER
              */
             $stmt = $pdo->prepare("
-                INSERT INTO feed_store
-                (
-                    feed_type,
-                    farm_id,
-                    warehouse_id,
-                    batch_no,
-                    received_date,
-                    manufacture_date,
-                    expiry_date,
-                    supplier_name,
-                    quantity_kg,
-                    damaged_kg,
-                    reserved_kg,
-                    available_kg,
-                    initial_quantity_kg,
-                    cost_per_kg,
-                    total_cost,
-                    low_stock_level,
-                    status,
-                    notes,
-                    bag_count,
-                    bag_weight_kg,
-                    unit_cost_per_bag,
-                    created_at,
-                    updated_at
-                )
-                VALUES
-                (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()
-                )
+                INSERT INTO feed_batches
+                (batch_no,farm_id,warehouse_id,supplier_name,received_date,manufacture_date,expiry_date,total_cost,notes)
+                VALUES (?,?,?,?,?,?,?,?,?)
             ");
 
             $stmt->execute([
-                $feed_type,
+                $batch_no,
                 $farm_id,
                 $warehouse_id,
-                $batch_no,
+                $supplier_name,
                 $received_date,
                 $manufacture_date,
                 $expiry_date,
-                $supplier_name,
-                $quantity_kg,
                 0,
-                0,
-                $available_kg,
-                $quantity_kg,
-                $cost_per_kg,
-                $total_cost,
-                $low_stock_level,
-                'active',
-                $notes,
-                $bag_count,
-                $bag_weight_kg,
-                $cost_per_bag
+                $notes
             ]);
 
-            $stock_id = $pdo->lastInsertId();
+            $batch_id = $pdo->lastInsertId();
+
+            $batch_total_cost = 0;
 
             /**
-             * INSERT MOVEMENT LOG
+             * PROCESS EACH LINE
              */
-            $stmt = $pdo->prepare("
-            INSERT INTO feed_store_logs
-            (
-                idempotency_key,
-                date,
-                farm_id,
-                stock_owner_farm_id,
-                warehouse_id,
-                feed_store_id,
-                feed_type,
-                batch_no,
-                opening_stock,
-                received,
-                issued,
-                closing_stock,
-                balance_after,
-                issued_to,
-                pond_id,
-                fish_batch_id,
-                batch_source_id,
-                unit_cost,
-                total_cost,
-                running_value,
-                movement_type,
-                status,
-                reference_no,
-                authorized_by,
-                approved_at,
-                requested_by,
-                storekeeper,
-                issued_at,
-                remarks
-            )
-            VALUES
-            (
-            ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-            )
-            ");
+            for ($i = 0; $i < count($feed_types); $i++) {
 
-            $stmt->execute([
-                uniqid('REC-'),
-                $farm_id,
-                $farm_id,
-                $warehouse_id,
-                $stock_id,
-                $feed_type,
-                $batch_no,
-                0,
-                $quantity_kg,
-                0,
-                $quantity_kg,
-                $quantity_kg,
-                'MAIN STORE',
-                null,
-                null,
-                null,
-                $cost_per_kg,
-                $total_cost,
-                $total_cost,
-                'receive',
-                'posted',
-                'PO-' . date('YmdHis'),
-                $staff_id,
-                date('Y-m-d H:i:s'),
-                $staff_id,
-                $staff_id,
-                date('Y-m-d H:i:s'),
-                $notes ?: 'Feed received into warehouse'
-            ]);
+                $feed_type = trim($feed_types[$i]);
+                $bags      = (int)$bag_counts[$i];
+                $size      = (float)$bag_sizes[$i];
+                $cost_bag  = (float)$costs[$i];
+
+                if (!$feed_type || $bags <= 0 || $size <= 0) continue;
+
+                $qty_kg   = $bags * $size;
+                $cost_kg  = $cost_bag / $size;
+                $total    = $bags * $cost_bag;
+
+                $batch_total_cost += $total;
+
+                /**
+                 * INSERT STORE LINE
+                 */
+                $stmt = $pdo->prepare("
+                    INSERT INTO feed_store
+                    (
+                        feed_type,
+                        farm_id,
+                        warehouse_id,
+                        batch_no,
+                        received_date,
+                        manufacture_date,
+                        expiry_date,
+                        supplier_name,
+                        quantity_kg,
+                        damaged_kg,
+                        reserved_kg,
+                        available_kg,
+                        initial_quantity_kg,
+                        cost_per_kg,
+                        total_cost,
+                        low_stock_level,
+                        status,
+                        notes,
+                        bag_count,
+                        bag_weight_kg,
+                        unit_cost_per_bag
+                    )
+                    VALUES
+                    (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ");
+
+                $stmt->execute([
+                    $feed_type,
+                    $farm_id,
+                    $warehouse_id,
+                    $batch_no,
+                    $received_date,
+                    $manufacture_date,
+                    $expiry_date,
+                    $supplier_name,
+                    $qty_kg,
+                    0,
+                    0,
+                    $qty_kg,
+                    $qty_kg,
+                    $cost_kg,
+                    $total,
+                    50,
+                    'active',
+                    $notes,
+                    $bags,
+                    $size,
+                    $cost_bag
+                ]);
+
+                $stock_id = $pdo->lastInsertId();
+
+                /**
+                 * INSERT LOG
+                 */
+                $stmt = $pdo->prepare("
+                    INSERT INTO feed_store_logs
+                    (
+                        idempotency_key,
+                        date,
+                        farm_id,
+                        stock_owner_farm_id,
+                        warehouse_id,
+                        feed_store_id,
+                        feed_type,
+                        batch_no,
+                        opening_stock,
+                        received,
+                        issued,
+                        closing_stock,
+                        balance_after,
+                        issued_to,
+                        pond_id,
+                        fish_batch_id,
+                        batch_source_id,
+                        unit_cost,
+                        total_cost,
+                        running_value,
+                        movement_type,
+                        status,
+                        reference_no,
+                        authorized_by,
+                        approved_at,
+                        requested_by,
+                        storekeeper,
+                        issued_at,
+                        remarks
+                    )
+                    VALUES
+                    (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ");
+
+                $stmt->execute([
+                    uniqid('REC-'),
+                    date('Y-m-d'),
+                    $farm_id,
+                    $farm_id,
+                    $warehouse_id,
+                    $stock_id,
+                    $feed_type,
+                    $batch_no,
+                    0,
+                    $qty_kg,
+                    0,
+                    $qty_kg,
+                    $qty_kg,
+                    'MAIN STORE',
+                    null,
+                    null,
+                    null,
+                    $cost_kg,
+                    $total,
+                    $total,
+                    'receive',
+                    'posted',
+                    'PO-' . date('YmdHis'),
+                    $staff_id,
+                    date('Y-m-d H:i:s'),
+                    $staff_id,
+                    $staff_id,
+                    date('Y-m-d H:i:s'),
+                    'Batch receive'
+                ]);
+            }
+
+            /**
+             * UPDATE BATCH TOTAL
+             */
+            $stmt = $pdo->prepare("UPDATE feed_batches SET total_cost=? WHERE id=?");
+            $stmt->execute([$batch_total_cost, $batch_id]);
 
             $pdo->commit();
 
-            $message = "Feed received successfully. Batch: {$batch_no}";
-            $alert = 'success';
+            $message = "Batch received successfully.";
+            $alert = "success";
 
         } catch (Exception $e) {
 
@@ -238,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = $e->getMessage();
-            $alert = 'danger';
+            $alert = "danger";
         }
     }
 }
@@ -306,10 +331,37 @@ body{
 
 <div class="row g-4">
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Feed Type</label>
-<input type="text" name="feed_type" class="form-control" required>
-</div>
+    <div id="feedRows">
+
+    <div class="row g-3 feed-row mb-2">
+        <div class="col-md-3">
+            <input name="feed_type[]" class="form-control" placeholder="Feed type (2mm, 4mm)">
+        </div>
+
+        <div class="col-md-2">
+            <input name="bag_count[]" type="number" class="form-control" placeholder="Bags">
+        </div>
+
+        <div class="col-md-2">
+            <select name="bag_weight_kg[]" class="form-select">
+                <option value="15">15kg</option>
+                <option value="5">5kg</option>
+                <option value="25">25kg</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <input name="cost_per_bag[]" type="number" class="form-control" placeholder="Cost per bag">
+        </div>
+
+        <div class="col-md-2">
+            <button type="button" class="btn btn-danger removeRow">X</button>
+        </div>
+    </div>
+
+    </div>
+
+    <button type="button" id="addRow" class="btn btn-dark mt-2">+ Add Feed Line</button>
 
 <div class="col-md-4">
 <label class="fw-semibold mb-2">Batch No</label>
@@ -401,7 +453,24 @@ document.querySelectorAll('#bag_count,#bag_weight_kg,#cost_per_bag')
 .forEach(el => el.addEventListener('input', calc));
 
 calc();
+
+
+
+document.getElementById('addRow').onclick = function () {
+    let row = document.querySelector('.feed-row').cloneNode(true);
+    row.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('feedRows').appendChild(row);
+};
+
+document.addEventListener('click', function(e){
+    if(e.target.classList.contains('removeRow')){
+        if(document.querySelectorAll('.feed-row').length > 1){
+            e.target.closest('.feed-row').remove();
+        }
+    }
+});
 </script>
+
 
 </body>
 </html>
