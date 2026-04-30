@@ -224,165 +224,143 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Receive Feed</title>
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<style>
-body{
-    background:#f4f7fb;
-}
-.hero{
-    background:linear-gradient(135deg,#198754,#20c997);
-    color:#fff;
-    padding:28px;
-    border-radius:18px;
-}
-.cardx{
-    border:none;
-    border-radius:18px;
-    box-shadow:0 15px 35px rgba(0,0,0,.05);
-}
-.form-control,.form-select{
-    border-radius:12px;
-    padding:12px;
-}
-.btnx{
-    border-radius:12px;
-    padding:12px 18px;
-    font-weight:600;
-}
-</style>
 </head>
-<body>
+
+<body class="bg-light">
 
 <div class="container py-5">
 
-<div class="hero mb-4">
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-<div>
-<h2 class="mb-1">Feed Receiving Center</h2>
-<div class="opacity-75">Universal Warehouse Intake • Cost Ownership Tracking</div>
-</div>
-<a href="index.php" class="btn btn-light btnx">← Back Store</a>
-</div>
-</div>
+<h3 class="mb-4">Multi-Feed Batch Receive</h3>
 
 <?php if($message): ?>
-<div class="alert alert-<?= $alert ?> rounded-4 shadow-sm">
+<div class="alert alert-<?= $alert ?>">
 <?= htmlspecialchars($message) ?>
 </div>
 <?php endif; ?>
 
-<div class="cardx bg-white">
-<div class="p-4">
-
 <form method="POST">
+
 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+
 <!-- FEED ROWS -->
 <div id="feedRows">
 
-    <div class="row g-2 feed-row mb-2">
+<div class="row g-2 feed-row mb-2">
 
-    <div class="col-md-3">
-    <input name="feed_type[]" class="form-control" placeholder="Feed type (2mm)">
-    </div>
-
-    <div class="col-md-2">
-    <input name="bag_count[]" type="number" class="form-control" placeholder="Bags">
-    </div>
-
-    <div class="col-md-2">
-    <select name="bag_weight_kg[]" class="form-select">
-    <option value="15">15kg</option>
-    <option value="5">5kg</option>
-    <option value="25">25kg</option>
-    </select>
-    </div>
-
-    <div class="col-md-3">
-    <input name="cost_per_bag[]" type="number" class="form-control" placeholder="Cost per bag">
-    </div>
-
-    <div class="col-md-2">
-    <button type="button" class="btn btn-danger removeRow">X</button>
-</div>
-<div class="row g-4">
-
-
-
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Batch No</label>
-<input type="text" name="batch_no" class="form-control" placeholder="Leave blank for auto">
+<div class="col-md-3">
+<input name="feed_type[]" class="form-control" placeholder="Feed type (2mm)">
 </div>
 
+<div class="col-md-2">
+<input name="bag_count[]" type="number" class="form-control" placeholder="Bags">
+</div>
+
+<div class="col-md-2">
+<select name="bag_weight_kg[]" class="form-select">
+<option value="15">15kg</option>
+<option value="5">5kg</option>
+<option value="25">25kg</option>
+</select>
+</div>
+
+<div class="col-md-3">
+<input name="cost_per_bag[]" type="number" class="form-control" placeholder="Cost per bag">
+</div>
+
+<div class="col-md-2">
+<button type="button" class="btn btn-danger removeRow">X</button>
+</div>
+
+</div>
+
+</div>
+
+<button type="button" id="addRow" class="btn btn-dark mb-3">+ Add Feed Line</button>
+
+<hr>
+
+<div class="row g-3">
+
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Supplier</label>
-<input type="text" name="supplier_name" class="form-control">
+<input type="text" name="batch_no" class="form-control" placeholder="Batch No (auto)">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Received Date</label>
+<input type="text" name="supplier_name" class="form-control" placeholder="Supplier">
+</div>
+
+<div class="col-md-4">
 <input type="date" name="received_date" value="<?= date('Y-m-d') ?>" class="form-control">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Manufacture Date</label>
 <input type="date" name="manufacture_date" class="form-control">
 </div>
 
 <div class="col-md-4">
-<label class="fw-semibold mb-2">Expiry Date</label>
 <input type="date" name="expiry_date" class="form-control">
 </div>
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Low Stock Alert</label>
-<input type="number" step="0.01" name="low_stock_level" value="50" class="form-control">
-</div>
-
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Total KG</label>
-<input type="text" id="total_kg" class="form-control bg-light" readonly>
-</div>
-
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Cost / KG</label>
-<input type="text" id="cost_per_kg" class="form-control bg-light" readonly>
-</div>
-
 <div class="col-md-12">
-<label class="fw-semibold mb-2">Notes</label>
-<input type="text" name="notes" class="form-control">
-</div>
-
-<div class="col-12">
-<button class="btn btn-success btnx w-100">📦 Receive Feed</button>
+<input type="text" name="notes" class="form-control" placeholder="Notes">
 </div>
 
 </div>
+
+<button class="btn btn-success w-100 mt-4">Receive Batch</button>
+
 </form>
-
-</div>
-</div>
 
 </div>
 
 <script>
-function calc(){
-let bags = parseFloat(document.getElementById('bag_count').value)||0;
-let size = parseFloat(document.getElementById('bag_weight_kg').value)||0;
-let cost = parseFloat(document.getElementById('cost_per_bag').value)||0;
+// Add row
+document.getElementById('addRow').onclick = function () {
+    let row = document.querySelector('.feed-row').cloneNode(true);
+    row.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('feedRows').appendChild(row);
+};
 
-document.getElementById('total_kg').value = (bags*size).toFixed(2)+' kg';
-document.getElementById('cost_per_kg').value = size>0 ? (cost/size).toFixed(2) : '0.00';
+// Remove row
+document.addEventListener('click', function(e){
+    if(e.target.classList.contains('removeRow')){
+        if(document.querySelectorAll('.feed-row').length > 1){
+            e.target.closest('.feed-row').remove();
+        }
+    }
+});
+
+// Row calculator
+function calculateRow(row){
+    let bags = parseFloat(row.querySelector('[name="bag_count[]"]').value) || 0;
+    let size = parseFloat(row.querySelector('[name="bag_weight_kg[]"]').value) || 0;
+    let cost = parseFloat(row.querySelector('[name="cost_per_bag[]"]').value) || 0;
+
+    let totalKg = bags * size;
+    let costKg = size > 0 ? cost / size : 0;
+
+    if(!row.querySelector('.calc')){
+        let el = document.createElement('small');
+        el.className = 'calc text-muted';
+        row.appendChild(el);
+    }
+
+    row.querySelector('.calc').innerText =
+        ` → ${totalKg.toFixed(2)}kg | ₦/kg ${costKg.toFixed(2)}`;
 }
 
-document.querySelectorAll('#bag_count,#bag_weight_kg,#cost_per_bag')
-.forEach(el => el.addEventListener('input', calc));
-
-calc();
+// Listen changes
+document.addEventListener('input', function(e){
+    if(
+        e.target.name === 'bag_count[]' ||
+        e.target.name === 'bag_weight_kg[]' ||
+        e.target.name === 'cost_per_bag[]'
+    ){
+        calculateRow(e.target.closest('.feed-row'));
+    }
+});
 </script>
 
 </body>
