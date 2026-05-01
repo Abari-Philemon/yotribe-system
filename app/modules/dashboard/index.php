@@ -318,183 +318,236 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
 
+<!-- HERO HEADER -->
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
 
-<!-- MOBILE NAV -->
-<button class="btn btn-primary d-md-none mb-3" onclick="toggleSidebar()">☰ Menu</button>
+    <div>
+        <h2 class="mb-0 fw-bold"><?= htmlspecialchars($farm_name) ?></h2>
+        <small class="text-muted">
+            <?= htmlspecialchars($farm_location) ?> • <?= $farm_size ?> Farm
+        </small>
+    </div>
 
-<!-- HERO -->
-<div class="hero mb-4 d-flex justify-content-between align-items-center flex-wrap">
-<div>
-<h4><?= htmlspecialchars($farm_name) ?></h4>
-<small><?= $farm_location ?></small>
+    <div class="d-flex gap-2 align-items-center">
+        <select id="farmSwitcher" class="form-select form-select-sm shadow-sm"></select>
+    </div>
+
 </div>
 
-<select id="farmSwitcher" class="form-select form-select-sm" style="width:auto;">
-<option>Loading...</option>
-</select>
+<!-- ALERT STRIP -->
+<div class="alert alert-danger d-flex justify-content-between align-items-start shadow-sm">
+    <div>
+        <strong>System Alerts</strong><br>
+
+        <?php if (empty($attention)): ?>
+            <span class="text-muted">All systems stable</span>
+        <?php else: ?>
+            <ul class="mb-0">
+                <?php foreach ($attention as $a): ?>
+                    <li><?= htmlspecialchars($a) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
 </div>
 
-<!-- ALERT -->
-<div class="alert alert-danger">
-<strong>⚠ Attention</strong>
-<?php if(empty($attention)): ?>
-<div class="text-muted">No issues</div>
-<?php else: ?>
-<ul>
-<?php foreach($attention as $a): ?>
-<li><?= htmlspecialchars($a) ?></li>
-<?php endforeach; ?>
-</ul>
-<?php endif; ?>
-</div>
-
-<!-- KPI -->
+<!-- KPI GRID (EXECUTIVE METRICS) -->
 <div class="row g-3 mb-4">
 
-<div class="col-md-3">
-<div class="kpi">
-<small>Biomass</small>
-<h4><?= number_format($total_biomass,2) ?> kg</h4>
-</div>
-</div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <small class="text-muted">Biomass</small>
+                <h4 class="fw-bold"><?= number_format($total_biomass,2) ?> kg</h4>
+            </div>
+        </div>
+    </div>
 
-<div class="col-md-3">
-<div class="kpi">
-<small>Feed</small>
-<h4><?= number_format($total_feed,2) ?> kg</h4>
-</div>
-</div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <small class="text-muted">Feed Stock</small>
+                <h4 class="fw-bold"><?= number_format($total_feed,2) ?> kg</h4>
+            </div>
+        </div>
+    </div>
 
-<div class="col-md-3">
-<div class="kpi">
-<small>Sales</small>
-<h4>₦<?= number_format($total_sales,2) ?></h4>
-</div>
-</div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <small class="text-muted">Revenue</small>
+                <h4 class="fw-bold">₦<?= number_format($total_sales,2) ?></h4>
+            </div>
+        </div>
+    </div>
 
-<div class="col-md-3">
-<div class="kpi">
-<small>Profit</small>
-<h4 class="<?= $profit >=0 ? 'text-success':'text-danger' ?>">
-₦<?= number_format($profit,2) ?>
-</h4>
-</div>
-</div>
-
-</div>
-
-<!-- CHARTS -->
-<div class="row g-4 mb-4">
-
-<div class="col-md-6">
-<div class="cardx">
-<h6>Biomass Trend</h6>
-<canvas id="biomassChart"></canvas>
-</div>
-</div>
-
-<div class="col-md-6">
-<div class="cardx">
-<h6>Sales Trend</h6>
-<canvas id="salesChart"></canvas>
-</div>
-</div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <small class="text-muted">Net Profit</small>
+                <h4 class="fw-bold <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
+                    ₦<?= number_format($profit,2) ?>
+                </h4>
+            </div>
+        </div>
+    </div>
 
 </div>
 
+<!-- ANALYTICS TABS -->
+<ul class="nav nav-pills mb-3" id="analyticsTabs">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#growth">Growth Intelligence</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#feeding">Feeding Analytics</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#fcr">FCR Analytics</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- GROWTH -->
+    <div class="tab-pane fade show active" id="growth">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <strong>Growth Intelligence Engine</strong>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Pond</th>
+                            <th>SGR</th>
+                            <th>Prediction</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($growth_data as $g): ?>
+                        <tr>
+                            <td class="fw-bold"><?= $g['pond'] ?></td>
+                            <td><?= $g['sgr'] ?>%</td>
+                            <td><?= round($g['pred'],2) ?>g</td>
+                            <td>
+                                <span class="badge bg-<?= $g['alert'] ? 'danger' : 'success' ?>">
+                                    <?= $g['alert'] ?: 'OPTIMAL' ?>
+                                </span>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEEDING -->
+    <div class="tab-pane fade" id="feeding">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <strong>Feeding Efficiency Monitor</strong>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Pond</th>
+                            <th>Recommended</th>
+                            <th>Actual</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($feeding_data as $f): ?>
+                        <tr>
+                            <td class="fw-bold"><?= $f['pond'] ?></td>
+                            <td><?= round($f['recommended'],2) ?> kg</td>
+                            <td class="<?= $f['actual'] > $f['recommended'] ? 'text-danger' : 'text-success' ?>">
+                                <?= round($f['actual'],2) ?> kg
+                            </td>
+                            <td>
+                                <?php if ($f['actual'] > $f['recommended']): ?>
+                                    <span class="badge bg-danger">OVERFEED</span>
+                                <?php else: ?>
+                                    <span class="badge bg-success">OK</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- FCR -->
+    <div class="tab-pane fade" id="fcr">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <strong>Feed Conversion Ratio (Scientific Model)</strong>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Pond</th>
+                            <th>FCR</th>
+                            <th>Efficiency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($fcr_data as $f): ?>
+                        <tr>
+                            <td class="fw-bold"><?= $f['pond'] ?></td>
+                            <td><?= round($f['fcr'],2) ?></td>
+                            <td>
+                                <?php if ($f['fcr'] <= 1.8): ?>
+                                    <span class="badge bg-success">EXCELLENT</span>
+                                <?php elseif ($f['fcr'] <= 2): ?>
+                                    <span class="badge bg-warning text-dark">GOOD</span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger">POOR</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 
+<!-- CHART SECTION -->
+<div class="row g-3 mt-4">
 
-<hr class="my-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                Biomass Trend Analysis
+            </div>
+            <div class="card-body">
+                <canvas id="biomassChart"></canvas>
+            </div>
+        </div>
+    </div>
 
-<!-- ATTENTION PANEL -->
-<div class="alert alert-danger">
-    <strong>Attention System</strong>
-
-    <?php if (empty($attention)): ?>
-        <div>No critical issues</div>
-    <?php else: ?>
-        <ul>
-            <?php foreach ($attention as $a): ?>
-                <li><?= htmlspecialchars($a) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-</div>
-
-<!-- GROWTH TABLE -->
-<div class="card mt-3">
-<div class="card-body">
-<h5>Growth Intelligence</h5>
-
-<table class="table table-sm">
-<tr>
-    <th>Pond</th>
-    <th>SGR</th>
-    <th>Prediction</th>
-    <th>Status</th>
-</tr>
-
-<?php foreach ($growth_data as $g): ?>
-<tr>
-    <td><?= $g['pond'] ?></td>
-    <td><?= $g['sgr'] ?>%</td>
-    <td><?= round($g['pred'],2) ?>g</td>
-    <td><?= $g['alert'] ?: 'OK' ?></td>
-</tr>
-<?php endforeach; ?>
-</table>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                Sales Performance Trend
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </div>
 
 </div>
-</div>
 
-<!-- FEEDING TABLE -->
-<div class="card mt-3">
-<div class="card-body">
-<h5>Feeding Control</h5>
-
-<table class="table table-sm">
-<tr>
-    <th>Pond</th>
-    <th>Recommended</th>
-    <th>Actual</th>
-</tr>
-
-<?php foreach ($feeding_data as $f): ?>
-<tr>
-    <td><?= $f['pond'] ?></td>
-    <td><?= round($f['recommended'],2) ?> kg</td>
-    <td class="<?= $f['actual'] > $f['recommended'] ? 'text-danger' : 'text-success' ?>">
-        <?= round($f['actual'],2) ?> kg
-    </td>
-</tr>
-<?php endforeach; ?>
-</table>
-
-</div>
-</div>
-
-<!-- FCR TABLE -->
-<div class="card mt-3 mb-5">
-<div class="card-body">
-<h5>FCR Monitoring</h5>
-
-<table class="table table-sm">
-<tr><th>Pond</th><th>FCR</th></tr>
-
-<?php foreach ($fcr_data as $f): ?>
-<tr>
-    <td><?= $f['pond'] ?></td>
-    <td class="<?= $f['fcr'] > 2 ? 'text-danger' : 'text-success' ?>">
-        <?= round($f['fcr'],2) ?>
-    </td>
-</tr>
-<?php endforeach; ?>
-</table>
-
-</div>
-</div>
-
-</main>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
