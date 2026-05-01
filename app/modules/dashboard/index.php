@@ -292,8 +292,8 @@ $page_title = "Dashboard";
 
 /* your queries here */
 
-require_once '/../../includes/header.php';
-require_once '/../../includes/sidebar.php';
+require_once __DIR__ .'/../../includes/header.php';
+require_once __DIR__ .'/../../includes/sidebar.php';
 ?>
 
 
