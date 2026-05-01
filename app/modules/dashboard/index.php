@@ -360,7 +360,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     <h4 id="profit">0</h4>
     <h4 id="feed_today">0</h4>
     <h4 id="alerts">0</h4>
-<!-- 
+
     <div class="col-md-3">
         <div class="card shadow-sm border-0">
             <div class="card-body">
@@ -399,7 +399,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         </div>
     </div>
 
-</div>-->
+</div>
 
 <!-- ANALYTICS TABS -->
 <ul class="nav nav-pills mb-3" id="analyticsTabs">
