@@ -352,8 +352,15 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 </div>
 
 <!-- KPI GRID (EXECUTIVE METRICS) -->
+ 
 <div class="row g-3 mb-4">
-
+    <h4 id="biomass">0</h4>
+    <h4 id="feed">0</h4>
+    <h4 id="sales">0</h4>
+    <h4 id="profit">0</h4>
+    <h4 id="feed_today">0</h4>
+    <h4 id="alerts">0</h4>
+<!-- 
     <div class="col-md-3">
         <div class="card shadow-sm border-0">
             <div class="card-body">
@@ -392,7 +399,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         </div>
     </div>
 
-</div>
+</div>-->
 
 <!-- ANALYTICS TABS -->
 <ul class="nav nav-pills mb-3" id="analyticsTabs">
@@ -548,6 +555,30 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 
 </div>
+<script>
+async function loadLiveDashboard() {
+    try {
+        const res = await fetch('/yotribe-system/app/api/dashboard_realtime.php');
+        const data = await res.json();
+
+        document.getElementById('biomass').innerText = Number(data.biomass).toFixed(2);
+        document.getElementById('feed').innerText = Number(data.feed).toFixed(2);
+        document.getElementById('sales').innerText = Number(data.sales).toLocaleString();
+        document.getElementById('profit').innerText = Number(data.profit).toLocaleString();
+        document.getElementById('feed_today').innerText = Number(data.feed_today).toFixed(2);
+        document.getElementById('alerts').innerText = data.alerts;
+
+    } catch (e) {
+        console.log("Live update error", e);
+    }
+}
+
+/**
+ * LIVE LOOP (REAL TIME FEEL)
+ */
+loadLiveDashboard();
+setInterval(loadLiveDashboard, 5000); // every 5 seconds
+</script>
 
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

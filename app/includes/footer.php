@@ -87,10 +87,7 @@ document.getElementById('farmSwitcher').addEventListener('change', function () {
 
 });
 </script>
-        <select id="farmSwitcher" class="form-select form-select-sm" style="width:auto;">
-            <option>Loading farms...</option>
-        </select>
-
+        
 
 </body>
 </html>
