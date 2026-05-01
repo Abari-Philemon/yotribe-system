@@ -292,8 +292,8 @@ $page_title = "Dashboard";
 
 /* your queries here */
 
-require_once '../../views/layouts/header.php';
-require_once '../../views/layouts/sidebar.php';
+require_once '/../../includes/header.php';
+require_once '/../../includes/sidebar.php';
 ?>
 
 
@@ -385,7 +385,7 @@ require_once '../../views/layouts/sidebar.php';
 
 </div>
 
-<?php require_once '../../views/layouts/footer.php'; ?>
+<?php require_once '/../../includes/footer.php'; ?>
 
 </body>
 </html>
