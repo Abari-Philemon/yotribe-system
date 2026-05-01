@@ -20,7 +20,7 @@ require_once __DIR__ . '/../helpers/permission.php';
     <a href="index.php" class="nav-link <?= $current=='index.php'?'active':'' ?>">📊 Dashboard</a>
 
     <div class="nav-title">Operations</div>
-    <a href="/feeding/index.php" class="nav-link">🍽 Feeding</a>
+    <a href="/../feeding/index.php" class="nav-link">🍽 Feeding</a>
     <a href="/stocking/index.php" class="nav-link">🐟 Stocking</a>
     <a href="/ponds/index.php" class="nav-link">🏞 Ponds</a>
     <a href="/mortality/index.php" class="nav-link">☠ Mortality</a>
