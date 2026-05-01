@@ -251,66 +251,171 @@ if (isset($_POST['feed'])) {
 <head>
 <title>Smart Feeding System</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body{
+    background:#f4f7fb;
+}
+.cardx{
+    border:none;
+    border-radius:18px;
+    box-shadow:0 15px 35px rgba(0,0,0,.05);
+}
+.kpi{
+    font-size:28px;
+    font-weight:700;
+}
+.badge-soft{
+    background:#e9f7ef;
+    color:#198754;
+    padding:6px 10px;
+    border-radius:10px;
+}
+</style>
 </head>
 
-<body class="container mt-4">
+<body class="container py-4">
 
-<h3>Smart Feeding System (FIFO + Cost)</h3>
+<h3 class="mb-4">🐟 Smart Feeding System</h3>
 
+<!-- KPI STRIP -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="cardx p-3 bg-white">
+            <small class="text-muted">Biomass</small>
+            <div id="biomass" class="kpi text-primary">0 kg</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="cardx p-3 bg-white">
+            <small class="text-muted">Recommended Feed</small>
+            <div id="recommended" class="kpi text-success">0 kg</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="cardx p-3 bg-white">
+            <small class="text-muted">Estimated Cost</small>
+            <div id="est_cost" class="kpi text-dark">₦0</div>
+        </div>
+    </div>
+</div>
+
+<!-- ALERT -->
 <?php if($message): ?>
-<div class="alert alert-<?= $alert ?>">
-<?= $message ?>
-</div>
+<div class="alert alert-<?= $alert ?>"><?= $message ?></div>
 <?php endif; ?>
 
-<?php if($preview): ?>
-<div class="alert alert-info">
-Biomass: <?= $preview['biomass'] ?> kg<br>
-Feed Rate: <?= $preview['rate'] ?>%<br>
-Recommended Feed: <strong><?= $preview['recommended'] ?> kg</strong>
-</div>
-<?php endif; ?>
+<div class="cardx bg-white p-4">
 
-<form method="POST">
-
+<form method="POST" id="feedForm">
 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
-<div class="row">
+<div class="row g-4">
 
-<div class="col-md-4">
-<select name="stock_id" class="form-control">
+<!-- STOCK -->
+<div class="col-md-6">
+<label class="fw-semibold mb-2">Pond + Batch</label>
+<select name="stock_id" id="stock_id" class="form-select">
 <?php foreach($stocks as $s): ?>
-<option value="<?= $s['id'] ?>">
+<option 
+value="<?= $s['id'] ?>"
+data-count="<?= $s['current_count'] ?>"
+data-weight="<?= $s['avg_weight_g'] ?>"
+>
 <?= $s['pond_code'] ?> | <?= $s['batch_code'] ?>
 </option>
 <?php endforeach; ?>
 </select>
 </div>
 
-<div class="col-md-3">
-<select name="feed_type" class="form-control">
+<!-- FEED TYPE -->
+<div class="col-md-6">
+<label class="fw-semibold mb-2">Feed Type</label>
+<select name="feed_type" id="feed_type" class="form-select">
 <?php foreach($feeds as $f): ?>
-<option><?= $f ?></option>
+<option value="<?= $f ?>"><?= $f ?></option>
 <?php endforeach; ?>
 </select>
+<small id="stock_info" class="text-muted"></small>
 </div>
 
-<div class="col-md-2">
-<input type="number" step="0.01" name="quantity_kg" class="form-control" placeholder="kg">
+<!-- QTY -->
+<div class="col-md-4">
+<label class="fw-semibold mb-2">Quantity (kg)</label>
+<input type="number" step="0.01" name="quantity_kg" id="qty" class="form-control">
 </div>
 
-<div class="col-md-3">
-<input type="text" name="remarks" class="form-control" placeholder="Remarks">
+<!-- TIME -->
+<div class="col-md-4">
+<label class="fw-semibold mb-2">Time</label>
+<input type="time" name="time" class="form-control" value="<?= date('H:i') ?>">
+</div>
+
+<!-- REMARK -->
+<div class="col-md-4">
+<label class="fw-semibold mb-2">Remarks</label>
+<input type="text" name="remarks" class="form-control">
+</div>
+
+<div class="col-12 mt-3">
+<button name="feed" class="btn btn-success w-100">🚀 Execute Feeding</button>
 </div>
 
 </div>
-
-<div class="mt-3">
-<button name="preview" class="btn btn-info">Preview Feed</button>
-<button name="feed" class="btn btn-success">Execute Feeding</button>
-</div>
-
 </form>
+
+</div>
+
+<script>
+
+/**
+ * LIVE BIOMASS + FEED CALC
+ */
+function updatePreview(){
+
+    let stock = document.getElementById('stock_id').selectedOptions[0];
+
+    let count = parseFloat(stock.dataset.count || 0);
+    let weight = parseFloat(stock.dataset.weight || 0);
+
+    let biomass = (count * weight) / 1000;
+
+    let rate = 0.02;
+    if(weight < 50) rate = 0.05;
+    else if(weight < 200) rate = 0.03;
+
+    let recommended = biomass * rate;
+
+    document.getElementById('biomass').innerText = biomass.toFixed(2) + ' kg';
+    document.getElementById('recommended').innerText = recommended.toFixed(2) + ' kg';
+
+    calcCost();
+}
+
+/**
+ * COST ESTIMATION (SIMPLIFIED AVG)
+ */
+function calcCost(){
+
+    let qty = parseFloat(document.getElementById('qty').value) || 0;
+
+    // You can replace with AJAX later for real FIFO cost
+    let avg_price = 500; // fallback estimate
+
+    let cost = qty * avg_price;
+
+    document.getElementById('est_cost').innerText = '₦' + cost.toLocaleString();
+}
+
+/**
+ * EVENTS
+ */
+document.getElementById('stock_id').addEventListener('change', updatePreview);
+document.getElementById('qty').addEventListener('input', calcCost);
+
+updatePreview();
+
+</script>
 
 </body>
 </html>
