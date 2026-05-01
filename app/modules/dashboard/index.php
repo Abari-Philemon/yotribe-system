@@ -297,8 +297,6 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
 
-<!-- MAIN -->
-<div class="main">
 
 <!-- MOBILE NAV -->
 <button class="btn btn-primary d-md-none mb-3" onclick="toggleSidebar()">☰ Menu</button>
