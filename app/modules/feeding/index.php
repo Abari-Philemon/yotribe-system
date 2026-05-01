@@ -277,6 +277,9 @@ body{
 <body class="container py-4">
 
 <h3 class="mb-4">🐟 Smart Feeding System</h3>
+</div>
+<a href="index.php" class="btn btn-light btnx">← Back Store</a>
+</div>
 
 <!-- KPI STRIP -->
 <div class="row g-3 mb-4">
