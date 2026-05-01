@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $expiry_date      = $_POST['expiry_date'] ?: null;
     $supplier_name    = trim($_POST['supplier_name'] ?? '');
     $notes            = trim($_POST['notes'] ?? '');
+    $low_stock_level  = (float)($_POST['low_stock_level'] ?? 50);
 
     $feed_types = $_POST['feed_type'] ?? [];
     $bag_counts = $_POST['bag_count'] ?? [];
@@ -54,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $costs      = $_POST['cost_per_bag'] ?? [];
 
     if (empty($feed_types)) {
-        $message = "Please add at least one feed line.";
+        $message = "Add at least one feed line.";
         $alert = "danger";
     } else {
 
@@ -73,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             /**
-             * CREATE BATCH HEADER
+             * CREATE BATCH
              */
             $stmt = $pdo->prepare("
                 INSERT INTO feed_batches
@@ -99,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $valid_rows = 0;
 
             /**
-             * PROCESS EACH LINE
+             * LOOP FEEDS
              */
             for ($i = 0; $i < count($feed_types); $i++) {
 
@@ -108,15 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $size      = (float)($bag_sizes[$i] ?? 0);
                 $cost_bag  = (float)($costs[$i] ?? 0);
 
-                if ($feed_type === '' || $bags <= 0 || $size <= 0 || $cost_bag <= 0) {
+                if (!$feed_type || $bags <= 0 || $size <= 0 || $cost_bag <= 0) {
                     throw new Exception("Invalid input at row " . ($i + 1));
                 }
 
                 $valid_rows++;
 
-                $qty_kg   = $bags * $size;
-                $cost_kg  = $cost_bag / $size;
-                $total    = $bags * $cost_bag;
+                $qty_kg  = $bags * $size;
+                $cost_kg = $cost_bag / $size;
+                $total   = $bags * $cost_bag;
 
                 $batch_total_cost += $total;
 
@@ -139,14 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $feed_type,$farm_id,$warehouse_id,$batch_no,
                     $received_date,$manufacture_date,$expiry_date,$supplier_name,
                     $qty_kg,0,0,$qty_kg,$qty_kg,
-                    $cost_kg,$total,50,'active',$notes,
+                    $cost_kg,$total,$low_stock_level,'active',$notes,
                     $bags,$size,$cost_bag
                 ]);
 
                 $stock_id = $pdo->lastInsertId();
 
                 /**
-                 * LOG
+                 * INSERT LOG
                  */
                 $stmt = $pdo->prepare("
                     INSERT INTO feed_store_logs
@@ -163,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
 
                 $stmt->execute([
-                    hash('sha256', $batch_no . $i . microtime(true)),
+                    hash('sha256', $batch_no.$i.microtime(true)),
                     date('Y-m-d'),
                     $farm_id,
                     $farm_id,
@@ -183,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $total,
                     'receive',
                     'posted',
-                    'PO-' . date('YmdHis'),
+                    'PO-'.date('YmdHis'),
                     $staff_id,
                     date('Y-m-d H:i:s'),
                     $staff_id,
@@ -194,11 +195,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($valid_rows === 0) {
-                throw new Exception("No valid feed rows.");
+                throw new Exception("No valid rows.");
             }
 
             /**
-             * UPDATE BATCH TOTAL
+             * UPDATE BATCH COST
              */
             $stmt = $pdo->prepare("UPDATE feed_batches SET total_cost=? WHERE id=?");
             $stmt->execute([$batch_total_cost, $batch_id]);
@@ -220,169 +221,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Receive Feed</title>
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<style>
-body{
-    background:#f4f7fb;
-}
-.hero{
-    background:linear-gradient(135deg,#198754,#20c997);
-    color:#fff;
-    padding:28px;
-    border-radius:18px;
-}
-.cardx{
-    border:none;
-    border-radius:18px;
-    box-shadow:0 15px 35px rgba(0,0,0,.05);
-}
-.form-control,.form-select{
-    border-radius:12px;
-    padding:12px;
-}
-.btnx{
-    border-radius:12px;
-    padding:12px 18px;
-    font-weight:600;
-}
-</style>
 </head>
-<body>
+<body class="bg-light">
 
 <div class="container py-5">
 
-<div class="hero mb-4">
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-<div>
-<h2 class="mb-1">Feed Receiving Center</h2>
-<div class="opacity-75">Universal Warehouse Intake • Cost Ownership Tracking</div>
-</div>
-<a href="index.php" class="btn btn-light btnx">← Back Store</a>
-</div>
-</div>
+<h3 class="mb-4">Feed Batch Receive</h3>
 
 <?php if($message): ?>
-<div class="alert alert-<?= $alert ?> rounded-4 shadow-sm">
+<div class="alert alert-<?= $alert ?>">
 <?= htmlspecialchars($message) ?>
 </div>
 <?php endif; ?>
 
-<div class="cardx bg-white">
-<div class="p-4">
-
 <form method="POST">
+
 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+
 <!-- FEED ROWS -->
 <div id="feedRows">
 
-    <div class="row g-2 feed-row mb-2">
-
-    <div class="col-md-3">
-    <input name="feed_type[]" class="form-control" placeholder="Feed type (2mm)">
-    </div>
-
-    <div class="col-md-2">
-    <input name="bag_count[]" type="number" class="form-control" placeholder="Bags">
-    </div>
-
-    <div class="col-md-2">
-    <select name="bag_weight_kg[]" class="form-select">
-    <option value="15">15kg</option>
-    <option value="5">5kg</option>
-    <option value="25">25kg</option>
-    </select>
-    </div>
-
-    <div class="col-md-3">
-    <input name="cost_per_bag[]" type="number" class="form-control" placeholder="Cost per bag">
-    </div>
-
-    <div class="col-md-2">
-    <button type="button" class="btn btn-danger removeRow">X</button>
+<div class="row g-2 mb-2 feed-row">
+<div class="col-md-3"><input name="feed_type[]" class="form-control" placeholder="Feed type"></div>
+<div class="col-md-2"><input name="bag_count[]" type="number" class="form-control" placeholder="Bags"></div>
+<div class="col-md-2">
+<select name="bag_weight_kg[]" class="form-select">
+<option value="15">15kg</option>
+<option value="5">5kg</option>
+<option value="25">25kg</option>
+</select>
 </div>
-<div class="row g-4">
-
-
-
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Batch No</label>
-<input type="text" name="batch_no" class="form-control" placeholder="Leave blank for auto">
+<div class="col-md-3"><input name="cost_per_bag[]" type="number" class="form-control" placeholder="Cost"></div>
+<div class="col-md-2"><button type="button" class="btn btn-danger removeRow">X</button></div>
 </div>
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Supplier</label>
-<input type="text" name="supplier_name" class="form-control">
 </div>
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Received Date</label>
-<input type="date" name="received_date" value="<?= date('Y-m-d') ?>" class="form-control">
-</div>
+<button type="button" id="addRow" class="btn btn-dark mb-3">+ Add Feed</button>
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Manufacture Date</label>
-<input type="date" name="manufacture_date" class="form-control">
-</div>
+<div class="row g-3">
+<div class="col-md-4"><input name="batch_no" class="form-control" placeholder="Batch No"></div>
+<div class="col-md-4"><input name="supplier_name" class="form-control" placeholder="Supplier"></div>
+<div class="col-md-4"><input type="date" name="received_date" value="<?= date('Y-m-d') ?>" class="form-control"></div>
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Expiry Date</label>
-<input type="date" name="expiry_date" class="form-control">
-</div>
+<div class="col-md-4"><input type="date" name="manufacture_date" class="form-control"></div>
+<div class="col-md-4"><input type="date" name="expiry_date" class="form-control"></div>
+<div class="col-md-4"><input name="low_stock_level" value="50" class="form-control"></div>
 
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Low Stock Alert</label>
-<input type="number" step="0.01" name="low_stock_level" value="50" class="form-control">
-</div>
-
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Total KG</label>
-<input type="text" id="total_kg" class="form-control bg-light" readonly>
-</div>
-
-<div class="col-md-4">
-<label class="fw-semibold mb-2">Cost / KG</label>
-<input type="text" id="cost_per_kg" class="form-control bg-light" readonly>
-</div>
-
-<div class="col-md-12">
-<label class="fw-semibold mb-2">Notes</label>
-<input type="text" name="notes" class="form-control">
-</div>
+<div class="col-12"><input name="notes" class="form-control" placeholder="Notes"></div>
 
 <div class="col-12">
-<button class="btn btn-success btnx w-100">📦 Receive Feed</button>
+<button class="btn btn-success w-100">Receive Batch</button>
+</div>
 </div>
 
-</div>
 </form>
-
-</div>
-</div>
 
 </div>
 
 <script>
-function calc(){
-let bags = parseFloat(document.getElementById('bag_count').value)||0;
-let size = parseFloat(document.getElementById('bag_weight_kg').value)||0;
-let cost = parseFloat(document.getElementById('cost_per_bag').value)||0;
+document.getElementById('addRow').onclick = () => {
+    let row = document.querySelector('.feed-row').cloneNode(true);
+    row.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('feedRows').appendChild(row);
+};
 
-document.getElementById('total_kg').value = (bags*size).toFixed(2)+' kg';
-document.getElementById('cost_per_kg').value = size>0 ? (cost/size).toFixed(2) : '0.00';
-}
-
-document.querySelectorAll('#bag_count,#bag_weight_kg,#cost_per_bag')
-.forEach(el => el.addEventListener('input', calc));
-
-calc();
+document.addEventListener('click', e => {
+    if (e.target.classList.contains('removeRow')) {
+        if (document.querySelectorAll('.feed-row').length > 1) {
+            e.target.closest('.feed-row').remove();
+        }
+    }
+});
 </script>
 
 </body>
