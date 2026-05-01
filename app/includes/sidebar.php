@@ -20,27 +20,27 @@ require_once __DIR__ . '/../helpers/permission.php';
     <a href="index.php" class="nav-link <?= $current=='index.php'?'active':'' ?>">📊 Dashboard</a>
 
     <div class="nav-title">Operations</div>
-    <a href="/app/modules/feeding/index.php" class="nav-link">🍽 Feeding</a>
-    <a href="/app/modules/stocking/index.php" class="nav-link">🐟 Stocking</a>
-    <a href="/app/modules/ponds/index.php" class="nav-link">🏞 Ponds</a>
-    <a href="/app/modules/mortality/index.php" class="nav-link">☠ Mortality</a>
-    <a href="/app/modules/growth/index.php" class="nav-link">📈 Growth</a>
+    <a href="/yotribe-system/app/modules/feeding/index.php" class="nav-link">🍽 Feeding</a>
+    <a href="/yotribe-system/app/modules/stocking/index.php" class="nav-link">🐟 Stocking</a>
+    <a href="/yotribe-system/app/modules/ponds/index.php" class="nav-link">🏞 Ponds</a>
+    <a href="/yotribe-system/app/modules/mortality/index.php" class="nav-link">☠ Mortality</a>
+    <a href="/yotribe-system/app/modules/growth/index.php" class="nav-link">📈 Growth</a>
 
     <div class="nav-title">Feed System</div>
-    <a href="/app/modules/feed_store/index.php" class="nav-link">📦 Feed Store</a>
+    <a href="/yotribe-system/app/modules/feed_store/index.php" class="nav-link">📦 Feed Store</a>
 
     <div class="nav-title">Production</div>
-    <a href="/app/modules/hatchery/index.php" class="nav-link">🥚 Hatchery</a>
-    <a href="/app/modules/maggot/index.php" class="nav-link">🪱 Maggot</a>
+    <a href="/yotribe-system/app/modules/hatchery/index.php" class="nav-link">🥚 Hatchery</a>
+    <a href="/yotribe-system/app/modules/maggot/index.php" class="nav-link">🪱 Maggot</a>
 
     <div class="nav-title">Finance</div>
-    <a href="/app/modules/finance/index.php" class="nav-link">💰 Finance</a>
+    <a href="/yotribe-system/app/modules/finance/index.php" class="nav-link">💰 Finance</a>
 
     <div class="nav-title">System</div>
-    <a href="/app/modules/reports/index.php" class="nav-link">📑 Reports</a>
-    <a href="/app/modules/water/index.php" class="nav-link">💧 Water</a>
+    <a href="/yotribe-system/app/modules/reports/index.php" class="nav-link">📑 Reports</a>
+    <a href="/yotribe-system/app/modules/water/index.php" class="nav-link">💧 Water</a>
 
-    <a href="/app/auth/logout.php" class="nav-link text-danger mt-3">🚪 Logout</a>
+    <a href="/yotribe-system/app/auth/logout.php" class="nav-link text-danger mt-3">🚪 Logout</a>
 
 </div>
 
