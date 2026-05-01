@@ -232,8 +232,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="bg-light">
 
 <div class="container py-5">
+<div class="container py-5">
 
-<h3 class="mb-4">Feed Batch Receive</h3>
+<div class="hero mb-4">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+<div>
+<h2 class="mb-1">Feed Receiving Center</h2>
+<div class="opacity-75">Universal Warehouse Intake • Cost Ownership Tracking</div>
+</div>
+<a href="index.php" class="btn btn-light btnx">← Back Store</a>
+</div>
+</div>
+
 
 <?php if($message): ?>
 <div class="alert alert-<?= $alert ?>">
