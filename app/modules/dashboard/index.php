@@ -288,167 +288,14 @@ foreach ($stmt->fetchAll() as $m) {
  * FINAL CLEAN ARRAY
  */
 $attention = array_values($attention);
+$page_title = "Dashboard";
+
+/* your queries here */
+
+require_once '../../views/layouts/header.php';
+require_once '../../views/layouts/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Farm Command Center</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-
-/* ===== GLOBAL ===== */
-body{
-    margin:0;
-    background:#f4f7fb;
-    font-family:system-ui;
-}
-
-/* ===== SIDEBAR ===== */
-.sidebar{
-    width:260px;
-    height:100vh;
-    position:fixed;
-    top:0;
-    left:0;
-    background:#0f172a;
-    color:#fff;
-    padding:20px;
-    overflow-y:auto;
-}
-
-.sidebar .nav-link{
-    color:#cbd5e1;
-    padding:10px 12px;
-    border-radius:10px;
-    display:block;
-    margin-bottom:6px;
-    text-decoration:none;
-}
-
-.sidebar .nav-link:hover{
-    background:#1e293b;
-    color:#fff;
-}
-
-.sidebar .nav-link.active{
-    background:#2563eb;
-    color:#fff;
-    font-weight:600;
-}
-
-.nav-title{
-    font-size:12px;
-    text-transform:uppercase;
-    color:#94a3b8;
-    margin-top:15px;
-    margin-bottom:5px;
-}
-
-.quick-box{
-    background:#1e293b;
-    padding:10px;
-    border-radius:12px;
-    font-size:13px;
-    margin-bottom:15px;
-}
-
-/* ===== MAIN ===== */
-.main{
-    margin-left:260px;
-    padding:20px;
-}
-
-/* ===== HERO ===== */
-.hero{
-    background:linear-gradient(135deg,#0d6efd,#20c997);
-    color:#fff;
-    padding:20px;
-    border-radius:15px;
-}
-
-/* ===== KPI ===== */
-.kpi{
-    background:#fff;
-    padding:15px;
-    border-radius:15px;
-    box-shadow:0 10px 20px rgba(0,0,0,.05);
-}
-.kpi h4{margin:0;font-weight:700}
-
-/* ===== CARD ===== */
-.cardx{
-    background:#fff;
-    border-radius:15px;
-    padding:15px;
-    box-shadow:0 10px 20px rgba(0,0,0,.05);
-}
-
-/* ===== MOBILE ===== */
-@media(max-width:768px){
-    .sidebar{
-        position:absolute;
-        left:-260px;
-        transition:.3s;
-    }
-    .sidebar.active{
-        left:0;
-    }
-    .main{
-        margin-left:0;
-    }
-}
-
-</style>
-</head>
-
-<body>
-
-<!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
-
-    <div class="text-center mb-3">
-        <img src="/yotribe-system/public/uploads/logo8.png" class="img-fluid mb-2" style="max-height:70px">
-        <div class="fw-bold"><?= htmlspecialchars($farm_name) ?></div>
-        <small class="text-muted"><?= $farm_size ?> Farm</small>
-    </div>
-
-    <div class="quick-box">
-        Feed: <strong><?= number_format($total_feed,0) ?>kg</strong><br>
-        Biomass: <strong><?= number_format($total_biomass,0) ?>kg</strong>
-    </div>
-
-    <div class="nav-title">Overview</div>
-    <a href="#" class="nav-link active">📊 Dashboard</a>
-
-    <div class="nav-title">Operations</div>
-    <a href="/yotribe-system/app/modules/feeding/index.php" class="nav-link">🍽 Feeding</a>
-    <a href="/yotribe-system/app/modules/stocking/index.php" class="nav-link">🐟 Stocking</a>
-    <a href="/yotribe-system/app/modules/ponds/index.php" class="nav-link">🏞 Ponds</a>
-    <a href="/yotribe-system/app/modules/mortality/index.php" class="nav-link">☠ Mortality</a>
-    <a href="/yotribe-system/app/modules/growth/index.php" class="nav-link">📈 Growth</a>
-
-    <div class="nav-title">Feed System</div>
-    <a href="/yotribe-system/app/modules/feed_store/index.php" class="nav-link">📦 Feed Store</a>
-
-    <div class="nav-title">Production</div>
-    <a href="/yotribe-system/app/modules/hatchery/index.php" class="nav-link">🥚 Hatchery</a>
-    <a href="/yotribe-system/app/modules/maggot/index.php" class="nav-link">🪱 Maggot</a>
-
-    <div class="nav-title">Finance</div>
-    <a href="/yotribe-system/app/modules/finance/index.php" class="nav-link">💰 Finance</a>
-
-    <div class="nav-title">System</div>
-    <a href="/yotribe-system/app/modules/reports/index.php" class="nav-link">📑 Reports</a>
-    <a href="/yotribe-system/app/modules/water/index.php" class="nav-link">💧 Water</a>
-
-    <a href="/yotribe-system/app/auth/logout.php" class="nav-link text-danger mt-3">🚪 Logout</a>
-
-</div>
 
 <!-- MAIN -->
 <div class="main">
@@ -538,30 +385,7 @@ body{
 
 </div>
 
-<script>
-function toggleSidebar(){
-    document.getElementById('sidebar').classList.toggle('active');
-}
-
-/* charts */
-fetch('charts.php?type=biomass')
-.then(r=>r.json())
-.then(d=>{
-new Chart(document.getElementById('biomassChart'),{
-type:'line',
-data:{labels:d.labels,datasets:[{label:'Biomass',data:d.values}]}
-});
-});
-
-fetch('charts.php?type=sales')
-.then(r=>r.json())
-.then(d=>{
-new Chart(document.getElementById('salesChart'),{
-type:'bar',
-data:{labels:d.labels,datasets:[{label:'Sales',data:d.values}]}
-});
-});
-</script>
+<?php require_once '../../views/layouts/footer.php'; ?>
 
 </body>
 </html>
