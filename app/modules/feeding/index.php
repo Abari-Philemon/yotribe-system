@@ -109,9 +109,9 @@ if (isset($_POST['feed'])) {
          */
         $biomass = ($stock['current_count'] * $stock['avg_weight_g']) / 1000;
 
-        if ($stock['avg_weight_g'] < 50)      $rate = 0.05;
-        elseif ($stock['avg_weight_g'] < 200) $rate = 0.03;
-        else                                 $rate = 0.02;
+        if ($stock['avg_weight_g'] < 50)      $rate = 0.10;
+        elseif ($stock['avg_weight_g'] < 200) $rate = 0.06;
+        else                                 $rate = 0.04;
 
         $max_feed = $biomass * $rate;
 
@@ -385,7 +385,7 @@ function updatePreview(){
 
     let rate = 0.05;
     if(weight < 50) rate = 0.10;
-    else if(weight < 200) rate = 0.03;
+    else if(weight < 200) rate = 0.06;
 
     let recommended = biomass * rate;
 
