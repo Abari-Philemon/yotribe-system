@@ -383,8 +383,8 @@ function updatePreview(){
 
     let biomass = (count * weight) / 1000;
 
-    let rate = 0.02;
-    if(weight < 50) rate = 0.05;
+    let rate = 0.05;
+    if(weight < 50) rate = 0.10;
     else if(weight < 200) rate = 0.03;
 
     let recommended = biomass * rate;
