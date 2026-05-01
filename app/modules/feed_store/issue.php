@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../config/database.php';
 authorize('feed_store');
 require_role(['super_admin','storekeeper','manager','owner']);
 
-$farm_id  = farm_id();                 // consuming farm
+$farm_id  = farm_id();
 $staff_id = $_SESSION['staff_id'];
 
 $message = '';
@@ -21,7 +21,7 @@ if (empty($_SESSION['csrf_token'])) {
 }
 
 /**
- * POST : ISSUE FEED
+ * HANDLE ISSUE
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -32,10 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('Invalid CSRF token');
     }
 
-    $feed_type = trim($_POST['feed_type'] ?? '');
-    $pond_id   = (int)($_POST['pond_id'] ?? 0);
-    $qty       = (float)($_POST['quantity_kg'] ?? 0);
-    $remarks   = trim($_POST['remarks'] ?? '');
+    $feed_type      = trim($_POST['feed_type'] ?? '');
+    $pond_id        = (int)($_POST['pond_id'] ?? 0);
+    $fish_batch_id  = !empty($_POST['fish_batch_id']) ? (int)$_POST['fish_batch_id'] : null;
+    $qty            = (float)($_POST['quantity_kg'] ?? 0);
+    $remarks        = trim($_POST['remarks'] ?? '');
 
     if ($feed_type === '' || $pond_id <= 0 || $qty <= 0) {
         $message = 'Please complete all required fields.';
@@ -47,33 +48,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             /**
-             * VALIDATE DESTINATION POND
+             * LOCK POND
              */
             $stmt = $pdo->prepare("
                 SELECT id, pond_code
                 FROM ponds_tanks
-                WHERE id = ?
-                AND farm_id = ?
+                WHERE id=? AND farm_id=?
                 FOR UPDATE
             ");
             $stmt->execute([$pond_id, $farm_id]);
             $pond = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$pond) {
-                throw new Exception('Invalid pond selected.');
+                throw new Exception('Invalid pond.');
             }
 
             /**
-             * FIFO STOCK
-             * Universal store
-             * farm_id in feed_store = owner farm that bought stock
+             * FIFO STOCK (STRICT)
              */
             $stmt = $pdo->prepare("
                 SELECT *
                 FROM feed_store
                 WHERE feed_type = ?
                 AND status = 'active'
-                AND quantity_kg > 0
+                AND available_kg > 0
                 AND (expiry_date IS NULL OR expiry_date >= CURDATE())
                 ORDER BY received_date ASC, id ASC
                 FOR UPDATE
@@ -82,15 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             if (!$stocks) {
-                throw new Exception('No active stock available.');
+                throw new Exception('No available stock.');
             }
 
-            $available = array_sum(array_column($stocks, 'quantity_kg'));
+            $available = array_sum(array_column($stocks, 'available_kg'));
 
             if ($available < $qty) {
-                throw new Exception(
-                    'Only '.number_format($available,2).' kg available.'
-                );
+                throw new Exception("Only ".number_format($available,2)." kg available.");
             }
 
             $remaining = $qty;
@@ -98,13 +94,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($stocks as $row) {
 
-                if ($remaining <= 0) {
-                    break;
-                }
+                if ($remaining <= 0) break;
 
-                $take = min($remaining, $row['quantity_kg']);
+                $take = min($remaining, $row['available_kg']);
 
-                $opening = (float)$row['quantity_kg'];
+                $opening = (float)$row['available_kg'];
                 $closing = $opening - $take;
                 $cost    = $take * $row['cost_per_kg'];
 
@@ -115,62 +109,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  */
                 $stmt = $pdo->prepare("
                     UPDATE feed_store
-                    SET quantity_kg   = ?,
-                        available_kg  = ?,
-                        status        = ?,
+                    SET available_kg = ?,
+                        status = ?,
                         last_issue_date = CURDATE(),
-                        updated_at    = NOW()
+                        updated_at = NOW()
                     WHERE id = ?
                 ");
                 $stmt->execute([
-                    $closing,
                     $closing,
                     $status,
                     $row['id']
                 ]);
 
                 /**
-                 * LOG MOVEMENT
-                 * farm_id = consuming farm
-                 * stock_owner_farm_id = farm that bought stock
+                 * CONSUMPTION TRACKING
+                 */
+                $pdo->prepare("
+                    INSERT INTO feed_consumption
+                    (feed_store_id,batch_no,farm_id,pond_id,fish_batch_id,quantity_kg,unit_cost,total_cost)
+                    VALUES (?,?,?,?,?,?,?,?)
+                ")->execute([
+                    $row['id'],
+                    $row['batch_no'],
+                    $farm_id,
+                    $pond_id,
+                    $fish_batch_id,
+                    $take,
+                    $row['cost_per_kg'],
+                    $cost
+                ]);
+
+                /**
+                 * LOG
                  */
                 $stmt = $pdo->prepare("
                     INSERT INTO feed_store_logs
                     (
-                        idempotency_key,
-                        date,
-                        farm_id,
-                        stock_owner_farm_id,
-                        warehouse_id,
-                        feed_store_id,
-                        feed_type,
-                        batch_no,
-                        opening_stock,
-                        received,
-                        issued,
-                        closing_stock,
-                        balance_after,
-                        issued_to,
-                        pond_id,
-                        unit_cost,
-                        total_cost,
-                        movement_type,
-                        reference_no,
-                        authorized_by,
-                        storekeeper,
-                        approved_at,
-                        issued_at,
-                        remarks,
-                        status
+                        idempotency_key,date,farm_id,stock_owner_farm_id,warehouse_id,
+                        feed_store_id,feed_type,batch_no,
+                        opening_stock,received,issued,closing_stock,balance_after,
+                        issued_to,pond_id,fish_batch_id,
+                        unit_cost,total_cost,running_value,
+                        movement_type,status,reference_no,
+                        authorized_by,approved_at,requested_by,storekeeper,issued_at,remarks
                     )
-                    VALUES
-                    (
-                        ?,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-                    )
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ");
 
                 $stmt->execute([
-                    uniqid('ISS-'),
+                    hash('sha256', $row['id'] . microtime(true)),
+                    date('Y-m-d'),
                     $farm_id,
                     $row['farm_id'],
                     1,
@@ -184,16 +172,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $closing,
                     $pond['pond_code'],
                     $pond_id,
+                    $fish_batch_id,
                     $row['cost_per_kg'],
                     $cost,
+                    $cost,
                     'issue',
-                    'REF-'.date('YmdHis'),
+                    'posted',
+                    'ISS-' . date('YmdHis'),
+                    $staff_id,
+                    date('Y-m-d H:i:s'),
                     $staff_id,
                     $staff_id,
                     date('Y-m-d H:i:s'),
-                    date('Y-m-d H:i:s'),
-                    $remarks,
-                    'posted'
+                    $remarks ?: 'Auto FIFO issue'
                 ]);
 
                 $remaining -= $take;
@@ -202,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
-            $message = number_format($qty,2)." kg issued to {$pond['pond_code']} using FIFO ({$usedRows} batch(es)).";
+            $message = number_format($qty,2)." kg issued to {$pond['pond_code']} (FIFO: {$usedRows} batch(es)).";
             $alert   = 'success';
 
         } catch (Exception $e) {
@@ -223,20 +214,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmt = $pdo->query("
     SELECT DISTINCT feed_type
     FROM feed_store
-    WHERE quantity_kg > 0
-    AND status = 'active'
+    WHERE available_kg > 0 AND status='active'
     ORDER BY feed_type
 ");
 $feeds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 /**
- * LOAD PONDS FOR CURRENT FARM
+ * LOAD PONDS
  */
 $stmt = $pdo->prepare("
     SELECT id, pond_code, pond_type
     FROM ponds_tanks
-    WHERE farm_id = ?
-    ORDER BY pond_code
+    WHERE farm_id=?
 ");
 $stmt->execute([$farm_id]);
 $ponds = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -244,19 +233,16 @@ $ponds = $stmt->fetchAll(PDO::FETCH_ASSOC);
 /**
  * KPI
  */
-$stmt = $pdo->query("
-    SELECT COALESCE(SUM(quantity_kg),0)
+$total_stock = $pdo->query("
+    SELECT COALESCE(SUM(available_kg),0)
     FROM feed_store
     WHERE status='active'
-");
-$total_stock = $stmt->fetchColumn();
+")->fetchColumn();
 
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(issued),0)
     FROM feed_store_logs
-    WHERE farm_id = ?
-    AND date = CURDATE()
-    AND movement_type='issue'
+    WHERE farm_id=? AND movement_type='issue' AND date=CURDATE()
 ");
 $stmt->execute([$farm_id]);
 $today_issue = $stmt->fetchColumn();
