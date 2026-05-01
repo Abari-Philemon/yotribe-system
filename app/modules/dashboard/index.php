@@ -289,320 +289,277 @@ foreach ($stmt->fetchAll() as $m) {
  */
 $attention = array_values($attention);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dashboard | Yotribe Agro</title>
+<title>Farm Command Center</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="/yotribe-system/public/css/custom.css">
-<script src="/yotribe-system/public/js/Chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* ===== GLOBAL ===== */
+body{
+    margin:0;
+    background:#f4f7fb;
+    font-family:system-ui;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+    width:260px;
+    height:100vh;
+    position:fixed;
+    top:0;
+    left:0;
+    background:#0f172a;
+    color:#fff;
+    padding:20px;
+    overflow-y:auto;
+}
+
+.sidebar .nav-link{
+    color:#cbd5e1;
+    padding:10px 12px;
+    border-radius:10px;
+    display:block;
+    margin-bottom:6px;
+    text-decoration:none;
+}
+
+.sidebar .nav-link:hover{
+    background:#1e293b;
+    color:#fff;
+}
+
+.sidebar .nav-link.active{
+    background:#2563eb;
+    color:#fff;
+    font-weight:600;
+}
+
+.nav-title{
+    font-size:12px;
+    text-transform:uppercase;
+    color:#94a3b8;
+    margin-top:15px;
+    margin-bottom:5px;
+}
+
+.quick-box{
+    background:#1e293b;
+    padding:10px;
+    border-radius:12px;
+    font-size:13px;
+    margin-bottom:15px;
+}
+
+/* ===== MAIN ===== */
+.main{
+    margin-left:260px;
+    padding:20px;
+}
+
+/* ===== HERO ===== */
+.hero{
+    background:linear-gradient(135deg,#0d6efd,#20c997);
+    color:#fff;
+    padding:20px;
+    border-radius:15px;
+}
+
+/* ===== KPI ===== */
+.kpi{
+    background:#fff;
+    padding:15px;
+    border-radius:15px;
+    box-shadow:0 10px 20px rgba(0,0,0,.05);
+}
+.kpi h4{margin:0;font-weight:700}
+
+/* ===== CARD ===== */
+.cardx{
+    background:#fff;
+    border-radius:15px;
+    padding:15px;
+    box-shadow:0 10px 20px rgba(0,0,0,.05);
+}
+
+/* ===== MOBILE ===== */
+@media(max-width:768px){
+    .sidebar{
+        position:absolute;
+        left:-260px;
+        transition:.3s;
+    }
+    .sidebar.active{
+        left:0;
+    }
+    .main{
+        margin-left:0;
+    }
+}
+
+</style>
 </head>
 
 <body>
-<div class="container-fluid">
-<div class="row">
 
 <!-- SIDEBAR -->
-<nav id="sidebar" class="col-md-2 d-md-block bg-light sidebar collapse vh-100">
-    <div class="pt-3 text-center">
-        <img src="/yotribe-system/public/uploads/logo8.png" class="img-fluid mb-2" style="max-height:140px">
+<div class="sidebar" id="sidebar">
 
+    <div class="text-center mb-3">
+        <img src="/yotribe-system/public/uploads/logo8.png" class="img-fluid mb-2" style="max-height:70px">
         <div class="fw-bold"><?= htmlspecialchars($farm_name) ?></div>
-        <small class="text-muted d-block"><?= htmlspecialchars($farm_size) ?> Farm</small>
-        <small class="text-muted"><?= htmlspecialchars($farm_location) ?></small>
-
-        <!-- SWITCH FARM -->
-        <a href="/yotribe-system/app/modules/farms/select.php"
-           class="btn btn-sm btn-outline-primary mt-2">
-           Switch Farm
-        </a>
+        <small class="text-muted"><?= $farm_size ?> Farm</small>
     </div>
 
-    <ul class="nav flex-column mt-4">
-        <li class="nav-item"><a class="nav-link active" href="#">Dashboard</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/feeding/index.php">Feeding</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/finance/index.php">Finance</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/feed_store/index.php">Feed Store</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/ponds/index.php">Ponds</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/stocking/index.php">Stocking</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/mortality/index.php">Mortality</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/growth/index.php">Growth</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/hatchery/index.php">Hatchery</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/maggot/index.php">Maggot Production</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/water/index.php">Water Quality</a></li>
-        <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/reports/index.php">Reports</a></li>
-        <li class="nav-item"><a class="nav-link text-danger" href="/yotribe-system/app/auth/logout.php">Logout</a></li>
-    </ul>
-</nav>
+    <div class="quick-box">
+        Feed: <strong><?= number_format($total_feed,0) ?>kg</strong><br>
+        Biomass: <strong><?= number_format($total_biomass,0) ?>kg</strong>
+    </div>
+
+    <div class="nav-title">Overview</div>
+    <a href="#" class="nav-link active">📊 Dashboard</a>
+
+    <div class="nav-title">Operations</div>
+    <a href="/yotribe-system/app/modules/feeding/index.php" class="nav-link">🍽 Feeding</a>
+    <a href="/yotribe-system/app/modules/stocking/index.php" class="nav-link">🐟 Stocking</a>
+    <a href="/yotribe-system/app/modules/ponds/index.php" class="nav-link">🏞 Ponds</a>
+    <a href="/yotribe-system/app/modules/mortality/index.php" class="nav-link">☠ Mortality</a>
+    <a href="/yotribe-system/app/modules/growth/index.php" class="nav-link">📈 Growth</a>
+
+    <div class="nav-title">Feed System</div>
+    <a href="/yotribe-system/app/modules/feed_store/index.php" class="nav-link">📦 Feed Store</a>
+
+    <div class="nav-title">Production</div>
+    <a href="/yotribe-system/app/modules/hatchery/index.php" class="nav-link">🥚 Hatchery</a>
+    <a href="/yotribe-system/app/modules/maggot/index.php" class="nav-link">🪱 Maggot</a>
+
+    <div class="nav-title">Finance</div>
+    <a href="/yotribe-system/app/modules/finance/index.php" class="nav-link">💰 Finance</a>
+
+    <div class="nav-title">System</div>
+    <a href="/yotribe-system/app/modules/reports/index.php" class="nav-link">📑 Reports</a>
+    <a href="/yotribe-system/app/modules/water/index.php" class="nav-link">💧 Water</a>
+
+    <a href="/yotribe-system/app/auth/logout.php" class="nav-link text-danger mt-3">🚪 Logout</a>
+
+</div>
 
 <!-- MAIN -->
-<main class="col-md-10 ms-sm-auto px-md-4">
+<div class="main">
 
 <!-- MOBILE NAV -->
-<nav class="navbar navbar-light bg-light d-md-none mb-3">
-    <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#sidebar">
-        ☰ Menu
-    </button>
-    <span class="navbar-brand">Dashboard</span>
-</nav>
+<button class="btn btn-primary d-md-none mb-3" onclick="toggleSidebar()">☰ Menu</button>
 
-<!-- HEADER -->
-<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
-
-    <h1 class="h3">Executive Dashboard</h1>
-    <div class="alert alert-danger shadow-sm">
-    <strong>⚠ Attention Required</strong>
-
-    <?php if (empty($attention)): ?>
-        <div class="text-muted">No critical issues detected</div>
-    <?php else: ?>
-        <ul class="mb-0">
-            <?php foreach ($attention as $a): ?>
-                <li><?= htmlspecialchars($a) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-    </div>
-
-    <div class="d-flex align-items-center gap-2">
-
-        <!-- FARM DROPDOWN -->
-        <select id="farmSwitcher" class="form-select form-select-sm" style="width:auto;">
-            <option>Loading farms...</option>
-        </select>
-
-    </div>
-
+<!-- HERO -->
+<div class="hero mb-4 d-flex justify-content-between align-items-center flex-wrap">
+<div>
+<h4><?= htmlspecialchars($farm_name) ?></h4>
+<small><?= $farm_location ?></small>
 </div>
 
-<!-- KPI CARDS -->
-<div class="row g-3">
-
-<div class="col-md-3">
-<div class="card bg-success text-white shadow">
-<div class="card-body">
-<h6>Biomass (kg)</h6>
-<h4><?= number_format($total_biomass,2) ?></h4>
-</div></div></div>
-
-<div class="col-md-3">
-<div class="card bg-primary text-white shadow">
-<div class="card-body">
-<h6>Feed Stock (kg)</h6>
-<h4><?= number_format($total_feed,2) ?></h4>
-</div></div></div>
-
-<div class="col-md-3">
-<div class="card bg-info text-white shadow">
-<div class="card-body">
-<h6>Total Sales (₦)</h6>
-<h4><?= number_format($total_sales,2) ?></h4>
-</div></div></div>
-
-<div class="col-md-3">
-<div class="card bg-warning text-dark shadow">
-<div class="card-body">
-<h6>Net Profit (₦)</h6>
-<h4><?= number_format($profit,2) ?></h4>
-</div></div></div>
-
-<div class="col-md-3">
-<div class="card bg-secondary text-white shadow">
-<div class="card-body">
-<h6>Total Expenses (₦)</h6>
-<h4><?= number_format($total_expenses,2) ?></h4>
-</div></div></div>
-
-<div class="col-md-3">
-<div class="card bg-danger text-white shadow">
-<div class="card-body">
-<h6>Mortality Alerts</h6>
-<h4><?= $high_mortality ?> Today</h4>
-</div></div></div>
-
+<select id="farmSwitcher" class="form-select form-select-sm" style="width:auto;">
+<option>Loading...</option>
+</select>
 </div>
-<div class="card mt-4 shadow">
-<div class="card-body">
-<h6>Growth Intelligence</h6>
 
-<table class="table table-sm">
-<tr><th>Pond</th><th>SGR</th><th>Prediction</th><th>Status</th></tr>
-
-<?php foreach ($growth_data as $g): ?>
-<tr>
-<td><?= $g['pond'] ?></td>
-<td><?= $g['sgr'] ?? '-' ?>%</td>
-<td><?= $g['pred'] ? round($g['pred'],2).'g' : '-' ?></td>
-<td><?= $g['alert'] ?? 'OK' ?></td>
-</tr>
+<!-- ALERT -->
+<div class="alert alert-danger">
+<strong>⚠ Attention</strong>
+<?php if(empty($attention)): ?>
+<div class="text-muted">No issues</div>
+<?php else: ?>
+<ul>
+<?php foreach($attention as $a): ?>
+<li><?= htmlspecialchars($a) ?></li>
 <?php endforeach; ?>
+</ul>
+<?php endif; ?>
+</div>
 
-</table>
+<!-- KPI -->
+<div class="row g-3 mb-4">
+
+<div class="col-md-3">
+<div class="kpi">
+<small>Biomass</small>
+<h4><?= number_format($total_biomass,2) ?> kg</h4>
 </div>
 </div>
-<div class="card mt-4 shadow">
-<div class="card-body">
-<h6>Feeding Control (Today)</h6>
 
-<table class="table table-sm">
-<tr><th>Pond</th><th>Recommended</th><th>Actual</th></tr>
-
-<?php foreach ($feeding_data as $f): ?>
-<tr>
-<td><?= $f['pond'] ?></td>
-<td><?= round($f['recommended'],2) ?> kg</td>
-<td class="<?= $f['actual'] > $f['recommended'] ? 'text-danger' : 'text-success' ?>">
-<?= round($f['actual'],2) ?> kg
-</td>
-</tr>
-<?php endforeach; ?>
-
-</table>
+<div class="col-md-3">
+<div class="kpi">
+<small>Feed</small>
+<h4><?= number_format($total_feed,2) ?> kg</h4>
 </div>
 </div>
-<div class="card mt-4 shadow">
-<div class="card-body">
-<h6>FCR Monitoring</h6>
 
-<table class="table table-sm">
-<tr><th>Pond</th><th>FCR</th></tr>
-
-<?php foreach ($fcr_data as $f): ?>
-<tr>
-<td><?= $f['pond'] ?></td>
-<td class="<?= $f['fcr'] > 2 ? 'text-danger' : 'text-success' ?>">
-<?= round($f['fcr'],2) ?>
-</td>
-</tr>
-<?php endforeach; ?>
-
-</table>
+<div class="col-md-3">
+<div class="kpi">
+<small>Sales</small>
+<h4>₦<?= number_format($total_sales,2) ?></h4>
 </div>
+</div>
+
+<div class="col-md-3">
+<div class="kpi">
+<small>Profit</small>
+<h4 class="<?= $profit >=0 ? 'text-success':'text-danger' ?>">
+₦<?= number_format($profit,2) ?>
+</h4>
+</div>
+</div>
+
 </div>
 
 <!-- CHARTS -->
-<div class="row mt-4">
+<div class="row g-4 mb-4">
 
 <div class="col-md-6">
-<div class="card shadow">
-<div class="card-body">
-<h6>Weekly Biomass Trend</h6>
+<div class="cardx">
+<h6>Biomass Trend</h6>
 <canvas id="biomassChart"></canvas>
-</div></div></div>
+</div>
+</div>
 
 <div class="col-md-6">
-<div class="card shadow">
-<div class="card-body">
-<h6>Weekly Sales Trend</h6>
+<div class="cardx">
+<h6>Sales Trend</h6>
 <canvas id="salesChart"></canvas>
-</div></div></div>
-
-</div>
-<div class="card mt-4">
-<div class="card-body">
-<h6>⚠ Capacity Alerts</h6>
-
-<?php if (empty($alerts)): ?>
-    <p class="text-muted">No alerts</p>
-<?php else: ?>
-    <?php foreach ($alerts as $a): ?>
-        <div class="alert alert-<?= 
-            $a['level'] === 'critical' ? 'danger' :
-            ($a['level'] === 'high' ? 'warning' : 'info')
-        ?>">
-            <strong><?= $a['pond_code'] ?></strong> — <?= $a['message'] ?>
-        </div>
-    <?php endforeach; ?>
-<?php endif; ?>
-
 </div>
 </div>
 
-</main>
 </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const CSRF_TOKEN = "<?= csrf_token() ?>";
-</script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</div>
 
 <script>
-// Biomass Chart (secure - no farm_id in URL)
+function toggleSidebar(){
+    document.getElementById('sidebar').classList.toggle('active');
+}
+
+/* charts */
 fetch('charts.php?type=biomass')
-.then(r => r.json())
-.then(d => new Chart(document.getElementById('biomassChart'), {
-    type: 'line',
-    data: {
-        labels: d.labels,
-        datasets: [{
-            label: 'Biomass',
-            data: d.values,
-            borderWidth: 2
-        }]
-    }
-}));
-
-// Sales Chart
-fetch('charts.php?type=sales')
-.then(r => r.json())
-.then(d => new Chart(document.getElementById('salesChart'), {
-    type: 'bar',
-    data: {
-        labels: d.labels,
-        datasets: [{
-            label: 'Sales',
-            data: d.values
-        }]
-    }
-}));
-</script>
-<script>
-// Load farms into dropdown
-fetch('/yotribe-system/app/modules/farms/list.php')
-.then(res => res.json())
-.then(farms => {
-
-    const select = document.getElementById('farmSwitcher');
-    select.innerHTML = '';
-
-    farms.forEach(farm => {
-        const option = document.createElement('option');
-        option.value = farm.id;
-        option.text  = farm.name;
-
-        if (farm.id == <?= $farm_id ?>) {
-            option.selected = true;
-        }
-
-        select.appendChild(option);
-    });
+.then(r=>r.json())
+.then(d=>{
+new Chart(document.getElementById('biomassChart'),{
+type:'line',
+data:{labels:d.labels,datasets:[{label:'Biomass',data:d.values}]}
+});
 });
 
-// Handle farm switch
-document.getElementById('farmSwitcher').addEventListener('change', function () {
-
-    fetch('/yotribe-system/app/modules/farms/switch_live.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'farm_id=' + this.value + '&csrf_token=' + CSRF_TOKEN
-    })
-    .then(res => res.json())
-    .then(res => {
-        if (res.status === 'success') {
-            location.reload();
-        } else {
-            alert(res.message || 'Switch failed');
-        }
-    });
-
+fetch('charts.php?type=sales')
+.then(r=>r.json())
+.then(d=>{
+new Chart(document.getElementById('salesChart'),{
+type:'bar',
+data:{labels:d.labels,datasets:[{label:'Sales',data:d.values}]}
+});
 });
 </script>
 
