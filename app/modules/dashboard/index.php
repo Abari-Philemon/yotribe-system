@@ -289,6 +289,27 @@ foreach ($stmt->fetchAll() as $m) {
  */
 $attention = array_values($attention);
 $page_title = "Dashboard";
+/**
+ * PASS DATA TO VIEW LAYER
+ */
+$view_data = [
+    'farm_name'      => $farm_name,
+    'farm_location'  => $farm_location,
+    'farm_size'      => $farm_size,
+
+    'total_biomass'  => $total_biomass,
+    'total_feed'     => $total_feed,
+    'total_sales'    => $total_sales,
+    'total_expenses' => $total_expenses,
+    'profit'         => $profit,
+    'high_mortality' => $high_mortality,
+
+    'alerts'         => $alerts,
+    'growth_data'    => $growth_data,
+    'feeding_data'   => $feeding_data,
+    'fcr_data'       => $fcr_data,
+    'attention'      => $attention,
+];
 
 /* your queries here */
 
@@ -383,7 +404,97 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 </div>
 
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 
-</body>
-</html>
+<hr class="my-4">
+
+<!-- ATTENTION PANEL -->
+<div class="alert alert-danger">
+    <strong>Attention System</strong>
+
+    <?php if (empty($attention)): ?>
+        <div>No critical issues</div>
+    <?php else: ?>
+        <ul>
+            <?php foreach ($attention as $a): ?>
+                <li><?= htmlspecialchars($a) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+</div>
+
+<!-- GROWTH TABLE -->
+<div class="card mt-3">
+<div class="card-body">
+<h5>Growth Intelligence</h5>
+
+<table class="table table-sm">
+<tr>
+    <th>Pond</th>
+    <th>SGR</th>
+    <th>Prediction</th>
+    <th>Status</th>
+</tr>
+
+<?php foreach ($growth_data as $g): ?>
+<tr>
+    <td><?= $g['pond'] ?></td>
+    <td><?= $g['sgr'] ?>%</td>
+    <td><?= round($g['pred'],2) ?>g</td>
+    <td><?= $g['alert'] ?: 'OK' ?></td>
+</tr>
+<?php endforeach; ?>
+</table>
+
+</div>
+</div>
+
+<!-- FEEDING TABLE -->
+<div class="card mt-3">
+<div class="card-body">
+<h5>Feeding Control</h5>
+
+<table class="table table-sm">
+<tr>
+    <th>Pond</th>
+    <th>Recommended</th>
+    <th>Actual</th>
+</tr>
+
+<?php foreach ($feeding_data as $f): ?>
+<tr>
+    <td><?= $f['pond'] ?></td>
+    <td><?= round($f['recommended'],2) ?> kg</td>
+    <td class="<?= $f['actual'] > $f['recommended'] ? 'text-danger' : 'text-success' ?>">
+        <?= round($f['actual'],2) ?> kg
+    </td>
+</tr>
+<?php endforeach; ?>
+</table>
+
+</div>
+</div>
+
+<!-- FCR TABLE -->
+<div class="card mt-3 mb-5">
+<div class="card-body">
+<h5>FCR Monitoring</h5>
+
+<table class="table table-sm">
+<tr><th>Pond</th><th>FCR</th></tr>
+
+<?php foreach ($fcr_data as $f): ?>
+<tr>
+    <td><?= $f['pond'] ?></td>
+    <td class="<?= $f['fcr'] > 2 ? 'text-danger' : 'text-success' ?>">
+        <?= round($f['fcr'],2) ?>
+    </td>
+</tr>
+<?php endforeach; ?>
+</table>
+
+</div>
+</div>
+
+</main>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
