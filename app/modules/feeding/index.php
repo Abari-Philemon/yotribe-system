@@ -165,46 +165,75 @@ if (isset($_POST['feed'])) {
             $stmt = $pdo->prepare("
             INSERT INTO feed_store_logs
             (
-                idempotency_key,date,farm_id,stock_owner_farm_id,warehouse_id,
-                feed_store_id,feed_type,batch_no,
-                opening_stock,received,issued,closing_stock,balance_after,
-                issued_to,pond_id,fish_batch_id,
-                unit_cost,total_cost,running_value,
-                movement_type,status,reference_no,
-                authorized_by,approved_at,requested_by,storekeeper,issued_at,remarks
+                idempotency_key,
+                date,
+                farm_id,
+                stock_owner_farm_id,
+                warehouse_id,
+                feed_store_id,
+                feed_type,
+                batch_no,
+                opening_stock,
+                received,
+                issued,
+                closing_stock,
+                balance_after,
+                issued_to,
+                pond_id,
+                fish_batch_id,
+                batch_source_id,   -- ✅ ADDED
+                unit_cost,
+                total_cost,
+                running_value,
+                movement_type,
+                status,
+                reference_no,
+                authorized_by,
+                approved_at,
+                requested_by,
+                storekeeper,
+                issued_at,
+                remarks
             )
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ");
-
             $stmt->execute([
-                uniqid('FED-'),
-                date('Y-m-d'),
-                $farm_id,
-                $r['farm_id'],
-                $r['warehouse_id'],
-                $r['id'],
-                $feed_type,
-                $r['batch_no'],
-                $r['available_kg'],
-                0,
-                $take,
-                $closing,
-                $closing,
-                'FEEDING',
-                $stock['pond_id'],
-                $stock['batch_id'],
-                $r['cost_per_kg'],
-                $cost,
-                $cost,
-                'feeding',
-                'posted',
-                'FD-'.date('YmdHis'),
-                $staff_id,
-                date('Y-m-d H:i:s'),
-                $staff_id,
-                $staff_id,
-                date('Y-m-d H:i:s'),
-                $remarks
+                uniqid('FED-'),            // idempotency_key
+                date('Y-m-d'),             // date
+                $farm_id,                  // farm_id
+                $r['farm_id'],             // stock_owner_farm_id
+                $r['warehouse_id'],        // warehouse_id
+                $r['id'],                  // feed_store_id
+                $feed_type,                // feed_type
+                $r['batch_no'],            // batch_no
+                $r['available_kg'],        // opening_stock
+                0,                         // received
+                $take,                     // issued
+                $closing,                  // closing_stock
+                $closing,                  // balance_after
+
+                'POND_FEEDING',            // issued_to ✅ FIXED meaning
+                $stock['pond_id'],         // pond_id
+                $stock['batch_id'],        // fish_batch_id
+
+                null,                      // batch_source_id ✅ REQUIRED
+
+                $r['cost_per_kg'],         // unit_cost
+                $cost,                     // total_cost
+                $cost,                     // running_value
+
+                'issue',                   // movement_type ✅ MUST MATCH ENUM
+                'posted',                  // status
+
+                'FD-'.date('YmdHis'),      // reference_no
+
+                $staff_id,                 // authorized_by
+                date('Y-m-d H:i:s'),       // approved_at
+                $staff_id,                 // requested_by
+                $staff_id,                 // storekeeper
+                date('Y-m-d H:i:s'),       // issued_at
+
+                $remarks                   // remarks
             ]);
 
             $remaining -= $take;
