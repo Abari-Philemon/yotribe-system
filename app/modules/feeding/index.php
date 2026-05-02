@@ -283,25 +283,38 @@ body{
 
 <!-- KPI STRIP -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+
+    <div class="col-md-3">
         <div class="cardx p-3 bg-white">
-            <small class="text-muted">Biomass</small>
-            <div id="biomass" class="kpi text-primary">0 kg</div>
+        <small>Live Biomass</small>
+        <h4 id="rt_biomass">--</h4>
         </div>
     </div>
-    <div class="col-md-4">
+
+    <div class="col-md-3">
         <div class="cardx p-3 bg-white">
-            <small class="text-muted">Recommended Feed</small>
-            <div id="recommended" class="kpi text-success">0 kg</div>
+        <small>Feed Today</small>
+        <h4 id="rt_feed">--</h4>
         </div>
     </div>
-    <div class="col-md-4">
+
+    <div class="col-md-3">
         <div class="cardx p-3 bg-white">
-            <small class="text-muted">Estimated Cost</small>
-            <div id="est_cost" class="kpi text-dark">₦0</div>
+        <small>Feed Cost</small>
+        <h4 id="rt_cost">--</h4>
         </div>
     </div>
+
+    <div class="col-md-3">
+        <div class="cardx p-3 bg-white">
+        <small>Active Ponds</small>
+        <h4 id="rt_ponds">--</h4>
+        </div>
+    </div>
+
 </div>
+
+<small id="rt_time" class="text-muted"></small>
 
 <!-- ALERT -->
 <?php if($message): ?>
@@ -370,6 +383,19 @@ data-weight="<?= $s['avg_weight_g'] ?>"
 </div>
 
 <script>
+    function calcCost(){
+
+    let qty = document.getElementById('qty').value;
+    let feed = document.getElementById('feed_type').value;
+
+    if(!qty || qty <= 0) return;
+
+    fetch(`/yotribe-system/app/modules/feed_store/cost_estimator.php?feed_type=${feed}&qty=${qty}`)
+    .then(res => res.json())
+    .then(d => {
+        document.getElementById('est_cost').innerText = '₦' + d.cost.toLocaleString();
+    });
+}
 
 /**
  * LIVE BIOMASS + FEED CALC
