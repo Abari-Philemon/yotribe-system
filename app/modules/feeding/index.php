@@ -73,10 +73,6 @@ if (isset($_POST['preview'])) {
         ];
     }
 }
-
-/**
- * HANDLE FEEDING (FULL FIFO + COST)
- */
 if (isset($_POST['feed'])) {
 
     if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -87,26 +83,23 @@ if (isset($_POST['feed'])) {
     $feed_type = trim($_POST['feed_type']);
     $qty = (float)$_POST['quantity_kg'];
     $remarks = $_POST['remarks'] ?? '';
+    $time = $_POST['time'] ?? date('H:i:s'); // ✅ FIXED
 
     try {
 
         $pdo->beginTransaction();
 
-        /**
-         * LOCK STOCK
-         */
+        // LOCK STOCK
         $stmt = $pdo->prepare("
-        SELECT * FROM pond_stocking
-        WHERE id=? AND farm_id=? FOR UPDATE
+            SELECT * FROM pond_stocking
+            WHERE id=? AND farm_id=? FOR UPDATE
         ");
         $stmt->execute([$stock_id,$farm_id]);
         $stock = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$stock) throw new Exception("Invalid stock");
 
-        /**
-         * BIOMASS CHECK
-         */
+        // BIOMASS CHECK
         $biomass = ($stock['current_count'] * $stock['avg_weight_g']) / 1000;
 
         if ($stock['avg_weight_g'] < 50)      $rate = 0.10;
@@ -119,17 +112,15 @@ if (isset($_POST['feed'])) {
             throw new Exception("Max allowed: ".round($max_feed,2)." kg");
         }
 
-        /**
-         * FIFO STOCK (CORRECT)
-         */
+        // FIFO
         $stmt = $pdo->prepare("
-        SELECT *
-        FROM feed_store
-        WHERE feed_type=? 
-        AND status='active'
-        AND available_kg > 0
-        ORDER BY received_date ASC, id ASC
-        FOR UPDATE
+            SELECT *
+            FROM feed_store
+            WHERE feed_type=? 
+            AND status='active'
+            AND available_kg > 0
+            ORDER BY received_date ASC, id ASC
+            FOR UPDATE
         ");
         $stmt->execute([$feed_type]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -149,114 +140,80 @@ if (isset($_POST['feed'])) {
             $closing = $r['available_kg'] - $take;
             $status = $closing <= 0 ? 'finished' : 'active';
 
-            /**
-             * UPDATE STORE
-             */
+            // UPDATE STORE
             $stmt = $pdo->prepare("
-            UPDATE feed_store
-            SET available_kg=?, quantity_kg=?, status=?, updated_at=NOW()
-            WHERE id=?
+                UPDATE feed_store
+                SET available_kg=?, quantity_kg=?, status=?, updated_at=NOW()
+                WHERE id=?
             ");
             $stmt->execute([$closing,$closing,$status,$r['id']]);
 
-            /**
-             * LOG MOVEMENT
-             */
+            // LOG
             $stmt = $pdo->prepare("
-            INSERT INTO feed_store_logs
-            (
-                idempotency_key,
-                date,
-                farm_id,
-                stock_owner_farm_id,
-                warehouse_id,
-                feed_store_id,
-                feed_type,
-                batch_no,
-                opening_stock,
-                received,
-                issued,
-                closing_stock,
-                balance_after,
-                issued_to,
-                pond_id,
-                fish_batch_id,
-                batch_source_id,   -- ✅ ADDED
-                unit_cost,
-                total_cost,
-                running_value,
-                movement_type,
-                status,
-                reference_no,
-                authorized_by,
-                approved_at,
-                requested_by,
-                storekeeper,
-                issued_at,
-                remarks
-            )
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO feed_store_logs (
+                    idempotency_key,date,farm_id,stock_owner_farm_id,
+                    warehouse_id,feed_store_id,feed_type,batch_no,
+                    opening_stock,received,issued,closing_stock,balance_after,
+                    issued_to,pond_id,fish_batch_id,batch_source_id,
+                    unit_cost,total_cost,running_value,
+                    movement_type,status,reference_no,
+                    authorized_by,approved_at,requested_by,storekeeper,issued_at,remarks
+                )
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ");
+
             $stmt->execute([
-                uniqid('FED-'),            // idempotency_key
-                date('Y-m-d'),             // date
-                $farm_id,                  // farm_id
-                $r['farm_id'],             // stock_owner_farm_id
-                $r['warehouse_id'],        // warehouse_id
-                $r['id'],                  // feed_store_id
-                $feed_type,                // feed_type
-                $r['batch_no'],            // batch_no
-                $r['available_kg'],        // opening_stock
-                0,                         // received
-                $take,                     // issued
-                $closing,                  // closing_stock
-                $closing,                  // balance_after
-
-                'POND_FEEDING',            // issued_to ✅ FIXED meaning
-                $stock['pond_id'],         // pond_id
-                $stock['batch_id'],        // fish_batch_id
-
-                null,                      // batch_source_id ✅ REQUIRED
-
-                $r['cost_per_kg'],         // unit_cost
-                $cost,                     // total_cost
-                $cost,                     // running_value
-
-                'issue',                   // movement_type ✅ MUST MATCH ENUM
-                'posted',                  // status
-
-                'FD-'.date('YmdHis'),      // reference_no
-
-                $staff_id,                 // authorized_by
-                date('Y-m-d H:i:s'),       // approved_at
-                $staff_id,                 // requested_by
-                $staff_id,                 // storekeeper
-                date('Y-m-d H:i:s'),       // issued_at
-
-                $remarks                   // remarks
+                uniqid('FED-'),
+                date('Y-m-d'),
+                $farm_id,
+                $r['farm_id'],
+                $r['warehouse_id'],
+                $r['id'],
+                $feed_type,
+                $r['batch_no'],
+                $r['available_kg'],
+                0,
+                $take,
+                $closing,
+                $closing,
+                'POND_FEEDING',
+                $stock['pond_id'],
+                $stock['batch_id'],
+                null,
+                $r['cost_per_kg'],
+                $cost,
+                $cost,
+                'issue',
+                'posted',
+                'FD-'.date('YmdHis'),
+                $staff_id,
+                date('Y-m-d H:i:s'),
+                $staff_id,
+                $staff_id,
+                date('Y-m-d H:i:s'),
+                $remarks
             ]);
 
             $remaining -= $take;
             $total_cost += $cost;
         }
 
-        /**
-         * FEED LOG (UPGRADED WITH COST)
-         */
+        // ✅ CORRECT feeding_logs (matches your table)
         $stmt = $pdo->prepare("
-        INSERT INTO feeding_logs
-        (date,farm_id,pond_id,batch_id,feed_type,quantity_kg,total_cost,fed_by,remarks)
-        VALUES (CURDATE(),?,?,?,?,?,?,?,?)
+            INSERT INTO feeding_logs
+            (date,farm_id,pond_id,batch_id,feed_type,quantity_kg,fed_by,time,remarks)
+            VALUES (?,?,?,?,?,?,?,?,?)
         ");
 
         $stmt->execute([
+            date('Y-m-d'),
             $farm_id,
             $stock['pond_id'],
             $stock['batch_id'],
             $feed_type,
             $qty,
-            $total_cost,
             $staff_id,
+            $time,
             $remarks
         ]);
 
@@ -412,67 +369,36 @@ data-weight="<?= $s['avg_weight_g'] ?>"
 </div>
 
 <script>
+    function updatePreview(){
+
+        let stock = document.getElementById('stock_id').selectedOptions[0];
+
+        let count = parseFloat(stock.dataset.count || 0);
+        let weight = parseFloat(stock.dataset.weight || 0);
+
+        let biomass = (count * weight) / 1000;
+
+        let rate = 0.05;
+        if(weight < 50) rate = 0.10;
+        else if(weight < 200) rate = 0.06;
+
+        let recommended = biomass * rate;
+
+        document.getElementById('rt_biomass').innerText = biomass.toFixed(2) + ' kg';
+        document.getElementById('rt_feed').innerText = recommended.toFixed(2) + ' kg';
+
+        calcCost();
+    }
+
     function calcCost(){
 
-    let qty = document.getElementById('qty').value;
-    let feed = document.getElementById('feed_type').value;
+        let qty = parseFloat(document.getElementById('qty').value) || 0;
+        let avg_price = 500;
 
-    if(!qty || qty <= 0) return;
+        let cost = qty * avg_price;
 
-    fetch(`/yotribe-system/app/modules/feed_store/cost_estimator.php?feed_type=${feed}&qty=${qty}`)
-    .then(res => res.json())
-    .then(d => {
-        document.getElementById('est_cost').innerText = '₦' + d.cost.toLocaleString();
-    });
-}
-
-/**
- * LIVE BIOMASS + FEED CALC
- */
-function updatePreview(){
-
-    let stock = document.getElementById('stock_id').selectedOptions[0];
-
-    let count = parseFloat(stock.dataset.count || 0);
-    let weight = parseFloat(stock.dataset.weight || 0);
-
-    let biomass = (count * weight) / 1000;
-
-    let rate = 0.05;
-    if(weight < 50) rate = 0.10;
-    else if(weight < 200) rate = 0.06;
-
-    let recommended = biomass * rate;
-
-    document.getElementById('biomass').innerText = biomass.toFixed(2) + ' kg';
-    document.getElementById('recommended').innerText = recommended.toFixed(2) + ' kg';
-
-    calcCost();
-}
-
-/**
- * COST ESTIMATION (SIMPLIFIED AVG)
- */
-function calcCost(){
-
-    let qty = parseFloat(document.getElementById('qty').value) || 0;
-
-    // You can replace with AJAX later for real FIFO cost
-    let avg_price = 500; // fallback estimate
-
-    let cost = qty * avg_price;
-
-    document.getElementById('est_cost').innerText = '₦' + cost.toLocaleString();
-}
-
-/**
- * EVENTS
- */
-document.getElementById('stock_id').addEventListener('change', updatePreview);
-document.getElementById('qty').addEventListener('input', calcCost);
-
-updatePreview();
-
+        document.getElementById('rt_cost').innerText = '₦' + cost.toLocaleString();
+    }
 </script>
 
 </body>
