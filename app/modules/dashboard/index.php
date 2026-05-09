@@ -219,9 +219,9 @@ foreach ($stocks as $s) {
 
         $biomass = ($s['current_count'] * $s['avg_weight_g']) / 1000;
 
-        if ($s['avg_weight_g'] < 50) $rate = 0.1;
-        elseif ($s['avg_weight_g'] < 200) $rate = 0.05;
-        else $rate = 0.03;
+        if ($s['avg_weight_g'] < 50) $rate = 0.15;
+        elseif ($s['avg_weight_g'] < 200) $rate = 0.08;
+        else $rate = 0.05;
 
         $recommended = $biomass * $rate;
 
