@@ -76,102 +76,180 @@ if (isset($_POST['preview'])) {
 if (isset($_POST['feed'])) {
 
     if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        die("CSRF");
+        die("CSRF validation failed");
     }
 
-    $stock_id = (int)$_POST['stock_id'];
+    $stock_id  = (int) $_POST['stock_id'];
     $feed_type = trim($_POST['feed_type']);
-    $qty = (float)$_POST['quantity_kg'];
-    $remarks = $_POST['remarks'] ?? '';
-    $time = $_POST['time'] ?? date('H:i:s'); // ✅ FIXED
+    $qty       = (float) $_POST['quantity_kg'];
+    $remarks   = trim($_POST['remarks'] ?? '');
+    $time      = $_POST['time'] ?? date('H:i:s');
 
     try {
 
+        if ($qty <= 0) {
+            throw new Exception("Invalid feed quantity");
+        }
+
         $pdo->beginTransaction();
 
-        // LOCK STOCK
+        /**
+         * LOCK STOCKING
+         */
         $stmt = $pdo->prepare("
-            SELECT * FROM pond_stocking
-            WHERE id=? AND farm_id=? FOR UPDATE
+            SELECT *
+            FROM pond_stocking
+            WHERE id=? AND farm_id=?
+            FOR UPDATE
         ");
-        $stmt->execute([$stock_id,$farm_id]);
+        $stmt->execute([$stock_id, $farm_id]);
+
         $stock = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$stock) throw new Exception("Invalid stock");
+        if (!$stock) {
+            throw new Exception("Invalid pond stock");
+        }
 
-        // BIOMASS CHECK
+        /**
+         * BIOMASS CALCULATION
+         */
         $biomass = ($stock['current_count'] * $stock['avg_weight_g']) / 1000;
 
-        if ($stock['avg_weight_g'] < 50)      $rate = 0.10;
-        elseif ($stock['avg_weight_g'] < 200) $rate = 0.06;
-        else                                 $rate = 0.04;
+        if ($stock['avg_weight_g'] < 50) {
+            $rate = 0.10;
+        } elseif ($stock['avg_weight_g'] < 200) {
+            $rate = 0.06;
+        } else {
+            $rate = 0.04;
+        }
 
         $max_feed = $biomass * $rate;
 
         if ($qty > $max_feed) {
-            throw new Exception("Max allowed: ".round($max_feed,2)." kg");
+            throw new Exception(
+                "Maximum recommended feed is " .
+                number_format($max_feed, 2) . " kg"
+            );
         }
 
-        // FIFO
+        /**
+         * LOAD FIFO FEED STOCK
+         */
         $stmt = $pdo->prepare("
             SELECT *
             FROM feed_store
-            WHERE feed_type=? 
+            WHERE feed_type=?
             AND status='active'
             AND available_kg > 0
             ORDER BY received_date ASC, id ASC
             FOR UPDATE
         ");
+
         $stmt->execute([$feed_type]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!$rows) throw new Exception("No feed available");
+        $feed_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $remaining = $qty;
+        if (!$feed_rows) {
+            throw new Exception("No feed available");
+        }
+
+        $remaining_qty = $qty;
         $total_cost = 0;
 
-        foreach ($rows as $r) {
+        foreach ($feed_rows as $row) {
 
-            if ($remaining <= 0) break;
+            if ($remaining_qty <= 0) {
+                break;
+            }
 
-            $take = min($remaining, $r['available_kg']);
-            $cost = $take * $r['cost_per_kg'];
+            $available = (float)$row['available_kg'];
 
-            $closing = $r['available_kg'] - $take;
-            $status = $closing <= 0 ? 'finished' : 'active';
+            $take = min($remaining_qty, $available);
 
-            // UPDATE STORE
+            $unit_cost = (float)$row['cost_per_kg'];
+
+            $cost = $take * $unit_cost;
+
+            $closing = $available - $take;
+
+            $new_status = $closing <= 0
+                ? 'finished'
+                : 'active';
+
+            /**
+             * UPDATE FEED STORE
+             */
             $stmt = $pdo->prepare("
                 UPDATE feed_store
-                SET available_kg=?, quantity_kg=?, status=?, updated_at=NOW()
-                WHERE id=?
+                SET
+                    available_kg = ?,
+                    quantity_kg = ?,
+                    status = ?,
+                    updated_at = NOW()
+                WHERE id = ?
             ");
-            $stmt->execute([$closing,$closing,$status,$r['id']]);
 
-            // LOG
-            $stmt = $pdo->prepare("
+            $stmt->execute([
+                $closing,
+                $closing,
+                $new_status,
+                $row['id']
+            ]);
+
+            /**
+             * STORE LOG
+             */
+            $log_sql = "
                 INSERT INTO feed_store_logs (
-                    idempotency_key,date,farm_id,stock_owner_farm_id,
-                    warehouse_id,feed_store_id,feed_type,batch_no,
-                    opening_stock,received,issued,closing_stock,balance_after,
-                    issued_to,pond_id,fish_batch_id,batch_source_id,
-                    unit_cost,total_cost,running_value,
-                    movement_type,status,reference_no,
-                    authorized_by,approved_at,requested_by,storekeeper,issued_at,remarks
+                    idempotency_key,
+                    date,
+                    farm_id,
+                    stock_owner_farm_id,
+                    warehouse_id,
+                    feed_store_id,
+                    feed_type,
+                    batch_no,
+                    opening_stock,
+                    received,
+                    issued,
+                    closing_stock,
+                    balance_after,
+                    issued_to,
+                    pond_id,
+                    fish_batch_id,
+                    batch_source_id,
+                    unit_cost,
+                    total_cost,
+                    running_value,
+                    movement_type,
+                    status,
+                    reference_no,
+                    authorized_by,
+                    approved_at,
+                    requested_by,
+                    storekeeper,
+                    issued_at,
+                    remarks
                 )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ");
+                VALUES (
+                    ?,?,?,?,?,?,?,?,?,?,
+                    ?,?,?,?,?,?,?,?,?,?,
+                    ?,?,?,?,?,?,?,?,?
+                )
+            ";
+
+            $stmt = $pdo->prepare($log_sql);
 
             $stmt->execute([
                 uniqid('FED-'),
                 date('Y-m-d'),
                 $farm_id,
-                $r['farm_id'],
-                $r['warehouse_id'],
-                $r['id'],
+                $row['farm_id'],
+                $row['warehouse_id'],
+                $row['id'],
                 $feed_type,
-                $r['batch_no'],
-                $r['available_kg'],
+                $row['batch_no'],
+                $available,
                 0,
                 $take,
                 $closing,
@@ -180,12 +258,12 @@ if (isset($_POST['feed'])) {
                 $stock['pond_id'],
                 $stock['batch_id'],
                 null,
-                $r['cost_per_kg'],
+                $unit_cost,
                 $cost,
                 $cost,
                 'issue',
                 'posted',
-                'FD-'.date('YmdHis'),
+                'FD-' . date('YmdHis'),
                 $staff_id,
                 date('Y-m-d H:i:s'),
                 $staff_id,
@@ -194,14 +272,37 @@ if (isset($_POST['feed'])) {
                 $remarks
             ]);
 
-            $remaining -= $take;
+            $remaining_qty -= $take;
+
             $total_cost += $cost;
         }
 
-        // ✅ CORRECT feeding_logs (matches your table)
+        /**
+         * NOT ENOUGH FEED
+         */
+        if ($remaining_qty > 0) {
+
+            throw new Exception(
+                "Insufficient feed stock. Remaining shortage: " .
+                number_format($remaining_qty, 2) . " kg"
+            );
+        }
+
+        /**
+         * FEEDING LOG
+         */
         $stmt = $pdo->prepare("
-            INSERT INTO feeding_logs
-            (date,farm_id,pond_id,batch_id,feed_type,quantity_kg,fed_by,time,remarks)
+            INSERT INTO feeding_logs (
+                date,
+                farm_id,
+                pond_id,
+                batch_id,
+                feed_type,
+                quantity_kg,
+                fed_by,
+                time,
+                remarks
+            )
             VALUES (?,?,?,?,?,?,?,?,?)
         ");
 
@@ -219,12 +320,17 @@ if (isset($_POST['feed'])) {
 
         $pdo->commit();
 
-        $message = "Fed {$qty} kg | Cost: ₦".number_format($total_cost,2);
+        $message = "Feeding recorded successfully. "
+                 . "Feed: {$qty} kg | "
+                 . "Cost: ₦" . number_format($total_cost, 2);
+
         $alert = 'success';
 
     } catch (Exception $e) {
 
-        if ($pdo->inTransaction()) $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
 
         $message = $e->getMessage();
         $alert = 'danger';
@@ -262,9 +368,12 @@ body{
 
 <body class="container py-4">
 
-<h3 class="mb-4">🐟 Smart Feeding System</h3>
-</div>
-<a href="index.php" class="btn btn-light btnx">← Back Store</a>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>🐟 Smart Feeding System</h3>
+
+    <a href="index.php" class="btn btn-light">
+        ← Back Store
+    </a>
 </div>
 
 <!-- KPI STRIP -->
@@ -369,6 +478,13 @@ data-weight="<?= $s['avg_weight_g'] ?>"
 </div>
 
 <script>
+    document.getElementById('stock_id')
+    .addEventListener('change', updatePreview);
+
+    document.getElementById('qty')
+        .addEventListener('input', calcCost);
+
+    updatePreview();
     function updatePreview(){
 
         let stock = document.getElementById('stock_id').selectedOptions[0];
