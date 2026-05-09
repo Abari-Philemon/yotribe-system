@@ -60,9 +60,9 @@ if (isset($_POST['preview'])) {
 
         $biomass = ($s['current_count'] * $s['avg_weight_g']) / 1000;
 
-        if ($s['avg_weight_g'] < 50)      $rate = 0.05;
-        elseif ($s['avg_weight_g'] < 200) $rate = 0.03;
-        else                             $rate = 0.02;
+        if ($s['avg_weight_g'] < 50)      $rate = 0.10;
+        elseif ($s['avg_weight_g'] < 200) $rate = 0.05;
+        else                             $rate = 0.03;
 
         $recommended = $biomass * $rate;
 
