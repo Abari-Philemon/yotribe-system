@@ -17,7 +17,7 @@ require_once __DIR__ . '/../helpers/permission.php';
     <?php $current = basename($_SERVER['PHP_SELF']); ?>
 
     <div class="nav-title">Overview</div>
-    <a href="index.php" class="nav-link <?= $current=='index.php'?'active':'' ?>">📊 Dashboard</a>
+    <a href="/yotribe-system/app/modules/dashboard/index.php" class="nav-link <?= $current=='index.php'?'active':'' ?>">📊 Dashboard</a>
 
     <div class="nav-title">Operations</div>
     <a href="/yotribe-system/app/modules/feeding/index.php" class="nav-link">🍽 Feeding</a>
