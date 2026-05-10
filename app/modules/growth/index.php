@@ -120,12 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     total_weight_g,
                     avg_weight_g,
                     recorded_by,
-                    remarks,
-                    recorded_at
+                    remarks
                 )
-                VALUES (?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?)
             ");
-
             $stmt->execute([
                 $farm_id,
                 $stock['pond_id'],
