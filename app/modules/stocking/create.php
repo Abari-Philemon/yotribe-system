@@ -6,6 +6,10 @@ require_once __DIR__ . '/../../helpers/stocking_helper.php';
 
 $farm_id   = farm_id();
 $farm_name = farm_name();
+$ratio     = 1;
+if (function_exists('stocking_ratio')) {
+    $ratio = stocking_ratio();
+}
 
 /**
  * LOAD PONDS (ACTIVE ONLY)
