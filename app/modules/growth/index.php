@@ -2,7 +2,7 @@
 require '../../middleware/auth_guard.php';
 require '../../middleware/farm_guard.php';
 require '../../config/database.php';
-require '../../helpers/growth_helper.php';
+require_once __DIR__ . '/../../helpers/growth_helper.php';
 
 require_role(['manager','owner','staff','storekeeper']);
 
@@ -50,16 +50,27 @@ $stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (
+        !isset($_POST['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+    ) {
         die('CSRF validation failed');
     }
 
-    $stock_id      = (int) $_POST['stock_id'];
-    $sample_count  = (int) $_POST['sample_count'];
-    $total_weight  = (float) $_POST['total_weight_g'];
+    $stock_id      = (int) ($_POST['stock_id'] ?? 0);
+    $sample_count  = (int) ($_POST['sample_count'] ?? 0);
+    $total_weight  = (float) ($_POST['total_weight_g'] ?? 0);
     $remarks       = trim($_POST['remarks'] ?? '');
 
-    if ($sample_count <= 0) {
+    /**
+     * VALIDATION
+     */
+    if ($stock_id <= 0) {
+
+        $message = "Invalid stock selected";
+        $alert = 'danger';
+
+    } elseif ($sample_count <= 0) {
 
         $message = "Sample count must be greater than zero";
         $alert = 'danger';
@@ -98,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             /**
              * INSERT GROWTH LOG
+             * Uses recorded_at auto timestamp from DB
              */
             $stmt = $pdo->prepare("
                 INSERT INTO growth_logs (
@@ -108,10 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     total_weight_g,
                     avg_weight_g,
                     recorded_by,
-                    remarks,
-                    created_at
+                    remarks
                 )
-                VALUES (?,?,?,?,?,?,?,?,NOW())
+                VALUES (?,?,?,?,?,?,?,?)
             ");
 
             $stmt->execute([
@@ -154,11 +165,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
+<style>
+.cardx{
+    border:none;
+    border-radius:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+}
 
+.metric{
+    font-size:30px;
+    font-weight:700;
+}
+</style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
 
@@ -239,6 +262,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                             name="sample_count"
                             id="sample_count"
                             class="form-control"
+                            min="1"
                             required
                         >
 
@@ -254,6 +278,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                         <input
                             type="number"
                             step="0.01"
+                            min="0.01"
                             name="total_weight_g"
                             id="total_weight_g"
                             class="form-control"

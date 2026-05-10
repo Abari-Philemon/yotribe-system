@@ -147,3 +147,49 @@ function growthAlert(PDO $pdo, $pond_id, $batch_id)
 
     return null;
 }
+
+
+function updateBatchWeight(
+    PDO $pdo,
+    int $farm_id,
+    int $pond_id,
+    int $batch_id,
+    float $avg_weight
+){
+
+    /**
+     * UPDATE pond_stocking
+     */
+    $stmt = $pdo->prepare("
+        UPDATE pond_stocking
+        SET avg_weight_g = ?,
+            updated_at = NOW()
+        WHERE farm_id = ?
+        AND pond_id = ?
+        AND batch_id = ?
+        AND status = 'active'
+    ");
+
+    $stmt->execute([
+        $avg_weight,
+        $farm_id,
+        $pond_id,
+        $batch_id
+    ]);
+
+    /**
+     * OPTIONAL:
+     * update fish_batches master weight too
+     */
+    $stmt = $pdo->prepare("
+        UPDATE fish_batches
+        SET avg_weight_g = ?
+        WHERE id = ?
+    ");
+
+    $stmt->execute([
+        $avg_weight,
+        $batch_id
+    ]);
+}
+
