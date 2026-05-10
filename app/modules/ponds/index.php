@@ -99,16 +99,10 @@ $types = $pdo->prepare("
 $types->execute([$farm_id]);
 $types = $types->fetchAll(PDO::FETCH_COLUMN);
 
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Pond Management</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-light">
 
 <div class="container mt-4">
 
