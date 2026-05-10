@@ -154,38 +154,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html>
-<head>
 
-<title>Growth Sampling</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<style>
-
-body{
-    background:#f4f7fb;
-}
-
-.cardx{
-    border:none;
-    border-radius:18px;
-    box-shadow:0 10px 30px rgba(0,0,0,.05);
-}
-
-.metric{
-    font-size:28px;
-    font-weight:700;
-}
-
-</style>
-
-</head>
-
-<body class="container py-4">
 
 <div class="d-flex justify-content-between align-items-center mb-4">
 
