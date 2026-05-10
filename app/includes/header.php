@@ -1,6 +1,6 @@
 <?php
 if (!isset($page_title)) {
-    $page_title = 'Farm System';
+    $page_title = 'Yotribe Farm System';
 }
 ?>
 <!DOCTYPE html>
