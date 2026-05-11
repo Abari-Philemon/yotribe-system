@@ -1,5 +1,23 @@
 <?php
 require_once __DIR__ . '/../helpers/permission.php';
+    /**
+     * FARM CONTEXT (SECURE)
+     */
+    $farm_id = farm_id();
+    /* FETCH FARM DETAILS
+    */
+    $stmt = $pdo->prepare("
+        SELECT name, location, size
+        FROM farms
+        WHERE id = ?
+    ");
+    $stmt->execute([$farm_id]);
+    $farm = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $farm_name     = $farm['name'] ?? 'Unknown Farm';
+    $farm_location = $farm['location'] ?? '';
+    $farm_size     = ucfirst($farm['size'] ?? '');
+
 ?>
 <div class="sidebar" id="sidebar">
 
@@ -45,4 +63,19 @@ require_once __DIR__ . '/../helpers/permission.php';
 </div>
 
 <div class="main">
-    
+    <!-- HERO HEADER -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+
+        <div>
+            <h2 class="mb-0 fw-bold"><?= htmlspecialchars($farm_name) ?></h2>
+            <small class="text-muted">
+                <?= htmlspecialchars($farm_location) ?> • <?= $farm_size ?> Farm
+            </small>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+            <select id="farmSwitcher" class="form-select form-select-sm shadow-sm"></select>
+        </div>
+
+    </div>
+        
