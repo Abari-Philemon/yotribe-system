@@ -551,6 +551,49 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 </div>
 
 <script>
+// Load farms into dropdown
+fetch('/yotribe-system/app/modules/farms/list.php')
+.then(res => res.json())
+.then(farms => {
+
+    const select = document.getElementById('farmSwitcher');
+    select.innerHTML = '';
+
+    farms.forEach(farm => {
+        const option = document.createElement('option');
+        option.value = farm.id;
+        option.text  = farm.name;
+
+        if (farm.id == <?= $farm_id ?>) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+    });
+});
+
+// Handle farm switch
+document.getElementById('farmSwitcher').addEventListener('change', function () {
+
+    fetch('/yotribe-system/app/modules/farms/switch_live.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'farm_id=' + this.value + '&csrf_token=' + CSRF_TOKEN
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.status === 'success') {
+            location.reload();
+        } else {
+            alert(res.message || 'Switch failed');
+        }
+    });
+
+});
+</script>
+<script>
 async function loadLiveDashboard() {
     try {
         const res = await fetch('/yotribe-system/app/api/dashboard_realtime.php');
