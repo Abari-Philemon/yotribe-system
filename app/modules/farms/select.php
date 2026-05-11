@@ -11,7 +11,7 @@ $staff_id = $_SESSION['staff_id'] ?? 0;
 /**
  * Allowed roles
  */
-if (!in_array($role, ['super_admin', 'owner', 'manager'])) {
+if (!in_array($role, ['super_admin', 'owner', 'manager', 'production'])) {
     http_response_code(403);
     exit('Unauthorized access');
 }
