@@ -44,10 +44,11 @@ return [
 
     'production' => [
         'dashboard',
-        'production'
+        'production',
+        'feeding'
     ],
 
     'staff' => 
-    ['super_admin', 'owner']
+    ['super_admin', 'owner', 'production', 'hatchery', 'manager', 'storekeeper']
 
 ];
