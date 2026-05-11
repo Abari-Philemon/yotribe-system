@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
 
-$allowed_roles = ['owner','super_admin','manager'];
+$allowed_roles = ['owner','super_admin','manager', 'production'];
 
 if (!in_array($_SESSION['role'], $allowed_roles)) {
     http_response_code(403);
