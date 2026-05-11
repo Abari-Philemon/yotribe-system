@@ -29,7 +29,8 @@ return [
         'inventory',
         'sales',
         'production',
-        'hatchery'
+        'hatchery',
+        'feeding'
     ],
 
     'storekeeper' => [
