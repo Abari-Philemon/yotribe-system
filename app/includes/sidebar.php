@@ -65,18 +65,3 @@ require_once __DIR__ . '/../helpers/permission.php';
 
 <div class="main">
 
-           <!-- HERO HEADER -->
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
-
-        <div>
-            <h2 class="mb-0 fw-bold"><?= htmlspecialchars($farm_name) ?></h2>
-            <small class="text-muted">
-                <?= htmlspecialchars($farm_location) ?> • <?= $farm_size ?> Farm
-            </small>
-        </div>
-
-        <div class="d-flex gap-2 align-items-center">
-            <select id="farmSwitcher" class="form-select form-select-sm shadow-sm"></select>
-        </div>
-
-    </div>
