@@ -390,7 +390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </button>
 
     </form>
-    <a href="create.php" class="btn btn-primary btn-sm w-100">
+    <a href="register.php" class="btn btn-primary btn-sm w-100">
                 register
             </a>
 
