@@ -11,9 +11,9 @@ if($id > 0){
     $stmt = $pdo->prepare("
         UPDATE staff
         SET
-            approval_status = 'approved',
             status = 'active',
-            active = 1
+            active = 1,
+            approval_status = 'approved'
         WHERE id = ?
     ");
 

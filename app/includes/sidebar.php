@@ -40,6 +40,15 @@ require_once __DIR__ . '/../helpers/permission.php';
 
     <div class="nav-title">Operations</div>
     <a href="/yotribe-system/app/modules/feeding/index.php" class="nav-link">🍽 Feeding</a>
+    <?php if(in_array($_SESSION['role'], ['super_admin','owner'])): ?>
+
+        <a class="nav-link"
+        href="/yotribe-system/app/modules/staff/manage.php">
+        👥 Staff Management
+        </a>
+  
+
+    <?php endif; ?>
     <a href="/yotribe-system/app/modules/stocking/index.php" class="nav-link">🐟 Stocking</a>
     <a href="/yotribe-system/app/modules/ponds/index.php" class="nav-link">🏞 Ponds</a>
     <a href="/yotribe-system/app/modules/mortality/index.php" class="nav-link">☠ Mortality</a>
