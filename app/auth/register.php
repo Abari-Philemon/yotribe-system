@@ -370,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="<?= $farm['id'] ?>">
 
                         <?= htmlspecialchars(
-                            $farm['farm_name']
+                            $farm['name']
                         ) ?>
 
                     </option>
