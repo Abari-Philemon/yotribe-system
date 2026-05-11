@@ -390,6 +390,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </button>
 
     </form>
+    <a href="create.php" class="btn btn-primary btn-sm">
+                + Add Pond
+            </a>
 
 </div>
 
