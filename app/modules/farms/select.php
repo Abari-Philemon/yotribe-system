@@ -49,7 +49,7 @@ switch ($role) {
         ");
         $stmt->execute([$staff_id]);
         break;
-        
+
     case 'production':
         $stmt = $pdo->prepare("
             SELECT f.id, f.name, f.location
@@ -60,6 +60,10 @@ switch ($role) {
         ");
         $stmt->execute([$staff_id]);
         break;
+
+    default:
+        http_response_code(403);
+        exit('Unauthorized access');
 }
 
 $farms = $stmt->fetchAll(PDO::FETCH_ASSOC);
