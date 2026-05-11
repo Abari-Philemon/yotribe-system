@@ -19,7 +19,7 @@ if (empty($_SESSION['csrf_token'])) {
  * LOAD FARMS
  */
 $stmt = $pdo->prepare("
-    SELECT id, farm_name
+    SELECT id, name
     FROM farms
     ORDER BY farm_name ASC
 ");
