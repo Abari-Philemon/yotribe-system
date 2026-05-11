@@ -4,57 +4,29 @@ require_once __DIR__ . '/../config/database.php';
 
 require_role(['super_admin','owner']);
 
-$current_role = $_SESSION['role'];
-$current_farm = $_SESSION['farm_id'] ?? null;
-
 $message = '';
 $alert = 'success';
 
 /**
- * CSRF
+ * CSRF TOKEN
  */
 if (empty($_SESSION['csrf_token'])) {
+
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 /**
  * LOAD FARMS
- * Super admin sees all farms
- * Owner sees only own farm
  */
-if ($current_role === 'super_admin') {
+$stmt = $pdo->prepare("
+    SELECT id, farm_name
+    FROM farms
+    ORDER BY farm_name ASC
+");
 
-    $stmt = $pdo->query("
-        SELECT id, farm_name
-        FROM farms
-        WHERE status = 'active'
-        ORDER BY farm_name ASC
-    ");
-
-} else {
-
-    $stmt = $pdo->prepare("
-        SELECT id, farm_name
-        FROM farms
-        WHERE id = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([$current_farm]);
-}
+$stmt->execute();
 
 $farms = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-/**
- * ROLES
- */
-$roles = [
-    'manager'      => 'Manager',
-    'storekeeper'  => 'Store Keeper',
-    'hatchery'     => 'Hatchery Officer',
-    'production'   => 'Production Staff',
-    'staff'        => 'General Staff'
-];
 
 /**
  * HANDLE SUBMIT
@@ -62,47 +34,38 @@ $roles = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /**
-     * CSRF CHECK
+     * CSRF VALIDATION
      */
     if (
         !isset($_POST['csrf_token']) ||
         !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
     ) {
-        die('CSRF validation failed');
+        die('Invalid CSRF token');
     }
 
     $full_name = trim($_POST['full_name'] ?? '');
     $username  = trim($_POST['username'] ?? '');
     $password  = $_POST['password'] ?? '';
-    $role      = trim($_POST['role'] ?? '');
+    $role      = $_POST['role'] ?? '';
     $farm_id   = (int) ($_POST['farm_id'] ?? 0);
 
     /**
      * VALIDATION
      */
-    if ($full_name === '') {
+    if (
+        $full_name === '' ||
+        $username === '' ||
+        $password === '' ||
+        $role === '' ||
+        $farm_id <= 0
+    ) {
 
-        $message = "Full name is required";
-        $alert = 'danger';
-
-    } elseif ($username === '') {
-
-        $message = "Username is required";
+        $message = "All fields are required.";
         $alert = 'danger';
 
     } elseif (strlen($password) < 6) {
 
-        $message = "Password must be at least 6 characters";
-        $alert = 'danger';
-
-    } elseif (!array_key_exists($role, $roles)) {
-
-        $message = "Invalid role selected";
-        $alert = 'danger';
-
-    } elseif ($farm_id <= 0) {
-
-        $message = "Invalid farm selected";
+        $message = "Password must be at least 6 characters.";
         $alert = 'danger';
 
     } else {
@@ -110,20 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
 
             /**
-             * OWNER CAN ONLY CREATE STAFF
-             * INSIDE OWN FARM
-             */
-            if (
-                $current_role === 'owner' &&
-                $farm_id != $current_farm
-            ) {
-                throw new Exception(
-                    "Unauthorized farm selection"
-                );
-            }
-
-            /**
-             * CHECK USERNAME
+             * CHECK EXISTING USERNAME
              */
             $stmt = $pdo->prepare("
                 SELECT id
@@ -135,7 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$username]);
 
             if ($stmt->fetch()) {
-                throw new Exception("Username already exists");
+
+                throw new Exception(
+                    "Username already exists."
+                );
             }
 
             /**
@@ -157,7 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     role,
                     farm_id,
                     active,
-                    created_at
+                    approval_status,
+                    status,
+                    failed_attempts,
+                    locked_until,
+                    last_login,
+                    remember_token
                 )
                 VALUES (
                     :full_name,
@@ -165,12 +123,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     :password,
                     :role,
                     :farm_id,
-                    1,
-                    NOW()
+                    0,
+                    'pending',
+                    'pending',
+                    0,
+                    NULL,
+                    NULL,
+                    NULL
                 )
             ");
 
             $stmt->execute([
+
                 'full_name' => $full_name,
                 'username'  => $username,
                 'password'  => $hashed_password,
@@ -178,7 +142,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'farm_id'   => $farm_id
             ]);
 
-            $message = "Staff account created successfully";
+            $message = "
+                Registration submitted successfully.
+                Awaiting administrator approval.
+            ";
+
             $alert = 'success';
 
         } catch (Exception $e) {
@@ -188,165 +156,258 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
-require_once __DIR__ . '/../includes/header.php';
-require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 
-<style>
+<!DOCTYPE html>
+<html lang="en">
 
-.cardx{
-    border:none;
-    border-radius:18px;
-    box-shadow:0 10px 30px rgba(0,0,0,.05);
-}
+<head>
 
-</style>
+    <meta charset="UTF-8">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <h3>👤 Register Staff</h3>
+    <title>
+        Register Staff | Yotribe
+    </title>
 
-    <a href="index.php" class="btn btn-light">
-        ← Back
-    </a>
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
 
-</div>
+    <style>
 
-<?php if($message): ?>
+        body{
+            background:#f4f7fb;
+            min-height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            font-family:Arial,sans-serif;
+            padding:20px;
+        }
 
-<div class="alert alert-<?= $alert ?>">
-    <?= htmlspecialchars($message) ?>
-</div>
+        .register-card{
+            width:100%;
+            max-width:550px;
+            background:#fff;
+            border-radius:20px;
+            padding:35px;
+            box-shadow:0 15px 40px rgba(0,0,0,.08);
+        }
 
-<?php endif; ?>
+        .brand{
+            font-size:30px;
+            font-weight:700;
+            color:#198754;
+        }
 
-<div class="row justify-content-center">
+        .subtitle{
+            color:#6c757d;
+            margin-bottom:25px;
+        }
 
-    <div class="col-lg-7">
+        .form-control,
+        .form-select{
+            height:50px;
+            border-radius:12px;
+        }
 
-        <div class="cardx bg-white p-4">
+        textarea.form-control{
+            height:auto;
+        }
 
-            <form method="POST">
+        .btn-submit{
+            height:50px;
+            border-radius:12px;
+            font-weight:600;
+        }
 
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?= $_SESSION['csrf_token'] ?>"
-                >
+    </style>
 
-                <!-- FULL NAME -->
-                <div class="mb-3">
+</head>
 
-                    <label class="fw-semibold mb-2">
-                        Full Name
-                    </label>
+<body>
 
-                    <input
-                        type="text"
-                        name="full_name"
-                        class="form-control"
-                        required
-                    >
+<div class="register-card">
 
-                </div>
+    <div class="text-center mb-4">
 
-                <!-- USERNAME -->
-                <div class="mb-3">
+        <div class="brand">
+            🐟 Yotribe
+        </div>
 
-                    <label class="fw-semibold mb-2">
-                        Username
-                    </label>
-
-                    <input
-                        type="text"
-                        name="username"
-                        class="form-control"
-                        required
-                    >
-
-                </div>
-
-                <!-- PASSWORD -->
-                <div class="mb-3">
-
-                    <label class="fw-semibold mb-2">
-                        Password
-                    </label>
-
-                    <input
-                        type="password"
-                        name="password"
-                        class="form-control"
-                        minlength="6"
-                        required
-                    >
-
-                </div>
-
-                <!-- ROLE -->
-                <div class="mb-3">
-
-                    <label class="fw-semibold mb-2">
-                        Role
-                    </label>
-
-                    <select
-                        name="role"
-                        class="form-select"
-                        required
-                    >
-
-                        <?php foreach($roles as $key => $label): ?>
-
-                        <option value="<?= $key ?>">
-                            <?= htmlspecialchars($label) ?>
-                        </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
-
-                </div>
-
-                <!-- FARM -->
-                <div class="mb-4">
-
-                    <label class="fw-semibold mb-2">
-                        Farm
-                    </label>
-
-                    <select
-                        name="farm_id"
-                        class="form-select"
-                        required
-                    >
-
-                        <?php foreach($farms as $farm): ?>
-
-                        <option value="<?= $farm['id'] ?>">
-
-                            <?= htmlspecialchars(
-                                $farm['farm_name']
-                            ) ?>
-
-                        </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
-
-                </div>
-
-                <button class="btn btn-primary w-100">
-                    Create Staff Account
-                </button>
-
-            </form>
-
+        <div class="subtitle">
+            Staff Registration Portal
         </div>
 
     </div>
+
+    <?php if ($message): ?>
+
+        <div class="alert alert-<?= $alert ?>">
+            <?= htmlspecialchars($message) ?>
+        </div>
+
+    <?php endif; ?>
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="<?= $_SESSION['csrf_token'] ?>"
+        >
+
+        <!-- FULL NAME -->
+        <div class="mb-3">
+
+            <label class="form-label fw-semibold">
+                Full Name
+            </label>
+
+            <input
+                type="text"
+                name="full_name"
+                class="form-control"
+                required
+            >
+
+        </div>
+
+        <!-- USERNAME -->
+        <div class="mb-3">
+
+            <label class="form-label fw-semibold">
+                Username
+            </label>
+
+            <input
+                type="text"
+                name="username"
+                class="form-control"
+                required
+            >
+
+        </div>
+
+        <!-- PASSWORD -->
+        <div class="mb-3">
+
+            <label class="form-label fw-semibold">
+                Password
+            </label>
+
+            <input
+                type="password"
+                name="password"
+                class="form-control"
+                required
+            >
+
+        </div>
+
+        <!-- ROLE -->
+        <div class="mb-3">
+
+            <label class="form-label fw-semibold">
+                Role
+            </label>
+
+            <select
+                name="role"
+                class="form-select"
+                required
+            >
+
+                <option value="">
+                    Select Role
+                </option>
+
+                <option value="manager">
+                    Manager
+                </option>
+
+                <option value="storekeeper">
+                    Store Keeper
+                </option>
+
+                <option value="hatchery">
+                    Hatchery Officer
+                </option>
+
+                <option value="production">
+                    Production Staff
+                </option>
+
+            </select>
+
+        </div>
+
+        <!-- FARM -->
+        <div class="mb-4">
+
+            <label class="form-label fw-semibold">
+                Farm
+            </label>
+
+            <select
+                name="farm_id"
+                class="form-select"
+                required
+            >
+
+                <option value="">
+                    Select Farm
+                </option>
+
+                <?php foreach($farms as $farm): ?>
+
+                    <option value="<?= $farm['id'] ?>">
+
+                        <?= htmlspecialchars(
+                            $farm['farm_name']
+                        ) ?>
+
+                    </option>
+
+                <?php endforeach; ?>
+
+            </select>
+
+        </div>
+
+        <!-- SUBMIT -->
+        <button
+            type="submit"
+            class="btn btn-success btn-submit w-100"
+        >
+            Create Staff Account
+        </button>
+
+        <!-- LOGIN LINK -->
+        <div class="text-center mt-3">
+
+            <small class="text-muted">
+                Already have an account?
+            </small>
+
+            <br>
+
+            <a
+                href="/yotribe-system/app/auth/login.php"
+                class="text-decoration-none fw-semibold"
+            >
+                Login Here
+            </a>
+
+        </div>
+
+    </form>
 
 </div>
 

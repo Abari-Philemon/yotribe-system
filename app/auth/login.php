@@ -66,8 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 farm_id,
                 active,
                 approval_status,
+                status,
                 failed_attempts,
-                locked_until
+                locked_until,
+                last_login,
+                remember_token
             FROM staff
             WHERE username = :username
             LIMIT 1
@@ -96,22 +99,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 strtotime($user['locked_until']) > time()
             ) {
 
-                $error = "Account temporarily locked. Try again later.";
+                $error = "
+                    Account temporarily locked.
+                    Try again later.
+                ";
 
-            } elseif ($user['approval_status'] !== 'approved') {
+            /**
+             * PENDING APPROVAL
+             */
+            } elseif (
+                $user['approval_status'] !== 'approved' ||
+                $user['status'] === 'pending'
+            ) {
 
-                $error = "Account pending approval.";
+                $error = "
+                    Your account is awaiting
+                    administrator approval.
+                ";
 
-            } elseif ((int)$user['active'] !== 1) {
+            /**
+             * DISABLED ACCOUNT
+             */
+            } elseif (
+                $user['status'] === 'disabled' ||
+                (int)$user['active'] !== 1
+            ) {
 
-                $error = "Account disabled.";
+                $error = "
+                    Your account has been disabled.
+                ";
 
-            } elseif (!password_verify($password, $user['password'])) {
+            /**
+             * INVALID PASSWORD
+             */
+            } elseif (
+                !password_verify(
+                    $password,
+                    $user['password']
+                )
+            ) {
 
                 /**
                  * FAILED LOGIN
                  */
-                $failed = ((int)$user['failed_attempts']) + 1;
+                $failed = (
+                    (int)$user['failed_attempts']
+                ) + 1;
 
                 $lock_until = null;
 
@@ -148,13 +181,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 /**
                  * RESET FAILED ATTEMPTS
+                 * UPDATE LOGIN TIME
                  */
                 $stmt = $pdo->prepare("
                     UPDATE staff
                     SET
                         failed_attempts = 0,
                         locked_until = NULL,
-                        last_login = NOW()
+                        last_login = NOW(),
+                        active = 1
                     WHERE id = ?
                 ");
 
@@ -171,16 +206,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  * LOGIN SESSION
                  */
                 $_SESSION['staff_id'] = (int)$user['id'];
-                $_SESSION['full_name'] = $user['full_name'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
+
+                $_SESSION['full_name'] =
+                    $user['full_name'];
+
+                $_SESSION['username'] =
+                    $user['username'];
+
+                $_SESSION['role'] =
+                    $user['role'];
 
                 /**
                  * FARM CONTEXT
                  */
                 if (!empty($user['farm_id'])) {
 
-                    $_SESSION['farm_id'] = (int)$user['farm_id'];
+                    $_SESSION['farm_id'] =
+                        (int)$user['farm_id'];
                 }
 
                 /**
@@ -188,16 +230,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  */
                 if ($remember) {
 
-                    $token = bin2hex(random_bytes(32));
+                    $token = bin2hex(
+                        random_bytes(32)
+                    );
 
                     setcookie(
                         'yotribe_auth',
                         $token,
                         [
-                            'expires'  => time() + (86400 * 30),
+                            'expires'  =>
+                                time() + (86400 * 30),
+
                             'path'     => '/',
+
                             'secure'   => false,
+
                             'httponly' => true,
+
                             'samesite' => 'Lax'
                         ]
                     );
@@ -261,6 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content:center;
             align-items:center;
             font-family:Arial, sans-serif;
+            padding:20px;
         }
 
         .login-card{
@@ -388,6 +438,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         >
             Login
         </button>
+
+        <!-- APPROVAL NOTICE -->
+        <div class="text-center mt-3">
+
+            <small class="text-muted">
+
+                New staff registrations require
+                administrator approval before login.
+
+            </small>
+
+        </div>
+
+        <!-- REGISTER -->
+        <div class="text-center mt-3">
+
+            <small class="text-muted">
+                Need an account?
+            </small>
+
+            <br>
+
+            <a
+                href="/yotribe-system/app/auth/register.php"
+                class="text-decoration-none fw-semibold"
+            >
+                Register Here
+            </a>
+
+        </div>
 
     </form>
 
