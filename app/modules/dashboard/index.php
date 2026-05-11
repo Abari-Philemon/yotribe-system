@@ -317,7 +317,21 @@ require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
+           <!-- HERO HEADER -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
 
+        <div>
+            <h2 class="mb-0 fw-bold"><?= htmlspecialchars($farm_name) ?></h2>
+            <small class="text-muted">
+                <?= htmlspecialchars($farm_location) ?> • <?= $farm_size ?> Farm
+            </small>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+            <select id="farmSwitcher" class="form-select form-select-sm shadow-sm"></select>
+        </div>
+
+    </div>
 
 
 <!-- ALERT STRIP -->
@@ -536,7 +550,49 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 </div>
 
+<script>
+    // Load farms into dropdown
+    fetch('/yotribe-system/app/modules/farms/list.php')
+    .then(res => res.json())
+    .then(farms => {
 
+        const select = document.getElementById('farmSwitcher');
+        select.innerHTML = '';
+
+        farms.forEach(farm => {
+            const option = document.createElement('option');
+            option.value = farm.id;
+            option.text  = farm.name;
+
+            if (farm.id == <?= $farm_id ?>) {
+                option.selected = true;
+            }
+
+            select.appendChild(option);
+        });
+    });
+
+    // Handle farm switch
+    document.getElementById('farmSwitcher').addEventListener('change', function () {
+
+        fetch('/yotribe-system/app/modules/farms/switch_live.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'farm_id=' + this.value + '&csrf_token=' + CSRF_TOKEN
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                location.reload();
+            } else {
+                alert(res.message || 'Switch failed');
+            }
+        });
+
+    });
+</script>
 <script>
 async function loadLiveDashboard() {
     try {
