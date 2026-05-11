@@ -21,7 +21,7 @@ if (empty($_SESSION['csrf_token'])) {
 $stmt = $pdo->prepare("
     SELECT id, name
     FROM farms
-    ORDER BY farm_name ASC
+    ORDER BY name ASC
 ");
 
 $stmt->execute();
