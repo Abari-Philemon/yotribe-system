@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../helpers/permission.php';
-require_once __DIR__ . 'footer.php';
+require_once __DIR__ . '/footer.php';
     /**
      * FARM CONTEXT (SECURE)
      */
