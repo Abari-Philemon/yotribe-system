@@ -49,6 +49,17 @@ switch ($role) {
         ");
         $stmt->execute([$staff_id]);
         break;
+        
+    case 'production':
+        $stmt = $pdo->prepare("
+            SELECT f.id, f.name, f.location
+            FROM farms f
+            INNER JOIN staff s ON s.farm_id = f.id
+            WHERE s.id = ?
+            ORDER BY f.name ASC
+        ");
+        $stmt->execute([$staff_id]);
+        break;
 }
 
 $farms = $stmt->fetchAll(PDO::FETCH_ASSOC);
