@@ -3,10 +3,21 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_context.php';
 require_once __DIR__ . '/../../helpers/permission.php';
+/**
+ * MODULE ACCESS
+ */
+require_permission('water');
 
-requireModuleAccess('module_name');
-
+/**
+ * FARM CONTEXT
+ */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Water Quality";
+
 require_role(['manager','owner']);
 
 $farm_id = $_SESSION['farm_id'];
