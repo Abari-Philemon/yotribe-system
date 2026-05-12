@@ -8,9 +8,6 @@ require_once __DIR__ . '/../../helpers/permission.php';
 
 requireModuleAccess('module_name');
 
-
-authorize('dashboard');
-
 /**
  * FARM CONTEXT (SECURE)
  */
