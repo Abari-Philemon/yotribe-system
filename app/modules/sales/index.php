@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../middleware/farm_context.php';
 $farm_id = farm_id();
 
 // Only manager or owner can access
-require_role(['manager','owner']);
+ 
 
 $farm_id = $_SESSION['farm_id'];
 $message = '';
