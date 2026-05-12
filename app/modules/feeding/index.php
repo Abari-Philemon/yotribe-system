@@ -4,10 +4,21 @@ require '../../middleware/farm_guard.php';
 require '../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('feeding');
 
-
+/**
+ * FARM CONTEXT
+ */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Feeding";
+
 $staff_id = $_SESSION['staff_id'];
 
 $message = '';
