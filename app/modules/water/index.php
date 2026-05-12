@@ -18,8 +18,6 @@ $farm_id = farm_id();
  */
 $page_title = "Water Quality";
 
-require_role(['manager','owner']);
-
 $farm_id = $_SESSION['farm_id'];
 $message = '';
 

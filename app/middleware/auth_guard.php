@@ -19,37 +19,6 @@ if (!isset($_SESSION['staff_id'])) {
     exit;
 }
 
-/**
- * REQUIRE ROLE
- * Legacy support
- */
-function require_role(array $allowed_roles): void
-{
-    /**
-     * SUPER ADMIN OVERRIDE
-     */
-    if (
-        isset($_SESSION['role']) &&
-        $_SESSION['role'] === 'super_admin'
-    ) {
-        return;
-    }
-
-    if (
-        !isset($_SESSION['role']) ||
-        !in_array($_SESSION['role'], $allowed_roles, true)
-    ) {
-
-        http_response_code(403);
-
-        die("
-            <div style='padding:40px;font-family:Arial'>
-                <h2>403 - Access Denied</h2>
-                <p>You do not have permission to access this page.</p>
-            </div>
-        ");
-    }
-}
 
 /**
  * REQUIRE PERMISSION
