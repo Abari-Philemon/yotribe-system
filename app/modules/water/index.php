@@ -2,6 +2,9 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_context.php';
+require_once __DIR__ . '/../../helpers/permission.php';
+
+requireModuleAccess('module_name');
 
 $farm_id = farm_id();
 require_role(['manager','owner']);

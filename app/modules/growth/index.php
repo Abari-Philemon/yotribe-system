@@ -3,8 +3,10 @@ require '../../middleware/auth_guard.php';
 require '../../middleware/farm_guard.php';
 require '../../config/database.php';
 require_once __DIR__ . '/../../helpers/growth_helper.php';
+require_once __DIR__ . '/../../helpers/permission.php';
 
-require_role(['manager','owner','staff','storekeeper']);
+requireModuleAccess('module_name');
+
 
 $farm_id = farm_id();
 $staff_id = $_SESSION['staff_id'];

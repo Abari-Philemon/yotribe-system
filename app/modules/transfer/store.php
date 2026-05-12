@@ -1,3 +1,4 @@
+<?php 
 $from = (int)$_POST['from_pond'];
 $to   = (int)$_POST['to_pond'];
 $qty  = (int)$_POST['quantity'];

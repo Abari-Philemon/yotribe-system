@@ -99,6 +99,9 @@ $staffs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
+require_once __DIR__ . '/../../helpers/permission.php';
+
+requireModuleAccess('module_name');
 ?>
 
 <style>

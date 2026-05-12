@@ -4,6 +4,9 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../middleware/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../helpers/permission.php';
+
+requireModuleAccess('module_name');
 
 
 authorize('dashboard');
