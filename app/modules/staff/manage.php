@@ -3,9 +3,22 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 
-require_role(['super_admin','owner']);
+require_once __DIR__ . '/../../helpers/permission.php';
 
+/**
+ * MODULE ACCESS
+ */
+require_permission('staff');
+
+/**
+ * FARM CONTEXT
+ */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Manage Staff";
 
 $message = '';
 $alert = 'success';
@@ -99,9 +112,7 @@ $staffs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
-require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
 ?>
 
 <style>
