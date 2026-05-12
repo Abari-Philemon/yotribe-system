@@ -9,37 +9,10 @@ $farm_id = farm_id();
 authorize('finance');
 
 $rows = $pdo->query("SELECT * FROM cash_ledger ORDER BY id ASC")->fetchAll();
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cash Ledger | Yotribe Agro</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="/yotribe-system/public/css/custom.css">
-</head>
-<body>
-
-<div class="container-fluid">
-    <div class="row">
-
-        <!-- Sidebar -->
-        <nav id="sidebar" class="col-md-2 col-12 d-md-block bg-light sidebar collapse">
-            <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/dashboard/index.php">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/yotribe-system/app/modules/finance/index.php">Finance</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/feeding/index.php">Feeding</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/feed_store/index.php">Feed Store</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/hatchery/index.php">Hatchery</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/mortality/index.php">Mortality</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/maggot/index.php">Maggot Production</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/yotribe-system/app/modules/water/index.php">Water Quality</a></li>
-                </ul>
-            </div>
-        </nav>
 
         <!-- Main Content -->
         <main class="col-md-10 ms-sm-auto px-md-4">
