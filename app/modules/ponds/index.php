@@ -4,13 +4,25 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('ponds');
 
 /**
  * FARM CONTEXT
  */
-$farm_id   = farm_id();
+$farm_id = farm_id();
+
 $farm_name = farm_name();
+
+/**
+ * PAGE TITLE
+ */
+
+$page_title = "Ponds & Tanks";
+
+
 
 /**
  * FILTER INPUTS

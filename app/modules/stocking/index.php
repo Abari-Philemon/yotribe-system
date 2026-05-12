@@ -4,9 +4,20 @@ require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('stocking');
 
+/**
+ * FARM CONTEXT
+ */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Stocking Status";
 
 $stmt = $pdo->prepare("
 SELECT p.pond_code, SUM(ps.current_count) as fish

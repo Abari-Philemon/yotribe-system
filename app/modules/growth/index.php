@@ -5,10 +5,21 @@ require '../../config/database.php';
 require_once __DIR__ . '/../../helpers/growth_helper.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('growth');
 
-
+/**
+ * FARM CONTEXT
+ */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Growth Tracking";
+
 $staff_id = $_SESSION['staff_id'];
 
 $message = '';

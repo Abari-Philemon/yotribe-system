@@ -4,11 +4,20 @@ require_once __DIR__ . '/../../middleware/farm_context.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('mortality');
 
-
-
+/**
+ * FARM CONTEXT
+ */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Mortality Tracking";
 $message = '';
 $error = '';
 

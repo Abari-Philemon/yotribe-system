@@ -5,10 +5,21 @@ require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('biomass');
 
+/**
+ * FARM CONTEXT
+ */
+$farm_id = farm_id();
 
-authorize('biomass');
+/**
+ * PAGE TITLE
+ */
+$page_title = "Dashboard";
+
 
 $stmt = $pdo->query("
     SELECT p.pond_code, p.pond_type,
