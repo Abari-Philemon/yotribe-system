@@ -2,6 +2,14 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
+require '../../middleware/auth_guard.php';
+
+if (!in_array($_SESSION['role'], ['super_admin','owner'])) {
+
+    header("Location: /yotribe-system/app/modules/dashboard/index.php");
+    exit;
+}
+
 /**
  * Session
  */

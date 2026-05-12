@@ -124,22 +124,7 @@ $growth_data = [];
 $feeding_data = [];
 $fcr_data = [];
 
-/**
- * LOAD ALL REQUIRED DATA IN BULK (OPTIMIZED)
- */
-$stmt = $pdo->prepare("
-    SELECT 
-        ps.pond_id,
-        ps.batch_id,
-        ps.current_count,
-        ps.avg_weight_g,
-        p.pond_code
-    FROM pond_stocking ps
-    JOIN ponds_tanks p ON p.id = ps.pond_id
-    WHERE ps.farm_id = ? AND ps.status = 'active'
-");
-$stmt->execute([$farm_id]);
-$stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 
 /**
  * PRELOAD FEED TODAY (GROUPED)
