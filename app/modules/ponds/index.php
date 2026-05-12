@@ -126,9 +126,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         <h4>Ponds & Tanks - <?= htmlspecialchars($farm_name) ?></h4>
 
         <div>
-            <a href="/yotribe-system/app/modules/farms/select.php" class="btn btn-outline-secondary btn-sm">
-                Switch Farm
-            </a>
+
             <a href="create.php" class="btn btn-primary btn-sm">
                 + Add Pond
             </a>
