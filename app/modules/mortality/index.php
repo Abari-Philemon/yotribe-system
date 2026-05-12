@@ -194,16 +194,11 @@ foreach ($analytics as $a) {
         break;
     }
 }
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html>
-<head>
-<title>Mortality Module</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
 
-<body class="container mt-4">
 
 <h3>Mortality Module</h3>
 
