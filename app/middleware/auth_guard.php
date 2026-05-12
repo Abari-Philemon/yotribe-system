@@ -21,31 +21,34 @@ if (!isset($_SESSION['staff_id'])) {
 
 /**
  * REQUIRE PERMISSION
- * New enterprise permission system
+ * Enterprise RBAC
  */
-function require_permission(string $module): void
-{
-    /**
-     * SUPER ADMIN OVERRIDE
-     */
-    if (
-        isset($_SESSION['role']) &&
-        $_SESSION['role'] === 'super_admin'
-    ) {
-        return;
-    }
+if (!function_exists('require_permission')) {
 
-    require_once __DIR__ . '/../helpers/permission.php';
+    function require_permission(string $module): void
+    {
+        /**
+         * SUPER ADMIN OVERRIDE
+         */
+        if (
+            isset($_SESSION['role']) &&
+            $_SESSION['role'] === 'super_admin'
+        ) {
+            return;
+        }
 
-    if (!canAccess($module)) {
+        require_once __DIR__ . '/../helpers/permission.php';
 
-        http_response_code(403);
+        if (!canAccess($module)) {
 
-        die("
-            <div style='padding:40px;font-family:Arial'>
-                <h2>403 - Access Denied</h2>
-                <p>You are not authorized to access this module.</p>
-            </div>
-        ");
+            http_response_code(403);
+
+            die("
+                <div style='padding:40px;font-family:Arial'>
+                    <h2>403 - Access Denied</h2>
+                    <p>You are not authorized to access this module.</p>
+                </div>
+            ");
+        }
     }
 }
