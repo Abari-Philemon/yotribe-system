@@ -1,17 +1,25 @@
 <?php
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
+require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../middleware/csrf.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-requireModuleAccess('module_name');
-
+/**
+ * MODULE ACCESS
+ */
+require_permission('dashboard');
 
 /**
- * FARM CONTEXT (SECURE)
+ * FARM CONTEXT
  */
 $farm_id = farm_id();
+
+/**
+ * PAGE TITLE
+ */
+$page_title = "Dashboard";
 
 
 /**
