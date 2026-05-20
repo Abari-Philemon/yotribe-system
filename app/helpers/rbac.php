@@ -1,4 +1,4 @@
-<?php 
+<?php
  /**EQUIRE PERMISSION
  * Enterprise RBAC
  */
