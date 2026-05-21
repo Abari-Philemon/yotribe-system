@@ -126,7 +126,7 @@ $stmt = $pdo->prepare("
         s.approval_status,
         s.last_login,
         s.created_at,
-        f.name AS farm_name
+        f.name AS farm_id
     FROM staff s
     LEFT JOIN farms f
         ON f.id = s.farm_id
