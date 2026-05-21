@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../helpers/permission.php';
 /**
  * MODULE ACCESS
  */
-require_permission('reports');
+require_permission('staff');
 
 $farm_id = farm_id();
 
