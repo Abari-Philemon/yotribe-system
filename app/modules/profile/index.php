@@ -42,6 +42,8 @@ $stmt = $pdo->prepare("
         s.last_login,
         s.created_at,
         s.profile_image,
+        s.email,
+        s.phone,
         f.name AS farm_name
     FROM staff s
     LEFT JOIN farms f ON f.id = s.farm_id
@@ -56,7 +58,17 @@ if (!$user) {
 }
 
 /**
- * UPLOAD DIRECTORY (SERVER PATH)
+ * ROLE PERMISSIONS (SIMPLE FIELD CONTROL)
+ */
+$role = $user['role'];
+
+$can_edit_email = in_array($role, ['super_admin','owner','manager','production']);
+$can_edit_phone = in_array($role, ['super_admin','owner','manager','production']);
+$can_edit_image = in_array($role, ['super_admin','owner','manager','production','storekeeper','hatchery']);
+$can_edit_password = true;
+
+/**
+ * UPLOAD DIR (SERVER PATH)
  */
 $uploadDir = APP_ROOT . '/uploads/profile/';
 
@@ -74,106 +86,176 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     /**
-     * PROFILE IMAGE UPLOAD
+     * =========================
+     * PROFILE IMAGE UPDATE
+     * =========================
      */
     if (!empty($_FILES['profile_image']['name'])) {
 
-        $file = $_FILES['profile_image'];
+        if (!$can_edit_image) {
+            $message = "Not allowed to update profile image.";
+            $alert = "danger";
+        } else {
 
-        $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+            $file = $_FILES['profile_image'];
+            $allowed = ['image/jpeg', 'image/png', 'image/webp'];
 
-        if ($file['error'] === 0 && in_array($file['type'], $allowed) && $file['size'] <= 2 * 1024 * 1024) {
+            if ($file['error'] === 0 && in_array($file['type'], $allowed) && $file['size'] <= 2 * 1024 * 1024) {
 
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $newName = 'profile_' . $staff_id . '_' . time() . '.' . $ext;
 
-            $newName = 'profile_' . $staff_id . '_' . time() . '.' . $ext;
+                $uploadPath = $uploadDir . $newName;
 
-            $uploadPath = $uploadDir . $newName;
+                if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
 
-            if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
-
-                /**
-                 * DELETE OLD IMAGE
-                 */
-                if (!empty($user['profile_image'])) {
-                    $oldFile = $uploadDir . $user['profile_image'];
-                    if (file_exists($oldFile)) {
-                        unlink($oldFile);
+                    if (!empty($user['profile_image'])) {
+                        $oldFile = $uploadDir . $user['profile_image'];
+                        if (file_exists($oldFile)) unlink($oldFile);
                     }
+
+                    $pdo->prepare("
+                        UPDATE staff SET profile_image = ?
+                        WHERE id = ?
+                    ")->execute([$newName, $staff_id]);
+
+                    $user['profile_image'] = $newName;
+
+                    $message = "Profile image updated successfully.";
+                    $alert = "success";
+
+                } else {
+                    $message = "Upload failed.";
+                    $alert = "danger";
                 }
 
-                /**
-                 * UPDATE DATABASE
-                 */
-                $stmt = $pdo->prepare("
-                    UPDATE staff
-                    SET profile_image = ?
-                    WHERE id = ?
-                ");
-
-                $stmt->execute([$newName, $staff_id]);
-
-                /**
-                 * UPDATE LOCAL STATE (IMPORTANT)
-                 */
-                $user['profile_image'] = $newName;
-
-                $message = "Profile image updated successfully.";
-                $alert = "success";
-
             } else {
-                $message = "Upload failed. Check folder permissions.";
+                $message = "Invalid file or too large (max 2MB).";
                 $alert = "danger";
             }
-
-        } else {
-            $message = "Invalid image or file too large (max 2MB).";
-            $alert = "danger";
         }
     }
 
     /**
+     * =========================
+     * EMAIL + PHONE UPDATE
+     * =========================
+     */
+    if (isset($_POST['email']) || isset($_POST['phone'])) {
+
+        $email = trim($_POST['email'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+
+        if (!$can_edit_email && !$can_edit_phone) {
+            $message = "Not allowed to edit profile details.";
+            $alert = "danger";
+        } else {
+
+            /**
+             * EMAIL UNIQUE CHECK (PER FARM)
+             */
+            if (!empty($email) && $can_edit_email) {
+
+                $stmt = $pdo->prepare("
+                    SELECT id FROM staff
+                    WHERE email = ? AND farm_id = ? AND id != ?
+                ");
+                $stmt->execute([$email, $farm_id, $staff_id]);
+
+                if ($stmt->fetch()) {
+                    $message = "Email already exists in this farm.";
+                    $alert = "danger";
+                }
+            }
+
+            /**
+             * PHONE UNIQUE CHECK (PER FARM)
+             */
+            if (!empty($phone) && $can_edit_phone && $alert !== "danger") {
+
+                $stmt = $pdo->prepare("
+                    SELECT id FROM staff
+                    WHERE phone = ? AND farm_id = ? AND id != ?
+                ");
+                $stmt->execute([$phone, $farm_id, $staff_id]);
+
+                if ($stmt->fetch()) {
+                    $message = "Phone already exists in this farm.";
+                    $alert = "danger";
+                }
+            }
+
+            /**
+             * UPDATE PROFILE
+             */
+            if ($alert !== "danger") {
+
+                $pdo->prepare("
+                    UPDATE staff
+                    SET email = ?, phone = ?
+                    WHERE id = ?
+                ")->execute([$email, $phone, $staff_id]);
+
+                $user['email'] = $email;
+                $user['phone'] = $phone;
+
+                $message = "Profile updated successfully.";
+                $alert = "success";
+            }
+        }
+    }
+
+    /**
+     * =========================
      * PASSWORD UPDATE
+     * =========================
      */
     if (!empty($_POST['current_password'])) {
 
-        $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
-        $stmt->execute([$staff_id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!password_verify($_POST['current_password'], $row['password'])) {
-
-            $message = "Current password incorrect.";
+        if (!$can_edit_password) {
+            $message = "Not allowed to change password.";
             $alert = "danger";
-
-        } elseif ($_POST['new_password'] !== $_POST['confirm_password']) {
-
-            $message = "Passwords do not match.";
-            $alert = "danger";
-
         } else {
 
-            $hashed = password_hash($_POST['new_password'], PASSWORD_BCRYPT);
+            $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
+            $stmt->execute([$staff_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $pdo->prepare("
-                UPDATE staff SET password = ? WHERE id = ?
-            ")->execute([$hashed, $staff_id]);
+            if (!password_verify($_POST['current_password'], $row['password'])) {
 
-            $message = "Password updated successfully.";
-            $alert = "success";
+                $message = "Current password incorrect.";
+                $alert = "danger";
+
+            } elseif ($_POST['new_password'] !== $_POST['confirm_password']) {
+
+                $message = "Passwords do not match.";
+                $alert = "danger";
+
+            } else {
+
+                $hashed = password_hash($_POST['new_password'], PASSWORD_BCRYPT);
+
+                $pdo->prepare("
+                    UPDATE staff SET password = ?
+                    WHERE id = ?
+                ")->execute([$hashed, $staff_id]);
+
+                $message = "Password updated successfully.";
+                $alert = "success";
+            }
         }
     }
 }
 
 /**
- * PROFILE IMAGE (WEB PATH - FIXED)
+ * PROFILE IMAGE PATH (WEB)
  */
 $profileImage = !empty($user['profile_image'])
     ? '/uploads/profile/' . $user['profile_image']
     : '/assets/default-avatar.png';
 
 /**
- * LAYOUT
+ * INCLUDE LAYOUT
  */
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
@@ -204,7 +286,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         <div class="card profile-card">
             <div class="card-body text-center">
 
-                <img id="avatarPreview" src="<?= $profileImage ?>" class="avatar mb-3" alt="Profile Image">
+                <img id="avatarPreview" src="<?= $profileImage ?>" class="avatar mb-3">
 
                 <h5><?= htmlspecialchars($user['full_name']) ?></h5>
                 <p class="text-muted"><?= ucfirst($user['role']) ?></p>
@@ -212,6 +294,8 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                 <hr>
 
                 <p><b>Farm:</b> <?= htmlspecialchars($user['farm_name'] ?? 'N/A') ?></p>
+                <p><b>Email:</b> <?= htmlspecialchars($user['email'] ?? 'N/A') ?></p>
+                <p><b>Phone:</b> <?= htmlspecialchars($user['phone'] ?? 'N/A') ?></p>
                 <p><b>Status:</b> <?= ucfirst($user['status']) ?></p>
 
             </div>
@@ -237,6 +321,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
+                    <!-- IMAGE -->
                     <div class="mb-3">
                         <label>Profile Image</label>
                         <input type="file"
@@ -244,6 +329,24 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                                class="form-control"
                                accept="image/*"
                                onchange="previewAvatar(event)">
+                    </div>
+
+                    <!-- EMAIL -->
+                    <div class="mb-3">
+                        <label>Email</label>
+                        <input type="email"
+                               name="email"
+                               class="form-control"
+                               value="<?= htmlspecialchars($user['email'] ?? '') ?>">
+                    </div>
+
+                    <!-- PHONE -->
+                    <div class="mb-3">
+                        <label>Phone</label>
+                        <input type="text"
+                               name="phone"
+                               class="form-control"
+                               value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
                     </div>
 
                     <hr>
