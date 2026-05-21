@@ -3,11 +3,7 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
-require_once __DIR__ . '/../../config/config.php'; // IMPORTANT (APP_ROOT)
-
-if (!defined('APP_ROOT')) {
-    define('APP_ROOT', dirname(__DIR__, 3));
-}
+require_once __DIR__ . '/../../config/config.php'; // MUST LOAD APP_ROOT
 
 $farm_id = farm_id();
 $staff_id = $_SESSION['staff_id'] ?? 0;
@@ -16,6 +12,15 @@ $page_title = "My Profile";
 
 $message = '';
 $alert = 'success';
+
+/**
+ * =========================================================
+ * SAFETY CHECK (PREVENT CRASH IF CONFIG FAILS)
+ * =========================================================
+ */
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', realpath(__DIR__ . '/../../'));
+}
 
 /**
  * =========================================================
@@ -58,15 +63,12 @@ if (!$user) {
 
 /**
  * =========================================================
- * BASE UPLOAD PATH (STABLE)
+ * UPLOAD DIRECTORY (AUTO SAFE)
  * =========================================================
  */
 $uploadDir = APP_ROOT . '/uploads/profile/';
 
-/**
- * CREATE DIRECTORY IF NOT EXISTS
- */
-if (!file_exists($uploadDir)) {
+if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0777, true);
 }
 
@@ -186,7 +188,7 @@ require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 
 /**
- * PROFILE IMAGE PATH (WEB ACCESS)
+ * PROFILE IMAGE URL (WEB PATH)
  */
 $profileImage = !empty($user['profile_image'])
     ? '/app/uploads/profile/' . $user['profile_image']
