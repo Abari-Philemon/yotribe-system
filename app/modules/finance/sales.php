@@ -126,52 +126,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          */
 
         $stmt = $pdo->prepare("
-            SELECT estimated_weight_kg
+            SELECT id, estimated_weight_kg
             FROM fish_inventory
-            WHERE farm_id = ?
-            AND pond_id = ?
+            WHERE farm_id = ? AND pond_id = ?
             LIMIT 1
         ");
-
-        $stmt->execute([
-            $farm_id,
-            $pond_id
-        ]);
-
+        $stmt->execute([$farm_id, $pond_id]);
         $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$inventory) {
-            throw new Exception("Fish inventory not found.");
+            throw new Exception("Fish inventory not found for this pond in active farm");
         }
 
-        $available_stock = (float) $inventory['estimated_weight_kg'];
-
-        if ($qty > $available_stock) {
-            throw new Exception(
-                "Insufficient fish stock. Available: "
-                . number_format($available_stock, 2)
-                . " kg"
-            );
-        }
-
-        /**
-         * REDUCE INVENTORY
-         */
+        $newWeight = max(0, $inventory['estimated_weight_kg'] - $qty);
 
         $stmt = $pdo->prepare("
             UPDATE fish_inventory
-            SET estimated_weight_kg =
-                estimated_weight_kg - ?
-            WHERE farm_id = ?
-            AND pond_id = ?
+            SET estimated_weight_kg = ?
+            WHERE id = ?
         ");
-
-        $stmt->execute([
-            $qty,
-            $farm_id,
-            $pond_id
-        ]);
-
+        $stmt->execute([$newWeight, $inventory['id']]);
         /**
          * INSERT SALE
          */
