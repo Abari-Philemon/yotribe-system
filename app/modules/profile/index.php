@@ -3,6 +3,11 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
+require_once __DIR__ . '/../../config/config.php'; // IMPORTANT (APP_ROOT)
+
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__, 3));
+}
 
 $farm_id = farm_id();
 $staff_id = $_SESSION['staff_id'] ?? 0;
@@ -14,7 +19,7 @@ $alert = 'success';
 
 /**
  * =========================================================
- * CSRF TOKEN
+ * CSRF
  * =========================================================
  */
 if (empty($_SESSION['csrf_token'])) {
@@ -23,7 +28,7 @@ if (empty($_SESSION['csrf_token'])) {
 
 /**
  * =========================================================
- * LOAD USER PROFILE
+ * LOAD USER
  * =========================================================
  */
 $stmt = $pdo->prepare("
@@ -53,53 +58,54 @@ if (!$user) {
 
 /**
  * =========================================================
- * HANDLE UPDATES
+ * BASE UPLOAD PATH (STABLE)
+ * =========================================================
+ */
+$uploadDir = APP_ROOT . '/uploads/profile/';
+
+/**
+ * CREATE DIRECTORY IF NOT EXISTS
+ */
+if (!file_exists($uploadDir)) {
+    mkdir($uploadDir, 0777, true);
+}
+
+/**
+ * =========================================================
+ * HANDLE POST
  * =========================================================
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    if (
-        !isset($_POST['csrf_token']) ||
-        $_POST['csrf_token'] !== $_SESSION['csrf_token']
-    ) {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         die("Invalid CSRF token");
     }
 
     /**
      * =====================================================
-     * PROFILE IMAGE UPLOAD (FIXED)
+     * PROFILE IMAGE UPLOAD
      * =====================================================
      */
     if (!empty($_FILES['profile_image']['name'])) {
 
         $file = $_FILES['profile_image'];
 
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        $allowed = ['image/jpeg', 'image/png', 'image/webp'];
 
-        if (!in_array($file['type'], $allowedTypes)) {
+        if (!in_array($file['type'], $allowed)) {
 
-            $message = "Only JPG, PNG, JP, PNG, PEG, WEBP allowed.";
+            $message = "Only JPG, PNG, WEBP allowed.";
             $alert = "danger";
 
         } elseif ($file['size'] > 2 * 1024 * 1024) {
 
-            $message = "Image must not exceed 2MB.";
+            $message = "Image must be less than 2MB.";
             $alert = "danger";
 
         } else {
 
-            /**
-             * =================================================
-             * FIXED DIRECTORY HANDLING (MAIN FIX)
-             * =================================================
-             */
-            $uploadDir = __DIR__ . '/../../uploads/profile/';
-
-            if (!file_exists($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
-
             $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+
             $newName = 'profile_' . $staff_id . '_' . time() . '.' . $ext;
 
             $uploadPath = $uploadDir . $newName;
@@ -180,10 +186,10 @@ require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 
 /**
- * PROFILE IMAGE PATH
+ * PROFILE IMAGE PATH (WEB ACCESS)
  */
 $profileImage = !empty($user['profile_image'])
-    ? '/uploads/profile/' . $user['profile_image']
+    ? '/app/uploads/profile/' . $user['profile_image']
     : '/assets/default-avatar.png';
 
 ?>
