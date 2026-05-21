@@ -13,7 +13,7 @@ require_permission('reports');
  * FARM CONTEXT
  */
 $farm_id = farm_id();
-$farm_name = farm_name();
+
 
 
 /**
