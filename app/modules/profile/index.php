@@ -12,13 +12,18 @@ $page_title = "My Profile";
 $message = '';
 $alert = 'success';
 
+/**
+ * =========================================================
+ * CSRF TOKEN
+ * =========================================================
+ */
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 /**
  * =========================================================
- * LOAD PROFILE
+ * LOAD USER PROFILE
  * =========================================================
  */
 $stmt = $pdo->prepare("
@@ -48,42 +53,56 @@ if (!$user) {
 
 /**
  * =========================================================
- * HANDLE UPDATE (PASSWORD + IMAGE)
+ * HANDLE UPDATES
  * =========================================================
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    if (
+        !isset($_POST['csrf_token']) ||
+        $_POST['csrf_token'] !== $_SESSION['csrf_token']
+    ) {
         die("Invalid CSRF token");
     }
 
     /**
-     * =============================================
-     * PROFILE IMAGE UPLOAD
-     * =============================================
+     * =====================================================
+     * PROFILE IMAGE UPLOAD (FIXED)
+     * =====================================================
      */
     if (!empty($_FILES['profile_image']['name'])) {
 
         $file = $_FILES['profile_image'];
 
-        $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
-        if (!in_array($file['type'], $allowed)) {
-            $message = "Invalid image type.";
+        if (!in_array($file['type'], $allowedTypes)) {
+
+            $message = "Only JPG, PNG, WEBP allowed.";
             $alert = "danger";
-        }
 
-        elseif ($file['size'] > 2 * 1024 * 1024) {
-            $message = "Image must be less than 2MB.";
+        } elseif ($file['size'] > 2 * 1024 * 1024) {
+
+            $message = "Image must not exceed 2MB.";
             $alert = "danger";
-        }
 
-        else {
+        } else {
+
+            /**
+             * =================================================
+             * FIXED DIRECTORY HANDLING (MAIN FIX)
+             * =================================================
+             */
+            $uploadDir = __DIR__ . '/../../uploads/profile/';
+
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
 
             $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
             $newName = 'profile_' . $staff_id . '_' . time() . '.' . $ext;
 
-            $uploadPath = __DIR__ . '/../../uploads/profile/' . $newName;
+            $uploadPath = $uploadDir . $newName;
 
             if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
 
@@ -91,9 +110,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  * DELETE OLD IMAGE
                  */
                 if (!empty($user['profile_image'])) {
-                    $oldPath = __DIR__ . '/../../uploads/profile/' . $user['profile_image'];
-                    if (file_exists($oldPath)) {
-                        unlink($oldPath);
+
+                    $oldFile = $uploadDir . $user['profile_image'];
+
+                    if (file_exists($oldFile)) {
+                        unlink($oldFile);
                     }
                 }
 
@@ -106,46 +127,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$newName, $staff_id]);
 
                 $message = "Profile image updated successfully.";
+                $alert = "success";
             }
         }
     }
 
     /**
-     * =============================================
-     * PASSWORD UPDATE (UNCHANGED)
-     * =============================================
+     * =====================================================
+     * PASSWORD UPDATE
+     * =====================================================
      */
     if (!empty($_POST['current_password'])) {
 
-        $current_password = $_POST['current_password'];
-        $new_password     = $_POST['new_password'];
-        $confirm_password = $_POST['confirm_password'];
+        $current = $_POST['current_password'];
+        $new     = $_POST['new_password'];
+        $confirm = $_POST['confirm_password'];
 
-        $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
-        $stmt->execute([$staff_id]);
-        $row = $stmt->fetch();
-
-        if (!password_verify($current_password, $row['password'])) {
-
-            $message = "Current password is incorrect.";
-            $alert = "danger";
-
-        } elseif ($new_password !== $confirm_password) {
+        if ($new !== $confirm) {
 
             $message = "Passwords do not match.";
             $alert = "danger";
 
         } else {
 
-            $hashed = password_hash($new_password, PASSWORD_BCRYPT);
+            $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
+            $stmt->execute([$staff_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            $stmt = $pdo->prepare("
-                UPDATE staff SET password = ? WHERE id = ?
-            ");
+            if (!password_verify($current, $row['password'])) {
 
-            $stmt->execute([$hashed, $staff_id]);
+                $message = "Current password is incorrect.";
+                $alert = "danger";
 
-            $message = "Password updated successfully.";
+            } else {
+
+                $hashed = password_hash($new, PASSWORD_BCRYPT);
+
+                $stmt = $pdo->prepare("
+                    UPDATE staff SET password = ? WHERE id = ?
+                ");
+
+                $stmt->execute([$hashed, $staff_id]);
+
+                $message = "Password updated successfully.";
+                $alert = "success";
+            }
         }
     }
 }
@@ -153,9 +179,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 
+/**
+ * PROFILE IMAGE PATH
+ */
 $profileImage = !empty($user['profile_image'])
-    ? "/uploads/profile/" . $user['profile_image']
-    : "/assets/default-avatar.png";
+    ? '/uploads/profile/' . $user['profile_image']
+    : '/assets/default-avatar.png';
 
 ?>
 
