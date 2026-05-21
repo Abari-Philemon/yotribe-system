@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
-require_once __DIR__ . '/../../config/config.php'; // MUST LOAD APP_ROOT
+require_once __DIR__ . '/../../config/config.php';
 
 $farm_id = farm_id();
 $staff_id = $_SESSION['staff_id'] ?? 0;
@@ -13,28 +13,16 @@ $page_title = "My Profile";
 $message = '';
 $alert = 'success';
 
-/**
- * =========================================================
- * SAFETY CHECK (PREVENT CRASH IF CONFIG FAILS)
- * =========================================================
- */
 if (!defined('APP_ROOT')) {
     define('APP_ROOT', realpath(__DIR__ . '/../../'));
 }
 
-/**
- * =========================================================
- * CSRF
- * =========================================================
- */
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 /**
- * =========================================================
  * LOAD USER
- * =========================================================
  */
 $stmt = $pdo->prepare("
     SELECT
@@ -61,11 +49,6 @@ if (!$user) {
     die("User not found");
 }
 
-/**
- * =========================================================
- * UPLOAD DIRECTORY (AUTO SAFE)
- * =========================================================
- */
 $uploadDir = APP_ROOT . '/uploads/profile/';
 
 if (!is_dir($uploadDir)) {
@@ -73,9 +56,7 @@ if (!is_dir($uploadDir)) {
 }
 
 /**
- * =========================================================
- * HANDLE POST
- * =========================================================
+ * HANDLE UPDATE
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -83,28 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Invalid CSRF token");
     }
 
-    /**
-     * =====================================================
-     * PROFILE IMAGE UPLOAD
-     * =====================================================
-     */
     if (!empty($_FILES['profile_image']['name'])) {
 
         $file = $_FILES['profile_image'];
 
         $allowed = ['image/jpeg', 'image/png', 'image/webp'];
 
-        if (!in_array($file['type'], $allowed)) {
-
-            $message = "Only JPG, PNG, WEBP allowed.";
-            $alert = "danger";
-
-        } elseif ($file['size'] > 2 * 1024 * 1024) {
-
-            $message = "Image must be less than 2MB.";
-            $alert = "danger";
-
-        } else {
+        if (in_array($file['type'], $allowed) && $file['size'] <= 2 * 1024 * 1024) {
 
             $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
 
@@ -114,82 +80,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
 
-                /**
-                 * DELETE OLD IMAGE
-                 */
                 if (!empty($user['profile_image'])) {
-
-                    $oldFile = $uploadDir . $user['profile_image'];
-
-                    if (file_exists($oldFile)) {
-                        unlink($oldFile);
-                    }
+                    $old = $uploadDir . $user['profile_image'];
+                    if (file_exists($old)) unlink($old);
                 }
 
-                $stmt = $pdo->prepare("
-                    UPDATE staff
-                    SET profile_image = ?
-                    WHERE id = ?
-                ");
+                $pdo->prepare("UPDATE staff SET profile_image = ? WHERE id = ?")
+                    ->execute([$newName, $staff_id]);
 
-                $stmt->execute([$newName, $staff_id]);
+                $user['profile_image'] = $newName;
 
-                $message = "Profile image updated successfully.";
+                $message = "Profile image updated.";
                 $alert = "success";
             }
+
+        } else {
+            $message = "Invalid image or size > 2MB.";
+            $alert = "danger";
         }
     }
 
-    /**
-     * =====================================================
-     * PASSWORD UPDATE
-     * =====================================================
-     */
     if (!empty($_POST['current_password'])) {
 
-        $current = $_POST['current_password'];
-        $new     = $_POST['new_password'];
-        $confirm = $_POST['confirm_password'];
+        $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
+        $stmt->execute([$staff_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($new !== $confirm) {
+        if (!password_verify($_POST['current_password'], $row['password'])) {
+
+            $message = "Current password incorrect.";
+            $alert = "danger";
+
+        } elseif ($_POST['new_password'] !== $_POST['confirm_password']) {
 
             $message = "Passwords do not match.";
             $alert = "danger";
 
         } else {
 
-            $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
-            $stmt->execute([$staff_id]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $hashed = password_hash($_POST['new_password'], PASSWORD_BCRYPT);
 
-            if (!password_verify($current, $row['password'])) {
+            $pdo->prepare("UPDATE staff SET password = ? WHERE id = ?")
+                ->execute([$hashed, $staff_id]);
 
-                $message = "Current password is incorrect.";
-                $alert = "danger";
-
-            } else {
-
-                $hashed = password_hash($new, PASSWORD_BCRYPT);
-
-                $stmt = $pdo->prepare("
-                    UPDATE staff SET password = ? WHERE id = ?
-                ");
-
-                $stmt->execute([$hashed, $staff_id]);
-
-                $message = "Password updated successfully.";
-                $alert = "success";
-            }
+            $message = "Password updated.";
+            $alert = "success";
         }
     }
 }
 
-require_once __DIR__ . '/../../includes/header.php';
-require_once __DIR__ . '/../../includes/sidebar.php';
-
-/**
- * PROFILE IMAGE URL (WEB PATH)
- */
 $profileImage = !empty($user['profile_image'])
     ? '/app/uploads/profile/' . $user['profile_image']
     : '/assets/default-avatar.png';
@@ -204,8 +143,8 @@ $profileImage = !empty($user['profile_image'])
 }
 
 .avatar{
-    width:120px;
-    height:120px;
+    width:140px;
+    height:140px;
     border-radius:50%;
     object-fit:cover;
     border:3px solid #ddd;
@@ -214,12 +153,13 @@ $profileImage = !empty($user['profile_image'])
 
 <div class="row">
 
+    <!-- LEFT SIDE -->
     <div class="col-md-5">
 
         <div class="card profile-card">
             <div class="card-body text-center">
 
-                <img src="<?= $profileImage ?>" class="avatar mb-3">
+                <img id="previewImage" src="<?= $profileImage ?>" class="avatar mb-3">
 
                 <h5><?= htmlspecialchars($user['full_name']) ?></h5>
                 <p class="text-muted"><?= ucfirst($user['role']) ?></p>
@@ -234,6 +174,7 @@ $profileImage = !empty($user['profile_image'])
 
     </div>
 
+    <!-- RIGHT SIDE -->
     <div class="col-md-7">
 
         <div class="card profile-card">
@@ -253,7 +194,8 @@ $profileImage = !empty($user['profile_image'])
 
                     <div class="mb-3">
                         <label>Profile Image</label>
-                        <input type="file" name="profile_image" class="form-control">
+                        <input type="file" name="profile_image" class="form-control" accept="image/*"
+                               onchange="previewFile(event)">
                     </div>
 
                     <hr>
@@ -287,5 +229,15 @@ $profileImage = !empty($user['profile_image'])
     </div>
 
 </div>
+
+<script>
+function previewFile(event) {
+    const reader = new FileReader();
+    reader.onload = function () {
+        document.getElementById('previewImage').src = reader.result;
+    };
+    reader.readAsDataURL(event.target.files[0]);
+}
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
