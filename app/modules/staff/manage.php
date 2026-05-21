@@ -228,7 +228,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                         </td>
 
                         <td>
-                            <?= htmlspecialchars($s['farm_name'] ?? 'N/A') ?>
+                            <?= isset($s['farm_id']) ? htmlspecialchars($s['farm_id']) : 'N/A' ?>
                         </td>
 
                         <td>
