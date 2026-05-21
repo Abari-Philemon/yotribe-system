@@ -126,7 +126,7 @@ $stmt = $pdo->prepare("
         s.approval_status,
         s.last_login,
         s.created_at,
-        f.farm_id  AS farm_name
+        f.name AS farm_id
     FROM staff s
     LEFT JOIN farms f
         ON f.id = s.farm_id
@@ -228,7 +228,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                         </td>
 
                         <td>
-                            <?= htmlspecialchars($s['farm_id'] ?? 'N/A') ?> 
+                            <?= htmlspecialchars($s['farm_name'] ?? 'N/A') ?>
                         </td>
 
                         <td>
