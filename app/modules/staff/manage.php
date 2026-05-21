@@ -1,27 +1,50 @@
 <?php
+
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
-
 require_once __DIR__ . '/../../helpers/permission.php';
 
 /**
+ * =========================================================
  * MODULE ACCESS
+ * =========================================================
  */
 require_permission('staff');
 
 /**
+ * =========================================================
  * FARM CONTEXT
+ * =========================================================
  */
 $farm_id = farm_id();
 
 /**
- * PAGE TITLE
+ * =========================================================
+ * CURRENT USER
+ * =========================================================
  */
-$page_title = "Manage Staff";
+$current_staff_id = $_SESSION['staff_id'] ?? 0;
+
+/**
+ * =========================================================
+ * PAGE TITLE
+ * =========================================================
+ */
+$page_title = 'Manage Staff';
 
 $message = '';
 $alert = 'success';
+
+/**
+ * =========================================================
+ * CSRF TOKEN
+ * =========================================================
+ */
+if (empty($_SESSION['csrf_token'])) {
+
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 /**
  * =========================================================
@@ -29,57 +52,106 @@ $alert = 'success';
  * =========================================================
  */
 
-if (isset($_GET['approve'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $staff_id = (int) $_GET['approve'];
+    /**
+     * VALIDATE CSRF
+     */
+    if (
+        !isset($_POST['csrf_token']) ||
+        $_POST['csrf_token'] !== $_SESSION['csrf_token']
+    ) {
 
-    $stmt = $pdo->prepare("
-        UPDATE staff
-        SET
-            approval_status = 'approved',
-            status = 'active',
-            active = 1
-        WHERE id = ?
-    ");
+        die('Invalid CSRF token.');
+    }
 
-    $stmt->execute([$staff_id]);
+    $staff_id = (int) ($_POST['staff_id'] ?? 0);
 
-    $message = "Staff account approved successfully.";
-}
+    /**
+     * PREVENT SELF ACTIONS
+     */
+    if ($staff_id === $current_staff_id) {
 
-if (isset($_GET['disable'])) {
+        $message = 'You cannot perform this action on your own account.';
+        $alert = 'danger';
+    }
 
-    $staff_id = (int) $_GET['disable'];
+    else {
 
-    $stmt = $pdo->prepare("
-        UPDATE staff
-        SET
-            status = 'disabled',
-            active = 0
-        WHERE id = ?
-    ");
+        /**
+         * =====================================================
+         * APPROVE STAFF
+         * =====================================================
+         */
+        if (isset($_POST['approve'])) {
 
-    $stmt->execute([$staff_id]);
+            $stmt = $pdo->prepare("
+                UPDATE staff
+                SET
+                    approval_status = 'approved',
+                    status = 'active',
+                    active = 1
+                WHERE id = ?
+                AND farm_id = ?
+            ");
 
-    $message = "Staff account disabled.";
-    $alert = 'warning';
-}
+            $stmt->execute([$staff_id, $farm_id]);
 
-if (isset($_GET['activate'])) {
+            if ($stmt->rowCount()) {
 
-    $staff_id = (int) $_GET['activate'];
+                $message = 'Staff account approved successfully.';
+            }
+        }
 
-    $stmt = $pdo->prepare("
-        UPDATE staff
-        SET
-            status = 'active',
-            active = 1
-        WHERE id = ?
-    ");
+        /**
+         * =====================================================
+         * DISABLE STAFF
+         * =====================================================
+         */
+        if (isset($_POST['disable'])) {
 
-    $stmt->execute([$staff_id]);
+            $stmt = $pdo->prepare("
+                UPDATE staff
+                SET
+                    status = 'disabled',
+                    active = 0
+                WHERE id = ?
+                AND farm_id = ?
+            ");
 
-    $message = "Staff account activated.";
+            $stmt->execute([$staff_id, $farm_id]);
+
+            if ($stmt->rowCount()) {
+
+                $message = 'Staff account disabled.';
+                $alert = 'warning';
+            }
+        }
+
+        /**
+         * =====================================================
+         * ACTIVATE STAFF
+         * =====================================================
+         */
+        if (isset($_POST['activate'])) {
+
+            $stmt = $pdo->prepare("
+                UPDATE staff
+                SET
+                    status = 'active',
+                    active = 1
+                WHERE id = ?
+                AND farm_id = ?
+            ");
+
+            $stmt->execute([$staff_id, $farm_id]);
+
+            if ($stmt->rowCount()) {
+
+                $message = 'Staff account activated.';
+            }
+        }
+    }
 }
 
 /**
@@ -100,14 +172,15 @@ $stmt = $pdo->prepare("
         s.approval_status,
         s.last_login,
         s.created_at,
-        f.name
+        f.name AS farm_name
     FROM staff s
     LEFT JOIN farms f
         ON f.id = s.farm_id
+    WHERE s.farm_id = ?
     ORDER BY s.created_at DESC
 ");
 
-$stmt->execute();
+$stmt->execute([$farm_id]);
 
 $staffs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -144,15 +217,24 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     vertical-align:middle;
 }
 
+.action-form{
+    display:inline-block;
+}
+
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
 
     <div>
-        <h3 class="mb-1">👥 Staff Management</h3>
+
+        <h3 class="mb-1">
+            👥 Staff Management
+        </h3>
+
         <small class="text-muted">
             Manage approvals, activation and passwords
         </small>
+
     </div>
 
     <a href="register.php" class="btn btn-success">
@@ -163,8 +245,10 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 <?php if($message): ?>
 
-<div class="alert alert-<?= $alert ?>">
+<div class="alert alert-<?= htmlspecialchars($alert) ?>">
+
     <?= htmlspecialchars($message) ?>
+
 </div>
 
 <?php endif; ?>
@@ -180,6 +264,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                 <thead class="table-light">
 
                     <tr>
+
                         <th>#</th>
                         <th>Full Name</th>
                         <th>Username</th>
@@ -188,7 +273,8 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                         <th>Approval</th>
                         <th>Status</th>
                         <th>Last Login</th>
-                        <th width="260">Actions</th>
+                        <th width="300">Actions</th>
+
                     </tr>
 
                 </thead>
@@ -198,9 +284,13 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                 <?php if(empty($staffs)): ?>
 
                     <tr>
+
                         <td colspan="9" class="text-center text-muted py-4">
+
                             No staff records found
+
                         </td>
+
                     </tr>
 
                 <?php endif; ?>
@@ -210,28 +300,39 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                     <tr>
 
                         <td>
+
                             <?= $index + 1 ?>
+
                         </td>
 
                         <td>
+
                             <strong>
                                 <?= htmlspecialchars($s['full_name']) ?>
                             </strong>
+
                         </td>
 
                         <td>
+
                             <?= htmlspecialchars($s['username']) ?>
+
                         </td>
 
                         <td>
+
                             <span class="badge bg-dark">
-                                <?= ucfirst($s['role']) ?>
+
+                                <?= ucfirst(htmlspecialchars($s['role'])) ?>
+
                             </span>
+
                         </td>
-                        
 
                         <td>
+
                             <?= htmlspecialchars($s['farm_name'] ?? 'N/A') ?>
+
                         </td>
 
                         <td>
@@ -239,13 +340,17 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                             <?php if($s['approval_status'] === 'approved'): ?>
 
                                 <span class="badge badge-soft-success">
+
                                     Approved
+
                                 </span>
 
                             <?php else: ?>
 
                                 <span class="badge badge-soft-warning">
+
                                     Pending
+
                                 </span>
 
                             <?php endif; ?>
@@ -257,19 +362,25 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                             <?php if($s['status'] === 'active'): ?>
 
                                 <span class="badge bg-success">
+
                                     Active
+
                                 </span>
 
                             <?php elseif($s['status'] === 'disabled'): ?>
 
                                 <span class="badge bg-danger">
+
                                     Disabled
+
                                 </span>
 
                             <?php else: ?>
 
                                 <span class="badge bg-warning text-dark">
+
                                     Pending
+
                                 </span>
 
                             <?php endif; ?>
@@ -280,12 +391,14 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                             <?php if(!empty($s['last_login'])): ?>
 
-                                <?= htmlspecialchars($s['last_login']) ?>
+                                <?= date('d M Y h:i A', strtotime($s['last_login'])) ?>
 
                             <?php else: ?>
 
                                 <span class="text-muted">
+
                                     Never
+
                                 </span>
 
                             <?php endif; ?>
@@ -296,39 +409,94 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                             <div class="d-flex flex-wrap gap-2">
 
-                                <?php if($s['approval_status'] === 'pending'): ?>
+                                <?php if($s['id'] != $current_staff_id): ?>
 
-                                    <a
-                                        href="?approve=<?= $s['id'] ?>"
-                                        class="btn btn-sm btn-success"
-                                        onclick="return confirm('Approve this staff account?')"
-                                    >
-                                        Approve
-                                    </a>
+                                    <?php if($s['approval_status'] === 'pending'): ?>
 
-                                <?php endif; ?>
+                                        <form method="POST" class="action-form">
 
-                                <?php if($s['status'] === 'active'): ?>
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?= $_SESSION['csrf_token'] ?>"
+                                            >
 
-                                    <a
-                                        href="?disable=<?= $s['id'] ?>"
-                                        class="btn btn-sm btn-danger"
-                                        onclick="return confirm('Disable this staff account?')"
-                                    >
-                                        Disable
-                                    </a>
+                                            <input
+                                                type="hidden"
+                                                name="staff_id"
+                                                value="<?= $s['id'] ?>"
+                                            >
 
-                                <?php endif; ?>
+                                            <button
+                                                type="submit"
+                                                name="approve"
+                                                class="btn btn-sm btn-success"
+                                                onclick="return confirm('Approve this staff account?')"
+                                            >
+                                                Approve
+                                            </button>
 
-                                <?php if($s['status'] === 'disabled'): ?>
+                                        </form>
 
-                                    <a
-                                        href="?activate=<?= $s['id'] ?>"
-                                        class="btn btn-sm btn-primary"
-                                        onclick="return confirm('Activate this staff account?')"
-                                    >
-                                        Activate
-                                    </a>
+                                    <?php endif; ?>
+
+                                    <?php if($s['status'] === 'active'): ?>
+
+                                        <form method="POST" class="action-form">
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?= $_SESSION['csrf_token'] ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="staff_id"
+                                                value="<?= $s['id'] ?>"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                name="disable"
+                                                class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Disable this staff account?')"
+                                            >
+                                                Disable
+                                            </button>
+
+                                        </form>
+
+                                    <?php endif; ?>
+
+                                    <?php if($s['status'] === 'disabled'): ?>
+
+                                        <form method="POST" class="action-form">
+
+                                            <input
+                                                type="hidden"
+                                                name="csrf_token"
+                                                value="<?= $_SESSION['csrf_token'] ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="staff_id"
+                                                value="<?= $s['id'] ?>"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                name="activate"
+                                                class="btn btn-sm btn-primary"
+                                                onclick="return confirm('Activate this staff account?')"
+                                            >
+                                                Activate
+                                            </button>
+
+                                        </form>
+
+                                    <?php endif; ?>
 
                                 <?php endif; ?>
 
