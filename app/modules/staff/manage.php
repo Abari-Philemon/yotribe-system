@@ -94,6 +94,7 @@ $stmt = $pdo->prepare("
         s.full_name,
         s.username,
         s.role,
+        s.farm_id,
         s.status,
         s.active,
         s.approval_status,
