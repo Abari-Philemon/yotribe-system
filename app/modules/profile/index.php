@@ -224,7 +224,8 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         <div class="card profile-card">
             <div class="card-body text-center">
 
-                <img id="avatarPreview" src="<?= $profileImage ?>" class="avatar mb-3">
+                <img id="avatarPreview" src="<?= $profileImage ?>" class="avatar mb-3" alt="Profile Image">
+                <img src="" alt="">
 
                 <h5><?= htmlspecialchars($user['full_name']) ?></h5>
                 <p class="text-muted"><?= ucfirst($user['role']) ?></p>
