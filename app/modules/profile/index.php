@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!in_array($file['type'], $allowedTypes)) {
 
-            $message = "Only JPG, PNG, WEBP allowed.";
+            $message = "Only JPG, PNG, JP, PNG, PEG, WEBP allowed.";
             $alert = "danger";
 
         } elseif ($file['size'] > 2 * 1024 * 1024) {
