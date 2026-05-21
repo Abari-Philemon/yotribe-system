@@ -75,42 +75,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /**
      * PROFILE IMAGE
-     */
-    if (!empty($_FILES['profile_image']['name'])) {
+    
+        if (!empty($_FILES['profile_image']['name'])) {
 
-        $file = $_FILES['profile_image'];
+            $file = $_FILES['profile_image'];
 
-        $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+            $allowed = ['image/jpeg', 'image/png', 'image/webp'];
 
-        if (in_array($file['type'], $allowed) && $file['size'] <= 2 * 1024 * 1024) {
+            if (in_array($file['type'], $allowed) && $file['size'] <= 2 * 1024 * 1024) {
 
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
 
-            $newName = 'profile_' . $staff_id . '_' . time() . '.' . $ext;
+                $newName = 'profile_' . $staff_id . '_' . time() . '.' . $ext;
 
-            $uploadPath = $uploadDir . $newName;
+                $uploadPath = $uploadDir . $newName;
 
-            if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+                if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
 
-                if (!empty($user['profile_image'])) {
-                    $oldFile = $uploadDir . $user['profile_image'];
-                    if (file_exists($oldFile)) unlink($oldFile);
+                    if (!empty($user['profile_image'])) {
+                        $oldFile = $uploadDir . $user['profile_image'];
+                        if (file_exists($oldFile)) unlink($oldFile);
+                    }
+
+                    $pdo->prepare("UPDATE staff SET profile_image = ? WHERE id = ?")
+                        ->execute([$newName, $staff_id]);
+
+                    $user['profile_image'] = $newName;
+
+                    $message = "Profile image updated.";
+                    $alert = "success";
                 }
 
-                $pdo->prepare("UPDATE staff SET profile_image = ? WHERE id = ?")
-                    ->execute([$newName, $staff_id]);
-
-                $user['profile_image'] = $newName;
-
-                $message = "Profile image updated.";
-                $alert = "success";
+            } else {
+                $message = "Invalid image or file too large.";
+                $alert = "danger";
             }
+        } 
+    */
+        
+    if (!empty($_FILES['profile_image']['name'])) {
 
-        } else {
-            $message = "Invalid image or file too large.";
-            $alert = "danger";
-        }
+    $file = $_FILES['profile_image'];
+
+    echo "<pre>";
+    var_dump($file);
+    echo "</pre>";
+
+    $uploadDir = APP_ROOT . '/uploads/profile/';
+
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
     }
+
+    $newName = 'profile_' . $staff_id . '_' . time() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
+
+    $uploadPath = $uploadDir . $newName;
+
+    echo "UPLOAD PATH: " . $uploadPath;
+
+    if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
+        echo "<br>UPLOAD SUCCESS";
+    } else {
+        echo "<br>UPLOAD FAILED";
+        print_r(error_get_last());
+    }
+
+    exit;
+}
 
     /**
      * PASSWORD UPDATE
