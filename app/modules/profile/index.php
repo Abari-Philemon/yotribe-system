@@ -177,8 +177,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-var_dump($_SESSION['staff_id']);
-exit;
+$stmt = $pdo->prepare("
+    SELECT profile_image
+    FROM staff
+    WHERE id = ?
+");
+
+$stmt->execute([$staff_id]);
+$user['profile_image'] = $stmt->fetchColumn();
 /**
  * PROFILE IMAGE DISPLAY
  */
