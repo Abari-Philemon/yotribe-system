@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt = $pdo->prepare("
             SELECT id, estimated_weight_kg
-            FROM fish_inventory
+            FROM growth_logs
             WHERE farm_id = ? AND pond_id = ?
             LIMIT 1
         ");
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 pond_id,
                 product_type,
                 quantity_kg,
-                unit_price,
+                unit_price, 
                 total_amount,
                 payment_method,
                 received_into,
