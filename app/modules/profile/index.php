@@ -75,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /**
      * PROFILE IMAGE
+    */
     
         if (!empty($_FILES['profile_image']['name'])) {
 
@@ -111,8 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $alert = "danger";
             }
         } 
-    */
-        
+    
+  /**
+     * PASSWORD UPDATE
     if (!empty($_FILES['profile_image']['name'])) {
 
     $file = $_FILES['profile_image'];
@@ -141,7 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     exit;
-}
+    }  
+*/
 
     /**
      * PASSWORD UPDATE
@@ -174,7 +177,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
+var_dump($_SESSION['staff_id']);
+exit;
 /**
  * PROFILE IMAGE DISPLAY
  */
