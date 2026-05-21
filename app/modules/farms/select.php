@@ -1,53 +1,63 @@
 <?php
+
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 
-require '../../middleware/auth_guard.php';
-
-if (!in_array($_SESSION['role'], ['super_admin','owner'])) {
-
-    header("Location: /yotribe-system/app/modules/dashboard/index.php");
-    exit;
-}
-
 /**
- * Session
+ * SESSION
  */
 $role     = $_SESSION['role'] ?? '';
 $staff_id = $_SESSION['staff_id'] ?? 0;
 
 /**
- * Allowed roles
+ * SECURITY CHECK
  */
-if (!in_array($role, ['super_admin', 'owner', 'manager', 'production'])) {
+if (!in_array($role, ['super_admin','owner','manager','production'])) {
     http_response_code(403);
     exit('Unauthorized access');
 }
 
 /**
- * Fetch farms based on role
+ * FETCH FARMS BASED ON ROLE
  */
 switch ($role) {
 
+    /**
+     * SUPER ADMIN → ALL FARMS
+     */
     case 'super_admin':
+
         $stmt = $pdo->query("
             SELECT id, name, location
             FROM farms
             ORDER BY name ASC
         ");
+
         break;
 
+    /**
+     * OWNER → ALL FARMS THEY MANAGE (via staff farm_id ownership logic)
+     */
     case 'owner':
+
         $stmt = $pdo->prepare("
-            SELECT id, name, location
-            FROM farms
-            WHERE s.id = ?
-            ORDER BY name ASC
+            SELECT DISTINCT f.id, f.name, f.location
+            FROM farms f
+            INNER JOIN staff s ON s.farm_id = f.id
+            WHERE s.role = 'owner'
+            AND s.id = ?
+            ORDER BY f.name ASC
         ");
+
         $stmt->execute([$staff_id]);
+
         break;
 
+    /**
+     * MANAGER → ONLY THEIR FARM
+     */
     case 'manager':
+
         $stmt = $pdo->prepare("
             SELECT f.id, f.name, f.location
             FROM farms f
@@ -55,7 +65,26 @@ switch ($role) {
             WHERE s.id = ?
             ORDER BY f.name ASC
         ");
+
         $stmt->execute([$staff_id]);
+
+        break;
+
+    /**
+     * PRODUCTION → ONLY THEIR FARM
+     */
+    case 'production':
+
+        $stmt = $pdo->prepare("
+            SELECT f.id, f.name, f.location
+            FROM farms f
+            INNER JOIN staff s ON s.farm_id = f.id
+            WHERE s.id = ?
+            ORDER BY f.name ASC
+        ");
+
+        $stmt->execute([$staff_id]);
+
         break;
 
     default:
@@ -66,9 +95,10 @@ switch ($role) {
 $farms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /**
- * Auto-select if only one farm
+ * AUTO SELECT SINGLE FARM
  */
 if (count($farms) === 1) {
+
     $_SESSION['active_farm_id']   = (int)$farms[0]['id'];
     $_SESSION['active_farm_name'] = $farms[0]['name'];
 
