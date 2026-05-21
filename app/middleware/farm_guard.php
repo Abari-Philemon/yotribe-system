@@ -20,7 +20,7 @@ if (!isset($_SESSION['staff_id'])) {
 }
 
 /**
- * ROLE
+ * CURRENT ROLE
  */
 $role = $_SESSION['role'] ?? null;
 
@@ -30,12 +30,15 @@ $role = $_SESSION['role'] ?? null;
 $multiFarmRoles = ['super_admin', 'owner'];
 
 /**
- * AUTO SET FARM
- * FOR SINGLE FARM USERS
+ * =========================================================
+ * AUTO FARM ASSIGNMENT
+ * SINGLE FARM USERS
+ * =========================================================
  */
+
 if (
     !isset($_SESSION['active_farm_id']) &&
-    !in_array($role, $multiFarmRoles)
+    !in_array($role, $multiFarmRoles, true)
 ) {
 
     /**
@@ -47,16 +50,19 @@ if (
 
     } else {
 
-        die("No farm assigned to account.");
+        die("No farm assigned to this account.");
     }
 }
 
 /**
+ * =========================================================
  * MULTI FARM USERS
  * MUST SELECT FARM
+ * =========================================================
  */
+
 if (
-    in_array($role, $multiFarmRoles) &&
+    in_array($role, $multiFarmRoles, true) &&
     !isset($_SESSION['active_farm_id'])
 ) {
 
@@ -65,17 +71,23 @@ if (
 }
 
 /**
- * FARM ID HELPER
+ * =========================================================
+ * HELPERS
+ * =========================================================
  */
-function farm_id(): int
-{
-    return (int) ($_SESSION['active_farm_id'] ?? 0);
+
+if (!function_exists('farm_id')) {
+
+    function farm_id(): int
+    {
+        return (int) ($_SESSION['active_farm_id'] ?? 0);
+    }
 }
 
-/**
- * FARM NAME HELPER
- */
-function farm_name(): string
-{
-    return $_SESSION['active_farm_name'] ?? 'Farm';
+if (!function_exists('farm_name')) {
+
+    function farm_name(): string
+    {
+        return $_SESSION['active_farm_name'] ?? 'Farm';
+    }
 }

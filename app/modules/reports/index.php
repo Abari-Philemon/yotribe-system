@@ -1,7 +1,10 @@
 <?php
-require_once __DIR__ . '/../../middleware/auth_guard.php';
 
-require_once __DIR__ . '/../../middleware/farm_context.php';
+require_once __DIR__ . '/../../middleware/auth_guard.php';
+require_once __DIR__ . '/../../middleware/farm_guard.php';
+
+require_once __DIR__ . '/../../config/database.php';
+
 require_once __DIR__ . '/../../helpers/permission.php';
 
 /**
@@ -14,16 +17,15 @@ require_permission('reports');
  */
 $farm_id = farm_id();
 
-
-
 /**
  * PAGE TITLE
  */
 $page_title = "Reports Dashboard";
+
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
-?>
 
+?>
 
         <!-- Main Content -->
         <main class="col-md-10 ms-sm-auto px-md-4">
