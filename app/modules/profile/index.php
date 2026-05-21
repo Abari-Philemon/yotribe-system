@@ -13,10 +13,16 @@ $page_title = "My Profile";
 $message = '';
 $alert = 'success';
 
+/**
+ * SAFETY CHECK
+ */
 if (!defined('APP_ROOT')) {
     define('APP_ROOT', realpath(__DIR__ . '/../../'));
 }
 
+/**
+ * CSRF
+ */
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -49,6 +55,9 @@ if (!$user) {
     die("User not found");
 }
 
+/**
+ * UPLOAD DIRECTORY
+ */
 $uploadDir = APP_ROOT . '/uploads/profile/';
 
 if (!is_dir($uploadDir)) {
@@ -56,7 +65,7 @@ if (!is_dir($uploadDir)) {
 }
 
 /**
- * HANDLE UPDATE
+ * HANDLE POST
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -64,6 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Invalid CSRF token");
     }
 
+    /**
+     * PROFILE IMAGE
+     */
     if (!empty($_FILES['profile_image']['name'])) {
 
         $file = $_FILES['profile_image'];
@@ -81,8 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
 
                 if (!empty($user['profile_image'])) {
-                    $old = $uploadDir . $user['profile_image'];
-                    if (file_exists($old)) unlink($old);
+                    $oldFile = $uploadDir . $user['profile_image'];
+                    if (file_exists($oldFile)) unlink($oldFile);
                 }
 
                 $pdo->prepare("UPDATE staff SET profile_image = ? WHERE id = ?")
@@ -95,11 +107,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } else {
-            $message = "Invalid image or size > 2MB.";
+            $message = "Invalid image or file too large.";
             $alert = "danger";
         }
     }
 
+    /**
+     * PASSWORD UPDATE
+     */
     if (!empty($_POST['current_password'])) {
 
         $stmt = $pdo->prepare("SELECT password FROM staff WHERE id = ?");
@@ -129,9 +144,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/**
+ * PROFILE IMAGE DISPLAY
+ */
 $profileImage = !empty($user['profile_image'])
     ? '/app/uploads/profile/' . $user['profile_image']
     : '/assets/default-avatar.png';
+
+/**
+ * LAYOUT INCLUDE (IMPORTANT)
+ */
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 
 ?>
 
@@ -153,13 +177,13 @@ $profileImage = !empty($user['profile_image'])
 
 <div class="row">
 
-    <!-- LEFT SIDE -->
+    <!-- LEFT PANEL -->
     <div class="col-md-5">
 
         <div class="card profile-card">
             <div class="card-body text-center">
 
-                <img id="previewImage" src="<?= $profileImage ?>" class="avatar mb-3">
+                <img id="avatarPreview" src="<?= $profileImage ?>" class="avatar mb-3">
 
                 <h5><?= htmlspecialchars($user['full_name']) ?></h5>
                 <p class="text-muted"><?= ucfirst($user['role']) ?></p>
@@ -174,7 +198,7 @@ $profileImage = !empty($user['profile_image'])
 
     </div>
 
-    <!-- RIGHT SIDE -->
+    <!-- RIGHT PANEL -->
     <div class="col-md-7">
 
         <div class="card profile-card">
@@ -194,8 +218,11 @@ $profileImage = !empty($user['profile_image'])
 
                     <div class="mb-3">
                         <label>Profile Image</label>
-                        <input type="file" name="profile_image" class="form-control" accept="image/*"
-                               onchange="previewFile(event)">
+                        <input type="file"
+                               name="profile_image"
+                               class="form-control"
+                               accept="image/*"
+                               onchange="previewAvatar(event)">
                     </div>
 
                     <hr>
@@ -231,10 +258,10 @@ $profileImage = !empty($user['profile_image'])
 </div>
 
 <script>
-function previewFile(event) {
+function previewAvatar(event) {
     const reader = new FileReader();
     reader.onload = function () {
-        document.getElementById('previewImage').src = reader.result;
+        document.getElementById('avatarPreview').src = reader.result;
     };
     reader.readAsDataURL(event.target.files[0]);
 }
