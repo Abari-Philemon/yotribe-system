@@ -228,6 +228,11 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                                 <?= ucfirst($s['role']) ?>
                             </span>
                         </td>
+                        <td>
+                            <span class="badge bg-dark">
+                                <?= ucfirst($s['farm_id']) ?>
+                            </span>
+                        </td>
 
                         <td>
                             <?= htmlspecialchars($s['farm_name'] ?? 'N/A') ?>
