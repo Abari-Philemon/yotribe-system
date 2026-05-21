@@ -41,7 +41,7 @@ switch ($role) {
         $stmt = $pdo->prepare("
             SELECT id, name, location
             FROM farms
-            WHERE owner_id = ?
+            WHERE s.id = ?
             ORDER BY name ASC
         ");
         $stmt->execute([$staff_id]);
