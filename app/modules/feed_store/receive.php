@@ -3,13 +3,7 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../helpers/permission.php';
-require_once __DIR__ . '/../../helpers/rbac.php';
-
-/**
- * MODULE ACCESS
- */
-require_permission('feed_store');
+ 
 
 $farm_id      = farm_id();
 $warehouse_id = 1;
