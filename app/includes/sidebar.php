@@ -70,7 +70,7 @@ function nav_active(array $pages)
 
     padding:20px;
 
-    border-right:1px solid #eee;
+    border-right:1px solid #283e2f;
 
     transition:.3s;
 
