@@ -105,7 +105,7 @@ function nav_active(array $pages)
 
     align-items:center;
 
-    background:blue;
+    background:#b0b0b0;
 
     padding:0 20px;
 
