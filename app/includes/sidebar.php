@@ -64,7 +64,7 @@ function nav_active(array $pages)
     left:0;
     bottom:0;
 
-    background:#fff;
+    background: #e1e9ef;
 
     overflow-y:auto;
 

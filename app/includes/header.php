@@ -30,7 +30,7 @@ body{
     top:0;
     left:0;
     background:#0f172a;
-    color:#fff;
+    color:#493737;
     padding:20px;
     overflow-y:auto;
 }
