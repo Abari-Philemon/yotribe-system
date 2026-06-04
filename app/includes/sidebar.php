@@ -277,7 +277,7 @@ id="sidebar"
     <!-- LOGO -->
 
     <div class="text-center mb-4">
-        <img src="/yotribe-system/public/uploads/logo.png">
+        <img src="/yotribe-system/public/uploads/logo8.png">
 
         <div class="fw-bold">
 
