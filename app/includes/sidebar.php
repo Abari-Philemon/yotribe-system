@@ -279,7 +279,7 @@ id="sidebar"
     <div class="text-center mb-4">
 
         <img
-            src="/yotribe-system/public/uploads/logo8.png"
+            src="<?= BASE_URL ?>/public/uploads/logo.png"
             class="img-fluid mb-2"
             style="max-height:70px"
         >

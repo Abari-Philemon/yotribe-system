@@ -1,7 +1,6 @@
 <?php
 // database.php
-//$host = '192.168.1.187';
-$host = '102.90.81.129';
+$host = '192.168.1.187';
 $db   = 'yotribe_ifms';
 $user = 'devuser';
 $pass = 'Judith1998.';
