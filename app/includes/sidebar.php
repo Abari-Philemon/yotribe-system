@@ -280,7 +280,7 @@ id="sidebar"
                 <img
             src="/yotribe-system/public/uploads/logo8.png"
             class="img-fluid mb-2"
-            style="max-height:70px"
+            style="max-height:100px"
         >
 
         <div class="fw-bold">
