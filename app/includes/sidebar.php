@@ -277,7 +277,11 @@ id="sidebar"
     <!-- LOGO -->
 
     <div class="text-center mb-4">
-        <img src="/yotribe-system/public/uploads/logo8.png">
+                <img
+            src="/yotribe-system/public/uploads/logo8.png"
+            class="img-fluid mb-2"
+            style="max-height:70px"
+        >
 
         <div class="fw-bold">
 
