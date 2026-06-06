@@ -3,11 +3,14 @@ require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/farm_context.php';
 require_once __DIR__ . '/../../helpers/permission.php';
+require_once __DIR__ . '/../../helpers/rbac.php';
 
-requireModuleAccess('module_name');
+/**
+ * MODULE ACCESS
+ */
+require_permission('hatchery');
 
 $farm_id = farm_id();
-require_role(['hatchery','manager','owner']);
 
 $farm_id = $_SESSION['farm_id'];
 $message = '';
