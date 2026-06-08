@@ -1,118 +1,163 @@
 <?php
 
-require_once __DIR__ . '/../../middleware/auth_guard.php';
-require_once __DIR__ . '/../../middleware/farm_guard.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../helpers/permission.php';
+require_once __DIR__.'/../../middleware/auth_guard.php';
+require_once __DIR__.'/../../middleware/farm_guard.php';
+require_once __DIR__.'/../../config/database.php';
+require_once __DIR__.'/../../helpers/permission.php';
 
 require_permission('stocking');
 
-$farm_id = farm_id();
+$farm_id=farm_id();
 
-$page_title = "Stocking Control Center";
+$page_title='Stocking Dashboard';
 
 
 /*
 ==================================================
-KPI SUMMARY
+POND SUMMARY
 ==================================================
 */
 
-$stmt = $pdo->prepare("
+$stmt=$pdo->prepare("
 
 SELECT
 
+p.id,
+p.pond_code,
+
 COALESCE(
-SUM(current_count),0
-) total_fish,
+SUM(ps.current_count),
+0
+) total_fish
 
-COUNT(DISTINCT pond_id) active_ponds,
+FROM ponds_tanks p
 
-COUNT(*) active_records
+LEFT JOIN pond_stocking ps
+
+ON ps.pond_id=p.id
+AND ps.status='active'
+
+WHERE p.farm_id=?
+
+GROUP BY p.id
+
+ORDER BY p.pond_code
+
+");
+
+$stmt->execute([$farm_id]);
+
+$ponds=$stmt->fetchAll();
+
+
+/*
+==================================================
+TOTALS
+==================================================
+*/
+
+$stmt=$pdo->prepare("
+
+SELECT
+
+COUNT(*) total_records,
+
+COALESCE(
+SUM(current_count),
+0
+) total_fish
 
 FROM pond_stocking
 
 WHERE farm_id=?
-
 AND status='active'
 
 ");
 
 $stmt->execute([$farm_id]);
 
-$summary = $stmt->fetch(PDO::FETCH_ASSOC);
+$summary=$stmt->fetch();
 
 
 /*
 ==================================================
-ACTIVE STOCK TABLE
+STOCKING RECORDS
 ==================================================
 */
 
-$stmt = $pdo->prepare("
+$stmt=$pdo->prepare("
 
 SELECT
 
-ps.id,
+ps.*,
 
 p.pond_code,
 
-fb.batch_code,
-
-ps.current_count,
-
-ps.avg_weight_g,
-
-ps.stocking_date,
-
-ps.status,
-
-(
-
-SELECT
-COALESCE(
-SUM(current_count),
-0
-)
-
-FROM pond_stocking x
-
-WHERE x.pond_id=p.id
-
-AND x.status='active'
-
-) pond_total,
-
-p.capacity
+fb.batch_code
 
 FROM pond_stocking ps
 
 JOIN ponds_tanks p
-
 ON p.id=ps.pond_id
 
 JOIN fish_batches fb
-
 ON fb.id=ps.batch_id
 
 WHERE ps.farm_id=?
 
-AND ps.status='active'
+ORDER BY ps.id DESC
 
-ORDER BY
-
-p.pond_code,
-
-ps.stocking_date DESC
+LIMIT 300
 
 ");
 
 $stmt->execute([$farm_id]);
 
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$records=$stmt->fetchAll();
 
+
+/*
+==================================================
+MORTALITY RECORDS
+==================================================
+*/
+
+$stmt=$pdo->prepare("
+
+SELECT
+
+sm.quantity,
+
+sm.movement_date,
+
+p.pond_code,
+
+fb.batch_code
+
+FROM stock_movements sm
+
+LEFT JOIN ponds_tanks p
+ON p.id=sm.from_pond_id
+
+LEFT JOIN fish_batches fb
+ON fb.id=sm.batch_id
+
+WHERE sm.farm_id=?
+
+AND sm.type='mortality'
+
+ORDER BY sm.id DESC
+
+LIMIT 100
+
+");
+
+$stmt->execute([$farm_id]);
+
+$mortalities=$stmt->fetchAll();
 
 require_once __DIR__.'/../../includes/header.php';
+
 require_once __DIR__.'/../../includes/sidebar.php';
 
 ?>
@@ -121,113 +166,95 @@ require_once __DIR__.'/../../includes/sidebar.php';
 <div class="container-fluid py-4">
 
 
-<h2 class="mb-4">
+<h3 class="mb-4">
 
-🐟 Stocking Control Center
+Stocking Dashboard
 
-</h2>
+</h3>
 
 
 <?php if(isset($_GET['success'])): ?>
 
 <div class="alert alert-success">
 
-<?php
-
-switch($_GET['success']){
-
-case '1':
-
-echo "Fish stocked successfully";
-
-break;
-
-case 'transfer':
-
-echo "Transfer completed successfully";
-
-break;
-
-case 'mortality':
-
-echo "Mortality recorded successfully";
-
-break;
-
-default:
-
-echo "Operation completed";
-
-}
-
-?>
+Operation completed successfully.
 
 </div>
 
 <?php endif; ?>
 
 
-<!-- ACTIONS -->
+<!-- QUICK ACTIONS -->
 
-<div class="mb-4 d-flex flex-wrap gap-2">
+<div class="row g-3 mb-4">
+
+<div class="col-md-3">
 
 <a
 href="create.php"
-class="btn btn-primary"
+class="card text-decoration-none shadow-sm p-4"
 >
+
+<h5>
 
 + Stock Fish
 
-</a>
-
-
-<a
-href="transfer.php"
-class="btn btn-warning"
->
-
-Transfer Fish
-
-</a>
-
-
-<a
-href="mortality.php"
-class="btn btn-danger"
->
-
-Record Mortality
+</h5>
 
 </a>
 
 </div>
 
 
+<div class="col-md-3">
 
-<!-- KPI -->
+<a
+href="transfer.php"
+class="card text-decoration-none shadow-sm p-4"
+>
 
-<div class="row g-3 mb-4">
+<h5>
+
+Transfer Fish
+
+</h5>
+
+</a>
+
+</div>
 
 
-<div class="col-md-4">
+<div class="col-md-3">
 
-<div class="card shadow-sm">
+<a
+href="mortality.php"
+class="card text-decoration-none shadow-sm p-4"
+>
 
-<div class="card-body">
+<h5>
 
-<small class="text-muted">
+Record Mortality
 
-Total Fish
+</h5>
 
-</small>
+</a>
 
-<h2>
+</div>
+
+
+<div class="col-md-3">
+
+<div class="card shadow-sm p-4">
+
+<h6>Total Fish</h6>
+
+<h3>
 
 <?= number_format(
 $summary['total_fish']
 ) ?>
 
-</h2>
+</h3>
 
 </div>
 
@@ -237,53 +264,63 @@ $summary['total_fish']
 
 
 
-<div class="col-md-4">
+<!-- POND STATUS -->
 
-<div class="card shadow-sm">
+<div class="card shadow-sm border-0 mb-4">
+
+<div class="card-header">
+
+Pond Status
+
+</div>
 
 <div class="card-body">
 
-<small class="text-muted">
+<div class="table-responsive">
 
-Active Ponds
+<table class="table">
 
-</small>
+<thead>
 
-<h2>
+<tr>
 
-<?= number_format(
-$summary['active_ponds']
+<th>Pond</th>
+
+<th>Current Fish</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<?php foreach($ponds as $p): ?>
+
+<tr>
+
+<td>
+
+<?= htmlspecialchars(
+$p['pond_code']
 ) ?>
 
-</h2>
+</td>
 
-</div>
-
-</div>
-
-</div>
-
-
-
-<div class="col-md-4">
-
-<div class="card shadow-sm">
-
-<div class="card-body">
-
-<small class="text-muted">
-
-Active Records
-
-</small>
-
-<h2>
+<td>
 
 <?= number_format(
-$summary['active_records']
+$p['total_fish']
 ) ?>
 
-</h2>
+</td>
+
+</tr>
+
+<?php endforeach; ?>
+
+</tbody>
+
+</table>
 
 </div>
 
@@ -292,51 +329,105 @@ $summary['active_records']
 </div>
 
 
-</div>
 
 
+<!-- STOCKING RECORDS -->
 
+<div class="card shadow-sm border-0 mb-4">
 
-<div class="card shadow-sm">
+<div class="card-header">
 
-<div class="card-body">
+<div class="row">
 
-
-<div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
+<div class="col-md-4">
 
 <h5>
 
-Current Pond Stocking
+Stocking Records
 
 </h5>
 
+</div>
+
+<div class="col-md-8">
+
+<div class="row g-2">
+
+<div class="col-md-4">
 
 <input
 
-type="text"
-
-id="searchInput"
+id="recordSearch"
 
 class="form-control"
 
-style="max-width:350px"
-
-placeholder="Search pond / batch"
+placeholder="Search"
 
 >
 
 </div>
 
+<div class="col-md-4">
 
+<select
+id="recordStatus"
+class="form-select"
+>
+
+<option value="">
+
+All Status
+
+</option>
+
+<option value="active">
+
+Active
+
+</option>
+
+<option value="moved">
+
+Moved
+
+</option>
+
+<option value="harvested">
+
+Harvested
+
+</option>
+
+</select>
+
+</div>
+
+<div class="col-md-4">
+
+<input
+type="date"
+id="recordDate"
+class="form-control"
+>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="card-body p-0">
 
 <div class="table-responsive">
 
 <table
-
 class="table table-hover"
-
-id="stockTable"
-
+id="recordTable"
 >
 
 <thead>
@@ -347,17 +438,13 @@ id="stockTable"
 
 <th>Batch</th>
 
-<th>Current Fish</th>
+<th>Stocked</th>
 
-<th>Pond Total</th>
+<th>Current</th>
 
-<th>Avg Weight</th>
-
-<th>Stocked Date</th>
+<th>Date</th>
 
 <th>Status</th>
-
-<th>Alert</th>
 
 </tr>
 
@@ -365,37 +452,9 @@ id="stockTable"
 
 <tbody>
 
-
-<?php foreach($rows as $r): ?>
-
-<?php
-
-$alert='OK';
-
-$alertClass='success';
-
-
-if(
-
-$r['pond_total']
-
->
-
-$r['capacity']
-
-){
-
-$alert='Over Capacity';
-
-$alertClass='danger';
-
-}
-
-?>
-
+<?php foreach($records as $r): ?>
 
 <tr>
-
 
 <td>
 
@@ -405,7 +464,6 @@ $r['pond_code']
 
 </td>
 
-
 <td>
 
 <?= htmlspecialchars(
@@ -414,6 +472,13 @@ $r['batch_code']
 
 </td>
 
+<td>
+
+<?= number_format(
+$r['stocked_count']
+) ?>
+
+</td>
 
 <td>
 
@@ -423,65 +488,21 @@ $r['current_count']
 
 </td>
 
+<td class="record-date">
 
-<td>
-
-<?= number_format(
-$r['pond_total']
-) ?>
+<?= $r['stocking_date'] ?>
 
 </td>
 
+<td class="record-status">
 
-<td>
-
-<?= number_format(
-$r['avg_weight_g'],
-2
-) ?>
-
-g
+<?= $r['status'] ?>
 
 </td>
-
-
-<td>
-
-<?= htmlspecialchars(
-$r['stocking_date']
-) ?>
-
-</td>
-
-
-<td>
-
-<span class="badge bg-success">
-
-<?= ucfirst(
-$r['status']
-) ?>
-
-</span>
-
-</td>
-
-
-<td>
-
-<span class="badge bg-<?= $alertClass ?>">
-
-<?= $alert ?>
-
-</span>
-
-</td>
-
 
 </tr>
 
 <?php endforeach; ?>
-
 
 </tbody>
 
@@ -489,76 +510,200 @@ $r['status']
 
 </div>
 
-
 </div>
 
 </div>
 
 
+
+
+<!-- MORTALITY RECORDS -->
+
+<div class="card shadow-sm border-0">
+
+<div class="card-header">
+
+Mortality Records
+
 </div>
 
+<div class="card-body">
+
+<div class="table-responsive">
+
+<table class="table">
+
+<thead>
+
+<tr>
+
+<th>Date</th>
+
+<th>Pond</th>
+
+<th>Batch</th>
+
+<th>Dead Count</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<?php foreach($mortalities as $m): ?>
+
+<tr>
+
+<td>
+
+<?= $m['movement_date'] ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+$m['pond_code']
+) ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+$m['batch_code']
+) ?>
+
+</td>
+
+<td>
+
+<?= number_format(
+$m['quantity']
+) ?>
+
+</td>
+
+</tr>
+
+<?php endforeach; ?>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+
+</div>
 
 
 <script>
 
-document
-
-.getElementById(
-'searchInput'
-)
-
-.addEventListener(
-
-'keyup',
-
-function(){
-
-const value=
-
-this.value
-.toLowerCase();
-
-document
-
-.querySelectorAll(
-
-'#stockTable tbody tr'
-
-)
-
-.forEach(
-
-row=>{
-
-row.style.display=
-
-row.innerText
-
-.toLowerCase()
-
-.includes(value)
-
-?
-
-''
-
-:
-
-'none';
-
-}
-
+const search=
+document.getElementById(
+'recordSearch'
 );
 
+const status=
+document.getElementById(
+'recordStatus'
+);
+
+const date=
+document.getElementById(
+'recordDate'
+);
+
+function filterRecords(){
+
+document
+.querySelectorAll(
+'#recordTable tbody tr'
+)
+
+.forEach(row=>{
+
+const text=
+row.innerText
+.toLowerCase();
+
+const rowStatus=
+row.querySelector(
+'.record-status'
+)
+
+.innerText
+.toLowerCase();
+
+const rowDate=
+row.querySelector(
+'.record-date'
+)
+
+.innerText
+.trim();
+
+let show=true;
+
+if(
+search.value &&
+!text.includes(
+search.value.toLowerCase()
+)
+){
+
+show=false;
+
 }
 
+if(
+status.value &&
+rowStatus!==status.value
+){
+
+show=false;
+
+}
+
+if(
+date.value &&
+rowDate!==date.value
+){
+
+show=false;
+
+}
+
+row.style.display=
+show ? '' : 'none';
+
+});
+
+}
+
+search.addEventListener(
+'keyup',
+filterRecords
+);
+
+status.addEventListener(
+'change',
+filterRecords
+);
+
+date.addEventListener(
+'change',
+filterRecords
 );
 
 </script>
 
 
-<?php
-
-require_once __DIR__.'/../../includes/footer.php';
-
-?>
+</body>
+</html>
