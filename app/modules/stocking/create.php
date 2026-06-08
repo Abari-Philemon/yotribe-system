@@ -1,196 +1,546 @@
 <?php
-require_once __DIR__ . '/../../middleware/auth_guard.php';
-require_once __DIR__ . '/../../middleware/farm_guard.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../helpers/stocking_helper.php';
+
+require_once __DIR__.'/../../middleware/auth_guard.php';
+require_once __DIR__.'/../../middleware/farm_guard.php';
+require_once __DIR__.'/../../config/database.php';
+require_once __DIR__.'/../../helpers/stocking_helper.php';
 
 $farm_id   = farm_id();
 $farm_name = farm_name();
-$ratio     = 1;
-if (function_exists('stocking_ratio')) {
-    $ratio = stocking_ratio();
-}
 
-/**
- * LOAD PONDS (ACTIVE ONLY)
- */
-$stmt = $pdo->prepare("
-    SELECT id, pond_code, volume_liters, capacity
-    FROM ponds_tanks
-    WHERE farm_id = ?
-    AND status = 'active'
-    ORDER BY pond_code
+$ratio = function_exists('stocking_ratio')
+    ? stocking_ratio()
+    : 1;
+
+
+/*
+==================================
+LOAD PONDS
+==================================
+*/
+
+$stmt=$pdo->prepare("
+SELECT
+id,
+pond_code,
+volume_liters,
+capacity
+
+FROM ponds_tanks
+
+WHERE farm_id=?
+AND status='active'
+
+ORDER BY pond_code
 ");
-$stmt->execute([$farm_id]);
-$ponds = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/**
- * LOAD BATCHES
- */
-$stmt = $pdo->prepare("
-    SELECT id, batch_code, current_count
-    FROM fish_batches
-    WHERE farm_id = ?
-    AND status = 'active'
-    AND current_count > 0
-    ORDER BY id DESC
+$stmt->execute([$farm_id]);
+
+$ponds=$stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+/*
+==================================
+LOAD ACTIVE BATCHES
+==================================
+*/
+
+$stmt=$pdo->prepare("
+SELECT
+
+id,
+batch_code,
+current_count,
+avg_weight_g,
+species,
+created_at
+
+FROM fish_batches
+
+WHERE farm_id=?
+AND status='active'
+AND current_count>0
+
+ORDER BY id DESC
 ");
-$stmt->execute([$farm_id]);
-$batches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/**
- * PRELOAD CURRENT STOCK PER POND
- */
-$stmt = $pdo->prepare("
-    SELECT pond_id, SUM(current_count) as total
-    FROM pond_stocking
-    WHERE farm_id = ?
-    AND status = 'active'
-    GROUP BY pond_id
+$stmt->execute([$farm_id]);
+
+$batches=$stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+/*
+==================================
+CURRENT POND STOCK
+==================================
+*/
+
+$stmt=$pdo->prepare("
+SELECT
+
+pond_id,
+SUM(current_count)
+
+FROM pond_stocking
+
+WHERE farm_id=?
+AND status='active'
+
+GROUP BY pond_id
 ");
-$stmt->execute([$farm_id]);
-$pondStock = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-/**
- * STOCKING RATIO
- */
-require_once __DIR__ . '/../../includes/header.php';
-require_once __DIR__ . '/../../includes/sidebar.php';
+$stmt->execute([$farm_id]);
+
+$pondStock=$stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+
+require_once __DIR__.'/../../includes/header.php';
+require_once __DIR__.'/../../includes/sidebar.php';
+
 ?>
 
 
+<div class="container-fluid py-4">
 
-<div class="container mt-4">
 
-<h4>Stock Fish into Pond</h4>
-<small class="text-muted">Farm: <?= htmlspecialchars($farm_name) ?></small>
+<div class="d-flex justify-content-between align-items-center mb-4">
 
-<form method="POST" action="store.php" class="card p-4 mt-3">
+<div>
+
+<h3 class="fw-bold">
+
+Stock Fish Into Pond
+
+</h3>
+
+<div class="text-muted">
+
+Farm:
+
+<?= htmlspecialchars($farm_name) ?>
+
+</div>
+
+</div>
+
+<a
+href="index.php"
+class="btn btn-outline-secondary"
+>
+
+Back
+
+</a>
+
+</div>
+
+
+
+<div class="card shadow-sm border-0">
+
+<div class="card-body p-4">
+
+
+<form
+method="POST"
+action="store.php"
+>
+
 
 <!-- POND -->
-<div class="mb-3">
-    <label class="form-label">Select Pond</label>
-    <select name="pond_id" id="pond" class="form-select" required>
-        <option value="">Select Pond</option>
-        <?php foreach ($ponds as $p): ?>
-            <option 
-                value="<?= $p['id'] ?>"
-                data-volume="<?= $p['volume_liters'] ?>"
-                data-capacity="<?= $p['capacity'] ?>"
-                data-current="<?= $pondStock[$p['id']] ?? 0 ?>"
-            >
-                <?= htmlspecialchars($p['pond_code']) ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
+
+<div class="mb-4">
+
+<label class="fw-semibold mb-2">
+
+Select Pond
+
+</label>
+
+<select
+name="pond_id"
+id="pond"
+class="form-select"
+required
+>
+
+<option value="">
+
+Select Pond
+
+</option>
+
+<?php foreach($ponds as $p): ?>
+
+<option
+
+value="<?= $p['id'] ?>"
+
+data-volume="<?= $p['volume_liters'] ?>"
+
+data-capacity="<?= $p['capacity'] ?>"
+
+data-current="<?= $pondStock[$p['id']] ?? 0 ?>"
+
+>
+
+<?= htmlspecialchars($p['pond_code']) ?>
+
+|
+
+<?= number_format($p['capacity']) ?>
+
+cap
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
 </div>
+
+
 
 <!-- BATCH -->
-<div class="mb-3">
-    <label class="form-label">Select Batch</label>
-    <select name="batch_id" id="batch" class="form-select" required>
-        <option value="">Select Batch</option>
-        <?php foreach ($batches as $b): ?>
-            <option 
-                value="<?= $b['id'] ?>"
-                data-available="<?= $b['current_count'] ?>"
-            >
-                <?= htmlspecialchars($b['batch_code']) ?> 
-                (<?= number_format($b['current_count']) ?> available)
-            </option>
-        <?php endforeach; ?>
-    </select>
+
+<div class="mb-4">
+
+<label class="fw-semibold mb-2">
+
+Select Fish Batch
+
+</label>
+
+<select
+name="batch_id"
+id="batch"
+class="form-select"
+required
+>
+
+<option value="">
+
+Select Batch
+
+</option>
+
+
+<?php foreach($batches as $b):
+
+$biomass=
+(
+($b['current_count'] ?? 0)
+*
+($b['avg_weight_g'] ?? 0)
+)
+/1000;
+
+?>
+
+<option
+
+value="<?= $b['id'] ?>"
+
+data-available="<?= $b['current_count'] ?>"
+
+data-weight="<?= $b['avg_weight_g'] ?>"
+
+>
+
+<?= htmlspecialchars($b['batch_code']) ?>
+
+|
+
+<?= htmlspecialchars($b['species']) ?>
+
+|
+
+<?= number_format($b['current_count']) ?>
+
+fish
+
+|
+
+<?= number_format($b['avg_weight_g'],1) ?>
+
+g
+
+|
+
+<?= number_format($biomass,2) ?>
+
+kg biomass
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
 </div>
+
+
 
 <!-- QUANTITY -->
-<div class="mb-3">
-    <label class="form-label">Quantity to Stock</label>
-    <input type="number" name="quantity" id="qty" class="form-control" required>
+
+<div class="mb-4">
+
+<label class="fw-semibold mb-2">
+
+Quantity To Stock
+
+</label>
+
+<input
+
+type="number"
+
+name="quantity"
+
+id="qty"
+
+class="form-control"
+
+required
+
+>
+
 </div>
 
-<!-- INFO PANEL -->
-<div class="alert alert-info small" id="infoBox">
-    Select pond and batch to see limits
+
+
+<!-- INFO BOX -->
+
+<div
+class="alert alert-info"
+id="infoBox"
+>
+
+Select pond and batch
+
 </div>
 
-<button class="btn btn-primary w-100">Stock Fish</button>
+
+
+<button class="btn btn-primary w-100">
+
+Stock Fish
+
+</button>
 
 </form>
 
 </div>
 
+</div>
+
+</div>
+
+
+
 <script>
-const ratio = <?= $ratio ?>;
 
-const pondEl  = document.getElementById('pond');
-const batchEl = document.getElementById('batch');
-const qtyEl   = document.getElementById('qty');
-const infoBox = document.getElementById('infoBox');
+const ratio=
+<?= $ratio ?>;
 
-function updateInfo() {
+const pondEl=
+document.getElementById('pond');
 
-    const pond = pondEl.selectedOptions[0];
-    const batch = batchEl.selectedOptions[0];
+const batchEl=
+document.getElementById('batch');
 
-    if (!pond || !batch || !pond.value || !batch.value) {
-        infoBox.innerHTML = "Select pond and batch to see limits";
-        return;
-    }
+const qtyEl=
+document.getElementById('qty');
 
-    const volume  = parseFloat(pond.dataset.volume);
-    const capacity = parseInt(pond.dataset.capacity);
-    const current = parseInt(pond.dataset.current);
+const infoBox=
+document.getElementById('infoBox');
 
-    const availableBatch = parseInt(batch.dataset.available);
 
-    const maxByVolume = Math.floor(volume / ratio);
-    const maxAllowed  = Math.min(maxByVolume, capacity);
 
-    const remainingSpace = maxAllowed - current;
+function refreshInfo(){
 
-    infoBox.innerHTML = `
-        <strong>Pond Limit:</strong> ${maxAllowed} fish<br>
-        <strong>Currently in Pond:</strong> ${current}<br>
-        <strong>Remaining Space:</strong> ${remainingSpace}<br>
-        <hr>
-        <strong>Batch Available:</strong> ${availableBatch}
-    `;
+const pond=
+pondEl.selectedOptions[0];
+
+const batch=
+batchEl.selectedOptions[0];
+
+
+if(
+!pond.value ||
+!batch.value
+){
+
+infoBox.innerHTML=
+"Select pond and batch";
+
+return;
+
 }
 
-/**
- * LIVE VALIDATION
- */
-qtyEl.addEventListener('input', function () {
 
-    const pond = pondEl.selectedOptions[0];
-    const batch = batchEl.selectedOptions[0];
+const volume=
+parseFloat(
+pond.dataset.volume
+);
 
-    if (!pond || !batch || !pond.value || !batch.value) return;
+const capacity=
+parseInt(
+pond.dataset.capacity
+);
 
-    const volume  = parseFloat(pond.dataset.volume);
-    const capacity = parseInt(pond.dataset.capacity);
-    const current = parseInt(pond.dataset.current);
-    const batchAvailable = parseInt(batch.dataset.available);
+const current=
+parseInt(
+pond.dataset.current
+);
 
-    const maxByVolume = Math.floor(volume / ratio);
-    const maxAllowed  = Math.min(maxByVolume, capacity);
+const available=
+parseInt(
+batch.dataset.available
+);
 
-    const remaining = maxAllowed - current;
+const weight=
+parseFloat(
+batch.dataset.weight
+);
 
-    let val = parseInt(this.value) || 0;
 
-    if (val > remaining) {
-        this.value = remaining;
-    }
+const maxByVolume=
+Math.floor(
+volume / ratio
+);
 
-    if (val > batchAvailable) {
-        this.value = batchAvailable;
-    }
-});
+const maxAllowed=
+Math.min(
+capacity,
+maxByVolume
+);
 
-pondEl.addEventListener('change', updateInfo);
-batchEl.addEventListener('change', updateInfo);
+
+const remaining=
+maxAllowed-current;
+
+
+infoBox.innerHTML=`
+
+<strong>Pond Capacity:</strong>
+
+${maxAllowed.toLocaleString()} fish
+
+<hr>
+
+<strong>Current Pond Stock:</strong>
+
+${current.toLocaleString()}
+
+<br>
+
+<strong>Remaining Space:</strong>
+
+${remaining.toLocaleString()}
+
+<hr>
+
+<strong>Batch Available:</strong>
+
+${available.toLocaleString()} fish
+
+<br>
+
+<strong>Average Weight:</strong>
+
+${weight} g
+
+`;
+
+}
+
+
+
+qtyEl.addEventListener(
+'input',
+function(){
+
+const pond=
+pondEl.selectedOptions[0];
+
+const batch=
+batchEl.selectedOptions[0];
+
+if(
+!pond.value ||
+!batch.value
+)return;
+
+
+const current=
+parseInt(
+pond.dataset.current
+);
+
+const capacity=
+parseInt(
+pond.dataset.capacity
+);
+
+const volume=
+parseFloat(
+pond.dataset.volume
+);
+
+const available=
+parseInt(
+batch.dataset.available
+);
+
+const max=
+Math.min(
+capacity,
+Math.floor(volume/ratio)
+);
+
+const remaining=
+max-current;
+
+let v=
+parseInt(this.value)||0;
+
+
+if(v>remaining){
+
+this.value=
+remaining;
+
+}
+
+
+if(v>available){
+
+this.value=
+available;
+
+}
+
+}
+);
+
+
+pondEl.addEventListener(
+'change',
+refreshInfo
+);
+
+batchEl.addEventListener(
+'change',
+refreshInfo
+);
+
 </script>
 
-</body>
-</html>
+
+<?php
+
+require_once __DIR__.'/../../includes/footer.php';
+
+?>

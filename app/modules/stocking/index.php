@@ -14,45 +14,7 @@ $page_title='Stocking Dashboard';
 
 /*
 ==================================================
-POND SUMMARY
-==================================================
-*/
-
-$stmt=$pdo->prepare("
-
-SELECT
-
-p.id,
-p.pond_code,
-
-COALESCE(
-SUM(ps.current_count),
-0
-) total_fish
-
-FROM ponds_tanks p
-
-LEFT JOIN pond_stocking ps
-
-ON ps.pond_id=p.id
-AND ps.status='active'
-
-WHERE p.farm_id=?
-
-GROUP BY p.id
-
-ORDER BY p.pond_code
-
-");
-
-$stmt->execute([$farm_id]);
-
-$ponds=$stmt->fetchAll();
-
-
-/*
-==================================================
-TOTALS
+SUMMARY
 ==================================================
 */
 
@@ -70,6 +32,7 @@ SUM(current_count),
 FROM pond_stocking
 
 WHERE farm_id=?
+
 AND status='active'
 
 ");
@@ -77,6 +40,47 @@ AND status='active'
 $stmt->execute([$farm_id]);
 
 $summary=$stmt->fetch();
+
+
+/*
+==================================================
+POND STATUS
+==================================================
+*/
+
+$stmt=$pdo->prepare("
+
+SELECT
+
+p.id,
+
+p.pond_code,
+
+COALESCE(
+SUM(ps.current_count),
+0
+) total_fish
+
+FROM ponds_tanks p
+
+LEFT JOIN pond_stocking ps
+
+ON ps.pond_id=p.id
+
+AND ps.status='active'
+
+WHERE p.farm_id=?
+
+GROUP BY p.id
+
+ORDER BY p.pond_code
+
+");
+
+$stmt->execute([$farm_id]);
+
+$ponds=$stmt->fetchAll();
+
 
 
 /*
@@ -89,31 +93,121 @@ $stmt=$pdo->prepare("
 
 SELECT
 
-ps.*,
+ps.id,
 
 p.pond_code,
 
-fb.batch_code
+fb.batch_code,
+
+fb.species,
+
+ps.stocked_count,
+
+ps.current_count,
+
+ps.avg_weight_g,
+
+ps.stocking_date,
+
+ps.status,
+
+
+COALESCE(
+
+(
+
+SELECT SUM(quantity)
+
+FROM stock_movements sm
+
+WHERE
+
+sm.batch_id=ps.batch_id
+
+AND sm.type='mortality'
+
+),
+
+0
+
+) mortality_total,
+
+
+ROUND(
+
+CASE
+
+WHEN ps.stocked_count<=0
+
+THEN ps.current_count
+
+ELSE
+
+ps.current_count -
+
+(
+
+(
+
+COALESCE(
+
+(
+
+SELECT SUM(quantity)
+
+FROM stock_movements sm
+
+WHERE
+
+sm.batch_id=ps.batch_id
+
+AND sm.type='mortality'
+
+),
+
+0
+
+)
+
+/
+
+ps.stocked_count
+
+)
+
+*
+
+ps.current_count
+
+)
+
+END
+
+) estimated_remaining
+
 
 FROM pond_stocking ps
 
 JOIN ponds_tanks p
+
 ON p.id=ps.pond_id
 
 JOIN fish_batches fb
+
 ON fb.id=ps.batch_id
 
 WHERE ps.farm_id=?
 
 ORDER BY ps.id DESC
 
-LIMIT 300
+LIMIT 500
 
 ");
 
 $stmt->execute([$farm_id]);
 
 $records=$stmt->fetchAll();
+
 
 
 /*
@@ -137,9 +231,11 @@ fb.batch_code
 FROM stock_movements sm
 
 LEFT JOIN ponds_tanks p
+
 ON p.id=sm.from_pond_id
 
 LEFT JOIN fish_batches fb
+
 ON fb.id=sm.batch_id
 
 WHERE sm.farm_id=?
@@ -155,6 +251,7 @@ LIMIT 100
 $stmt->execute([$farm_id]);
 
 $mortalities=$stmt->fetchAll();
+
 
 require_once __DIR__.'/../../includes/header.php';
 
@@ -173,26 +270,29 @@ Stocking Dashboard
 </h3>
 
 
+
 <?php if(isset($_GET['success'])): ?>
 
 <div class="alert alert-success">
 
-Operation completed successfully.
+Operation successful
 
 </div>
 
 <?php endif; ?>
 
 
+
 <!-- QUICK ACTIONS -->
 
 <div class="row g-3 mb-4">
+
 
 <div class="col-md-3">
 
 <a
 href="create.php"
-class="card text-decoration-none shadow-sm p-4"
+class="card p-4 shadow-sm text-decoration-none"
 >
 
 <h5>
@@ -210,7 +310,7 @@ class="card text-decoration-none shadow-sm p-4"
 
 <a
 href="transfer.php"
-class="card text-decoration-none shadow-sm p-4"
+class="card p-4 shadow-sm text-decoration-none"
 >
 
 <h5>
@@ -228,12 +328,12 @@ Transfer Fish
 
 <a
 href="mortality.php"
-class="card text-decoration-none shadow-sm p-4"
+class="card p-4 shadow-sm text-decoration-none"
 >
 
 <h5>
 
-Record Mortality
+Mortality
 
 </h5>
 
@@ -244,9 +344,9 @@ Record Mortality
 
 <div class="col-md-3">
 
-<div class="card shadow-sm p-4">
+<div class="card p-4 shadow-sm">
 
-<h6>Total Fish</h6>
+<h6>Total Active Fish</h6>
 
 <h3>
 
@@ -260,13 +360,15 @@ $summary['total_fish']
 
 </div>
 
+
 </div>
 
 
 
-<!-- POND STATUS -->
 
-<div class="card shadow-sm border-0 mb-4">
+<!-- PONDS -->
+
+<div class="card shadow-sm mb-4">
 
 <div class="card-header">
 
@@ -276,8 +378,6 @@ Pond Status
 
 <div class="card-body">
 
-<div class="table-responsive">
-
 <table class="table">
 
 <thead>
@@ -286,7 +386,7 @@ Pond Status
 
 <th>Pond</th>
 
-<th>Current Fish</th>
+<th>Fish Count</th>
 
 </tr>
 
@@ -326,34 +426,19 @@ $p['total_fish']
 
 </div>
 
-</div>
 
 
 
+<!-- RECORDS -->
 
-<!-- STOCKING RECORDS -->
+<div class="card shadow-sm mb-4">
 
-<div class="card shadow-sm border-0 mb-4">
 
 <div class="card-header">
 
-<div class="row">
-
-<div class="col-md-4">
-
-<h5>
-
-Stocking Records
-
-</h5>
-
-</div>
-
-<div class="col-md-8">
-
 <div class="row g-2">
 
-<div class="col-md-4">
+<div class="col-md-3">
 
 <input
 
@@ -361,13 +446,13 @@ id="recordSearch"
 
 class="form-control"
 
-placeholder="Search"
+placeholder="Search..."
 
 >
 
 </div>
 
-<div class="col-md-4">
+<div class="col-md-3">
 
 <select
 id="recordStatus"
@@ -402,17 +487,13 @@ Harvested
 
 </div>
 
-<div class="col-md-4">
+<div class="col-md-3">
 
 <input
 type="date"
 id="recordDate"
 class="form-control"
 >
-
-</div>
-
-</div>
 
 </div>
 
@@ -438,11 +519,17 @@ id="recordTable"
 
 <th>Batch</th>
 
+<th>Species</th>
+
 <th>Stocked</th>
 
-<th>Current</th>
+<th>Remaining</th>
 
-<th>Date</th>
+<th>Mortality</th>
+
+<th>Estimated</th>
+
+<th>Weight</th>
 
 <th>Status</th>
 
@@ -474,6 +561,14 @@ $r['batch_code']
 
 <td>
 
+<?= htmlspecialchars(
+$r['species']
+) ?>
+
+</td>
+
+<td>
+
 <?= number_format(
 $r['stocked_count']
 ) ?>
@@ -482,21 +577,58 @@ $r['stocked_count']
 
 <td>
 
+<strong>
+
 <?= number_format(
 $r['current_count']
 ) ?>
 
+</strong>
+
 </td>
 
-<td class="record-date">
+<td>
 
-<?= $r['stocking_date'] ?>
+<?= number_format(
+$r['mortality_total']
+) ?>
+
+</td>
+
+<td>
+
+<span class="badge bg-info">
+
+<?= number_format(
+$r['estimated_remaining']
+) ?>
+
+</span>
+
+</td>
+
+<td>
+
+<?= number_format(
+$r['avg_weight_g'],
+1
+) ?>
+
+g
 
 </td>
 
 <td class="record-status">
 
 <?= $r['status'] ?>
+
+</td>
+
+<td
+class="record-date d-none"
+>
+
+<?= $r['stocking_date'] ?>
 
 </td>
 
@@ -519,7 +651,7 @@ $r['current_count']
 
 <!-- MORTALITY RECORDS -->
 
-<div class="card shadow-sm border-0">
+<div class="card shadow-sm">
 
 <div class="card-header">
 
@@ -528,8 +660,6 @@ Mortality Records
 </div>
 
 <div class="card-body">
-
-<div class="table-responsive">
 
 <table class="table">
 
@@ -597,10 +727,9 @@ $m['quantity']
 
 </div>
 
-</div>
-
 
 </div>
+
 
 
 <script>
@@ -619,6 +748,7 @@ const date=
 document.getElementById(
 'recordDate'
 );
+
 
 function filterRecords(){
 
@@ -649,7 +779,9 @@ row.querySelector(
 .innerText
 .trim();
 
+
 let show=true;
+
 
 if(
 search.value &&
@@ -662,6 +794,7 @@ show=false;
 
 }
 
+
 if(
 status.value &&
 rowStatus!==status.value
@@ -670,6 +803,7 @@ rowStatus!==status.value
 show=false;
 
 }
+
 
 if(
 date.value &&
@@ -680,12 +814,14 @@ show=false;
 
 }
 
+
 row.style.display=
 show ? '' : 'none';
 
 });
 
 }
+
 
 search.addEventListener(
 'keyup',
