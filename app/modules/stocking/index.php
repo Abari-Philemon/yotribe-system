@@ -7,7 +7,7 @@ require_once __DIR__.'/../../helpers/permission.php';
 
 require_permission('stocking');
 
-$farm_id=farm_id();
+$farm_id = farm_id();
 
 $page_title='Stocking Dashboard';
 
@@ -32,7 +32,6 @@ SUM(current_count),
 FROM pond_stocking
 
 WHERE farm_id=?
-
 AND status='active'
 
 ");
@@ -44,7 +43,7 @@ $summary=$stmt->fetch();
 
 /*
 ==================================================
-POND STATUS
+POND STATUS BY SECTION
 ==================================================
 */
 
@@ -52,8 +51,7 @@ $stmt=$pdo->prepare("
 
 SELECT
 
-p.id,
-
+p.section,
 p.pond_code,
 
 COALESCE(
@@ -66,21 +64,34 @@ FROM ponds_tanks p
 LEFT JOIN pond_stocking ps
 
 ON ps.pond_id=p.id
-
 AND ps.status='active'
 
 WHERE p.farm_id=?
 
-GROUP BY p.id
+GROUP BY
+p.section,
+p.id
 
-ORDER BY p.pond_code
+ORDER BY
+p.section,
+p.pond_code
 
 ");
 
 $stmt->execute([$farm_id]);
 
-$ponds=$stmt->fetchAll();
+$pondSections=[];
 
+while($row=$stmt->fetch(PDO::FETCH_ASSOC)){
+
+$section=
+$row['section']
+?:'Unassigned';
+
+$pondSections[$section][]=
+$row;
+
+}
 
 
 /*
@@ -120,9 +131,7 @@ SELECT SUM(quantity)
 
 FROM stock_movements sm
 
-WHERE
-
-sm.batch_id=ps.batch_id
+WHERE sm.batch_id=ps.batch_id
 
 AND sm.type='mortality'
 
@@ -143,7 +152,7 @@ THEN ps.current_count
 
 ELSE
 
-ps.current_count -
+ps.current_count-
 
 (
 
@@ -157,9 +166,7 @@ SELECT SUM(quantity)
 
 FROM stock_movements sm
 
-WHERE
-
-sm.batch_id=ps.batch_id
+WHERE sm.batch_id=ps.batch_id
 
 AND sm.type='mortality'
 
@@ -200,14 +207,11 @@ WHERE ps.farm_id=?
 
 ORDER BY ps.id DESC
 
-LIMIT 500
-
 ");
 
 $stmt->execute([$farm_id]);
 
 $records=$stmt->fetchAll();
-
 
 
 /*
@@ -270,17 +274,15 @@ Stocking Dashboard
 </h3>
 
 
-
 <?php if(isset($_GET['success'])): ?>
 
 <div class="alert alert-success">
 
-Operation successful
+Operation Successful
 
 </div>
 
 <?php endif; ?>
-
 
 
 <!-- QUICK ACTIONS -->
@@ -292,7 +294,7 @@ Operation successful
 
 <a
 href="create.php"
-class="card p-4 shadow-sm text-decoration-none"
+class="card p-4 text-decoration-none shadow-sm"
 >
 
 <h5>
@@ -310,7 +312,7 @@ class="card p-4 shadow-sm text-decoration-none"
 
 <a
 href="transfer.php"
-class="card p-4 shadow-sm text-decoration-none"
+class="card p-4 text-decoration-none shadow-sm"
 >
 
 <h5>
@@ -328,12 +330,12 @@ Transfer Fish
 
 <a
 href="mortality.php"
-class="card p-4 shadow-sm text-decoration-none"
+class="card p-4 text-decoration-none shadow-sm"
 >
 
 <h5>
 
-Mortality
+Record Mortality
 
 </h5>
 
@@ -346,7 +348,11 @@ Mortality
 
 <div class="card p-4 shadow-sm">
 
-<h6>Total Active Fish</h6>
+<h6>
+
+Active Fish
+
+</h6>
 
 <h3>
 
@@ -360,23 +366,87 @@ $summary['total_fish']
 
 </div>
 
-
 </div>
 
 
 
 
-<!-- PONDS -->
+<!-- POND STATUS -->
 
 <div class="card shadow-sm mb-4">
 
 <div class="card-header">
 
-Pond Status
+Pond Status By Section
 
 </div>
 
 <div class="card-body">
+
+
+<div class="accordion" id="pondAccordion">
+
+
+<?php
+
+$i=0;
+
+foreach(
+$pondSections as $section=>$pondList
+):
+
+$i++;
+
+?>
+
+<div class="accordion-item">
+
+<h2
+class="accordion-header"
+id="heading<?= $i ?>"
+>
+
+<button
+
+class="accordion-button collapsed"
+
+type="button"
+
+data-bs-toggle="collapse"
+
+data-bs-target="#collapse<?= $i ?>"
+
+>
+
+<?= htmlspecialchars(
+$section
+) ?>
+
+(
+
+<?= count(
+$pondList
+) ?>
+
+ ponds)
+
+</button>
+
+</h2>
+
+
+<div
+
+id="collapse<?= $i ?>"
+
+class="accordion-collapse collapse"
+
+data-bs-parent="#pondAccordion"
+
+>
+
+<div class="accordion-body">
+
 
 <table class="table">
 
@@ -394,7 +464,8 @@ Pond Status
 
 <tbody>
 
-<?php foreach($ponds as $p): ?>
+
+<?php foreach($pondList as $p): ?>
 
 <tr>
 
@@ -418,41 +489,56 @@ $p['total_fish']
 
 <?php endforeach; ?>
 
+
 </tbody>
 
 </table>
 
+
+</div>
+
 </div>
 
 </div>
 
+<?php endforeach; ?>
+
+
+</div>
+
+</div>
+
+</div>
 
 
 
-<!-- RECORDS -->
+
+<!-- FILTERS -->
 
 <div class="card shadow-sm mb-4">
 
-
 <div class="card-header">
 
-<div class="row g-2">
+Stocking Records
 
-<div class="col-md-3">
+</div>
+
+<div class="card-body">
+
+
+<div class="row g-2 mb-3">
+
+<div class="col-md-4">
 
 <input
-
 id="recordSearch"
-
 class="form-control"
-
 placeholder="Search..."
-
 >
 
 </div>
 
-<div class="col-md-3">
+<div class="col-md-4">
 
 <select
 id="recordStatus"
@@ -487,7 +573,7 @@ Harvested
 
 </div>
 
-<div class="col-md-3">
+<div class="col-md-4">
 
 <input
 type="date"
@@ -499,10 +585,7 @@ class="form-control"
 
 </div>
 
-</div>
 
-
-<div class="card-body p-0">
 
 <div class="table-responsive">
 
@@ -529,8 +612,6 @@ id="recordTable"
 
 <th>Estimated</th>
 
-<th>Weight</th>
-
 <th>Status</th>
 
 </tr>
@@ -539,49 +620,24 @@ id="recordTable"
 
 <tbody>
 
+
 <?php foreach($records as $r): ?>
 
 <tr>
 
-<td>
+<td><?= $r['pond_code'] ?></td>
 
-<?= htmlspecialchars(
-$r['pond_code']
-) ?>
+<td><?= $r['batch_code'] ?></td>
 
-</td>
+<td><?= $r['species'] ?></td>
 
-<td>
-
-<?= htmlspecialchars(
-$r['batch_code']
-) ?>
-
-</td>
-
-<td>
-
-<?= htmlspecialchars(
-$r['species']
-) ?>
-
-</td>
-
-<td>
-
-<?= number_format(
-$r['stocked_count']
-) ?>
-
-</td>
+<td><?= number_format($r['stocked_count']) ?></td>
 
 <td>
 
 <strong>
 
-<?= number_format(
-$r['current_count']
-) ?>
+<?= number_format($r['current_count']) ?>
 
 </strong>
 
@@ -589,9 +645,7 @@ $r['current_count']
 
 <td>
 
-<?= number_format(
-$r['mortality_total']
-) ?>
+<?= number_format($r['mortality_total']) ?>
 
 </td>
 
@@ -599,22 +653,9 @@ $r['mortality_total']
 
 <span class="badge bg-info">
 
-<?= number_format(
-$r['estimated_remaining']
-) ?>
+<?= number_format($r['estimated_remaining']) ?>
 
 </span>
-
-</td>
-
-<td>
-
-<?= number_format(
-$r['avg_weight_g'],
-1
-) ?>
-
-g
 
 </td>
 
@@ -624,9 +665,7 @@ g
 
 </td>
 
-<td
-class="record-date d-none"
->
+<td class="record-date d-none">
 
 <?= $r['stocking_date'] ?>
 
@@ -635,6 +674,7 @@ class="record-date d-none"
 </tr>
 
 <?php endforeach; ?>
+
 
 </tbody>
 
@@ -649,7 +689,7 @@ class="record-date d-none"
 
 
 
-<!-- MORTALITY RECORDS -->
+<!-- MORTALITY TABLE -->
 
 <div class="card shadow-sm">
 
@@ -673,7 +713,7 @@ Mortality Records
 
 <th>Batch</th>
 
-<th>Dead Count</th>
+<th>Dead</th>
 
 </tr>
 
@@ -681,43 +721,23 @@ Mortality Records
 
 <tbody>
 
+
 <?php foreach($mortalities as $m): ?>
 
 <tr>
 
-<td>
+<td><?= $m['movement_date'] ?></td>
 
-<?= $m['movement_date'] ?>
+<td><?= $m['pond_code'] ?></td>
 
-</td>
+<td><?= $m['batch_code'] ?></td>
 
-<td>
-
-<?= htmlspecialchars(
-$m['pond_code']
-) ?>
-
-</td>
-
-<td>
-
-<?= htmlspecialchars(
-$m['batch_code']
-) ?>
-
-</td>
-
-<td>
-
-<?= number_format(
-$m['quantity']
-) ?>
-
-</td>
+<td><?= number_format($m['quantity']) ?></td>
 
 </tr>
 
 <?php endforeach; ?>
+
 
 </tbody>
 
@@ -726,6 +746,7 @@ $m['quantity']
 </div>
 
 </div>
+
 
 
 </div>
@@ -750,7 +771,7 @@ document.getElementById(
 );
 
 
-function filterRecords(){
+function filterRows(){
 
 document
 .querySelectorAll(
@@ -759,9 +780,10 @@ document
 
 .forEach(row=>{
 
+let show=true;
+
 const text=
-row.innerText
-.toLowerCase();
+row.innerText.toLowerCase();
 
 const rowStatus=
 row.querySelector(
@@ -780,18 +802,13 @@ row.querySelector(
 .trim();
 
 
-let show=true;
-
-
 if(
 search.value &&
 !text.includes(
 search.value.toLowerCase()
 )
 ){
-
 show=false;
-
 }
 
 
@@ -799,9 +816,7 @@ if(
 status.value &&
 rowStatus!==status.value
 ){
-
 show=false;
-
 }
 
 
@@ -809,11 +824,8 @@ if(
 date.value &&
 rowDate!==date.value
 ){
-
 show=false;
-
 }
-
 
 row.style.display=
 show ? '' : 'none';
@@ -825,17 +837,17 @@ show ? '' : 'none';
 
 search.addEventListener(
 'keyup',
-filterRecords
+filterRows
 );
 
 status.addEventListener(
 'change',
-filterRecords
+filterRows
 );
 
 date.addEventListener(
 'change',
-filterRecords
+filterRows
 );
 
 </script>
