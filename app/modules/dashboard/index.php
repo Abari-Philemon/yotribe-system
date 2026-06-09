@@ -60,27 +60,48 @@ $stmt = $pdo->prepare("
 $stmt->execute([$farm_id]);
 $total_feed = (float)$stmt->fetchColumn();
 
-// Sales
-$stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(total_amount),0)
-    FROM sales
-    WHERE farm_id = ?
-");
-$stmt->execute([$farm_id]);
-$total_sales = (float)$stmt->fetchColumn();
+/**
+ * FINANCIAL PERMISSION
+ */
+$user_role = $_SESSION['role'] ?? '';
 
-// Expenses
-$stmt = $pdo->prepare("
-    SELECT COALESCE(SUM(amount),0)
-    FROM expenses
-    WHERE farm_id = ?
-");
-$stmt->execute([$farm_id]);
-$total_expenses = (float)$stmt->fetchColumn();
+$can_view_financials = in_array(
+    $user_role,
+    [
+        'owner',
+        'admin',
+        'manager'
+    ]
+);
 
-// Profit
-$profit = $total_sales - $total_expenses;
+/**
+ * SALES / EXPENSES / PROFIT
+ * Only visible to owner, admin and manager
+ */
+$total_sales = 0;
+$total_expenses = 0;
+$profit = 0;
 
+if ($can_view_financials) {
+
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(total_amount),0)
+        FROM sales
+        WHERE farm_id = ?
+    ");
+    $stmt->execute([$farm_id]);
+    $total_sales = (float)$stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(amount),0)
+        FROM expenses
+        WHERE farm_id = ?
+    ");
+    $stmt->execute([$farm_id]);
+    $total_expenses = (float)$stmt->fetchColumn();
+
+    $profit = $total_sales - $total_expenses;
+}
 // Mortality
 $stmt = $pdo->prepare("
     SELECT COUNT(*)
@@ -347,45 +368,77 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 <!-- KPI GRID (EXECUTIVE METRICS) -->
  
+<!-- KPI GRID (EXECUTIVE METRICS) -->
+
 <div class="row g-3 mb-4">
 
-    <div class="col-md-3">
+    <!-- Biomass -->
+
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
         <div class="card shadow-sm border-0">
             <div class="card-body">
                 <small class="text-muted">Biomass</small>
-                <h4 class="fw-bold"><?= number_format($total_biomass,2) ?> kg</h4>
-            </div>
-        </div>
-    </div>
 
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <small class="text-muted">Feed Stock</small>
-                <h4 class="fw-bold"><?= number_format($total_feed,2) ?> kg</h4>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <small class="text-muted">Revenue</small>
-                <h4 class="fw-bold">₦<?= number_format($total_sales,2) ?></h4>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <small class="text-muted">Net Profit</small>
-                <h4 class="fw-bold <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
-                    ₦<?= number_format($profit,2) ?>
+                <h4 class="fw-bold">
+                    <?= number_format($total_biomass,2) ?> kg
                 </h4>
             </div>
         </div>
     </div>
+
+    <!-- Feed -->
+
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <small class="text-muted">Feed Stock</small>
+
+                <h4 class="fw-bold">
+                    <?= number_format($total_feed,2) ?> kg
+                </h4>
+            </div>
+        </div>
+    </div>
+
+    <?php if ($can_view_financials): ?>
+
+        <!-- Revenue -->
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+
+                    <small class="text-muted">
+                        Revenue
+                    </small>
+
+                    <h4 class="fw-bold text-primary">
+                        ₦<?= number_format($total_sales,2) ?>
+                    </h4>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Profit -->
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+
+                    <small class="text-muted">
+                        Net Profit
+                    </small>
+
+                    <h4 class="fw-bold <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
+                        ₦<?= number_format($profit,2) ?>
+                    </h4>
+
+                </div>
+            </div>
+        </div>
+
+    <?php endif; ?>
 
 </div>
 
