@@ -120,6 +120,32 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)){
 
     $assignedSections[$section][] =
     $row;
+
+    $unassignedNoSection = [];
+$unassignedEmpty     = [];
+
+while($row = $stmt->fetch(PDO::FETCH_ASSOC)){
+
+    $fishCount = (int)$row['total_fish'];
+
+    if(empty($row['section_id'])){
+
+        $unassignedNoSection[] = $row;
+        continue;
+    }
+
+    if($fishCount <= 0){
+
+        $unassignedEmpty[] = $row;
+        continue;
+    }
+
+    $section =
+    $row['section_name']
+    ?: 'Unnamed Section';
+
+    $assignedSections[$section][] = $row;
+}
 }
 
 
@@ -528,41 +554,46 @@ $summary['total_fish']
             style="display:none;"
         >
 
-            <table class="table table-bordered">
+    <tbody>
 
-                <thead>
+    <?php foreach($unassignedNoSection as $p): ?>
 
-                    <tr>
+    <tr class="sectionless-row">
 
-                        <th>Pond</th>
-                        <th>Fish Count</th>
+        <td><?= htmlspecialchars($p['pond_code']) ?></td>
 
-                    </tr>
+        <td><?= number_format($p['total_fish']) ?></td>
 
-                </thead>
+        <td>
+            <span class="badge bg-warning">
+                No Section
+            </span>
+        </td>
 
-                <tbody>
+    </tr>
 
-                <?php foreach($unassignedPonds as $pond): ?>
+    <?php endforeach; ?>
 
-                    <tr>
 
-                        <td>
-                            <?= htmlspecialchars($pond['pond_code']) ?>
-                        </td>
+    <?php foreach($unassignedEmpty as $p): ?>
 
-                        <td>
-                            <?= number_format($pond['total_fish']) ?>
-                        </td>
+    <tr class="empty-row">
 
-                    </tr>
+        <td><?= htmlspecialchars($p['pond_code']) ?></td>
 
-                <?php endforeach; ?>
+        <td><?= number_format($p['total_fish']) ?></td>
 
-                </tbody>
+        <td>
+            <span class="badge bg-secondary">
+                Empty
+            </span>
+        </td>
 
-            </table>
+    </tr>
 
+    <?php endforeach; ?>
+
+    </tbody>
         </div>
 
     </div>
@@ -808,6 +839,49 @@ Mortality Records
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<script>
+
+    const unassignedFilter =
+    document.getElementById(
+        'unassignedFilter'
+    );
+
+    if(unassignedFilter){
+
+        unassignedFilter.addEventListener(
+            'change',
+            function(){
+
+                document
+                .querySelectorAll(
+                    '#unassignedBlock tbody tr'
+                )
+                .forEach(row=>{
+
+                    row.style.display='';
+
+                    if(
+                        this.value==='sectionless' &&
+                        !row.classList.contains('sectionless-row')
+                    ){
+                        row.style.display='none';
+                    }
+
+                    if(
+                        this.value==='empty' &&
+                        !row.classList.contains('empty-row')
+                    ){
+                        row.style.display='none';
+                    }
+
+                });
+
+            }
+        );
+
+    }
+
+</script>
 <script>
 
 document.addEventListener('DOMContentLoaded', function(){
