@@ -378,184 +378,180 @@ $summary['total_fish']
 
 
 <!-- POND STATUS -->
+<!-- POND STATUS -->
+
 <div class="card shadow-sm mb-4">
 
-<div class="card-header">
+    <div class="card-header">
+        Pond Status
+    </div>
 
-Pond Status
+    <div class="card-body">
+
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <select
+                    id="pondView"
+                    class="form-select"
+                >
+
+                    <option value="assigned">
+                        Assigned Ponds
+                    </option>
+
+                    <option value="unassigned">
+                        Unassigned Ponds
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+        <!-- ASSIGNED -->
+
+        <div id="assignedBlock">
+
+            <div
+                class="accordion"
+                id="pondAccordion"
+            >
+
+                <?php $i=0; ?>
+
+                <?php foreach($assignedSections as $section=>$pondList): ?>
+
+                    <?php $i++; ?>
+
+                    <div class="accordion-item">
+
+                        <h2 class="accordion-header">
+
+                            <button
+                                class="accordion-button collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#sec<?= $i ?>"
+                            >
+
+                                <?= htmlspecialchars($section) ?>
+
+                                (<?= count($pondList) ?> ponds)
+
+                            </button>
+
+                        </h2>
+
+                        <div
+                            id="sec<?= $i ?>"
+                            class="accordion-collapse collapse"
+                            data-bs-parent="#pondAccordion"
+                        >
+
+                            <div class="accordion-body">
+
+                                <table class="table table-sm">
+
+                                    <thead>
+
+                                        <tr>
+                                            <th>Pond</th>
+                                            <th>Fish Count</th>
+                                        </tr>
+
+                                    </thead>
+
+                                    <tbody>
+
+                                    <?php foreach($pondList as $pond): ?>
+
+                                        <tr>
+
+                                            <td>
+                                                <?= htmlspecialchars($pond['pond_code']) ?>
+                                            </td>
+
+                                            <td>
+                                                <?= number_format($pond['total_fish']) ?>
+                                            </td>
+
+                                        </tr>
+
+                                    <?php endforeach; ?>
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                <?php endforeach; ?>
+
+            </div>
+
+        </div>
+
+        <!-- UNASSIGNED -->
+
+        <div
+            id="unassignedBlock"
+            style="display:none;"
+        >
+
+            <table class="table table-bordered">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Pond</th>
+                        <th>Fish Count</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                <?php foreach($unassignedPonds as $pond): ?>
+
+                    <tr>
+
+                        <td>
+                            <?= htmlspecialchars($pond['pond_code']) ?>
+                        </td>
+
+                        <td>
+                            <?= number_format($pond['total_fish']) ?>
+                        </td>
+
+                    </tr>
+
+                <?php endforeach; ?>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
 
 </div>
+<div class="card shadow-sm mb-4">
 
-<div class="card-body">
+    <div class="card-header">
+        Stocking Records
+    </div>
 
-<select
-id="pondView"
-class="form-select mb-3"
->
-
-<option value="assigned">
-
-Assigned Ponds
-
-</option>
-
-<option value="unassigned">
-
-Unassigned Ponds
-
-</option>
-
-</select>
-
-
-<!-- ASSIGNED -->
-
-<div id="assignedBlock">
-
-<div class="accordion" id="pondAccordion">
-
-<?php $i=0; ?>
-
-<?php foreach($assignedSections as $section=>$pondList): ?>
-
-<?php $i++; ?>
-
-<div class="accordion-item">
-
-<h2 class="accordion-header">
-
-<button
-
-class="accordion-button collapsed"
-
-type="button"
-
-data-bs-toggle="collapse"
-
-data-bs-target="#sec<?= $i ?>"
-
->
-
-<?= htmlspecialchars($section) ?>
-
-(<?= count($pondList) ?> ponds)
-
-</button>
-
-</h2>
-
-<div
-
-id="sec<?= $i ?>"
-
-class="accordion-collapse collapse"
-
-data-bs-parent="#pondAccordion"
-
->
-
-<div class="accordion-body">
-
-<table class="table table-sm">
-
-<thead>
-
-<tr>
-
-<th>Pond</th>
-
-<th>Fish</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-<?php foreach($pondList as $p): ?>
-
-<tr>
-
-<td><?= htmlspecialchars($p['pond_code']) ?></td>
-
-<td><?= number_format($p['total_fish']) ?></td>
-
-</tr>
-
-<?php endforeach; ?>
-
-</tbody>
-
-</table>
-
-</div>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
-
-</div>
-
-</div>
-
-
-<!-- UNASSIGNED -->
-
-<div
-id="unassignedBlock"
-style="display:none;"
->
-
-<table class="table table-bordered">
-
-<thead>
-
-<tr>
-
-<th>Pond</th>
-
-<th>Fish Count</th>
-
-</tr>
-
-</thead>
-
-<tbody>
-
-<?php foreach($unassignedPonds as $p): ?>
-
-<tr>
-
-<td>
-
-<?= htmlspecialchars($p['pond_code']) ?>
-
-</td>
-
-<td>
-
-<?= number_format($p['total_fish']) ?>
-
-</td>
-
-</tr>
-
-<?php endforeach; ?>
-
-</tbody>
-
-</table>
-
-</div>
-
-</div>
-
-</div>
-
-Stocking Records
-
+    <div class="card-body">
 </div>
 
 <div class="card-body">
@@ -788,6 +784,43 @@ Mortality Records
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function(){
+
+    const pondView = document.getElementById('pondView');
+
+    if(pondView){
+
+        pondView.addEventListener('change', function(){
+
+            const assignedBlock =
+                document.getElementById('assignedBlock');
+
+            const unassignedBlock =
+                document.getElementById('unassignedBlock');
+
+            if(this.value === 'assigned'){
+
+                assignedBlock.style.display='block';
+                unassignedBlock.style.display='none';
+
+            }else{
+
+                assignedBlock.style.display='none';
+                unassignedBlock.style.display='block';
+
+            }
+
+        });
+
+    }
+
+});
+
+</script>
+
 <script>
 
 const search=
