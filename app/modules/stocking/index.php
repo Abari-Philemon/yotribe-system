@@ -47,12 +47,14 @@ POND STATUS BY SECTION
 ==================================================
 */
 
-$stmt=$pdo->prepare("
+$stmt = $pdo->prepare("
 
 SELECT
 
-p.section_name,
+p.id,
 p.pond_code,
+p.section_name,
+p.section_id,
 
 COALESCE(
 SUM(ps.current_count),
@@ -62,15 +64,12 @@ SUM(ps.current_count),
 FROM ponds_tanks p
 
 LEFT JOIN pond_stocking ps
-
-ON ps.pond_id=p.id
+ON ps.pond_id = p.id
 AND ps.status='active'
 
 WHERE p.farm_id=?
 
-GROUP BY
-p.section_name,
-p.id
+GROUP BY p.id
 
 ORDER BY
 p.section_name,
@@ -80,17 +79,24 @@ p.pond_code
 
 $stmt->execute([$farm_id]);
 
-$pondSections=[];
+$assignedSections   = [];
+$unassignedPonds    = [];
 
-while($row=$stmt->fetch(PDO::FETCH_ASSOC)){
+while($row = $stmt->fetch(PDO::FETCH_ASSOC)){
 
-$section =
-!empty($row['section_name'])
-? $row['section_name']
-: 'Unassigned';
+    if(empty($row['section_id'])){
 
-$pondSections[$section][] = $row;
+        $unassignedPonds[] = $row;
 
+    }else{
+
+        $section =
+        $row['section_name']
+        ?: 'Unnamed Section';
+
+        $assignedSections[$section][] =
+        $row;
+    }
 }
 
 
@@ -372,39 +378,51 @@ $summary['total_fish']
 
 
 <!-- POND STATUS -->
-
 <div class="card shadow-sm mb-4">
 
 <div class="card-header">
 
-Pond Status By Section
+Pond Status
 
 </div>
 
 <div class="card-body">
 
+<select
+id="pondView"
+class="form-select mb-3"
+>
+
+<option value="assigned">
+
+Assigned Ponds
+
+</option>
+
+<option value="unassigned">
+
+Unassigned Ponds
+
+</option>
+
+</select>
+
+
+<!-- ASSIGNED -->
+
+<div id="assignedBlock">
 
 <div class="accordion" id="pondAccordion">
 
+<?php $i=0; ?>
 
-<?php
+<?php foreach($assignedSections as $section=>$pondList): ?>
 
-$i=0;
-
-foreach(
-$pondSections as $section=>$pondList
-):
-
-$i++;
-
-?>
+<?php $i++; ?>
 
 <div class="accordion-item">
 
-<h2
-class="accordion-header"
-id="heading<?= $i ?>"
->
+<h2 class="accordion-header">
 
 <button
 
@@ -414,30 +432,21 @@ type="button"
 
 data-bs-toggle="collapse"
 
-data-bs-target="#collapse<?= $i ?>"
+data-bs-target="#sec<?= $i ?>"
 
 >
 
-<?= htmlspecialchars(
-$section
-) ?>
+<?= htmlspecialchars($section) ?>
 
-(
-
-<?= count(
-$pondList
-) ?>
-
- ponds)
+(<?= count($pondList) ?> ponds)
 
 </button>
 
 </h2>
 
-
 <div
 
-id="collapse<?= $i ?>"
+id="sec<?= $i ?>"
 
 class="accordion-collapse collapse"
 
@@ -447,8 +456,59 @@ data-bs-parent="#pondAccordion"
 
 <div class="accordion-body">
 
+<table class="table table-sm">
 
-<table class="table">
+<thead>
+
+<tr>
+
+<th>Pond</th>
+
+<th>Fish</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<?php foreach($pondList as $p): ?>
+
+<tr>
+
+<td><?= htmlspecialchars($p['pond_code']) ?></td>
+
+<td><?= number_format($p['total_fish']) ?></td>
+
+</tr>
+
+<?php endforeach; ?>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+<?php endforeach; ?>
+
+</div>
+
+</div>
+
+
+<!-- UNASSIGNED -->
+
+<div
+id="unassignedBlock"
+style="display:none;"
+>
+
+<table class="table table-bordered">
 
 <thead>
 
@@ -464,24 +524,19 @@ data-bs-parent="#pondAccordion"
 
 <tbody>
 
-
-<?php foreach($pondList as $p): ?>
+<?php foreach($unassignedPonds as $p): ?>
 
 <tr>
 
 <td>
 
-<?= htmlspecialchars(
-$p['pond_code']
-) ?>
+<?= htmlspecialchars($p['pond_code']) ?>
 
 </td>
 
 <td>
 
-<?= number_format(
-$p['total_fish']
-) ?>
+<?= number_format($p['total_fish']) ?>
 
 </td>
 
@@ -489,35 +544,15 @@ $p['total_fish']
 
 <?php endforeach; ?>
 
-
 </tbody>
 
 </table>
 
-
 </div>
 
 </div>
 
 </div>
-
-<?php endforeach; ?>
-
-
-</div>
-
-</div>
-
-</div>
-
-
-
-
-<!-- FILTERS -->
-
-<div class="card shadow-sm mb-4">
-
-<div class="card-header">
 
 Stocking Records
 
