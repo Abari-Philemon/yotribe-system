@@ -24,8 +24,8 @@ $stmt = $pdo->prepare("
     WHERE farm_id = ?
     ORDER BY id DESC
 ");
-$stmt->execute([$farm_id]);
 
+$stmt->execute([$farm_id]);
 $batches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -68,17 +68,25 @@ require_once __DIR__ . '/../../includes/sidebar.php';
             <?php foreach ($batches as $b): ?>
 
                 <?php
-                    $status = $b['status'] ?? 'active';
+                    /**
+                     * SAFE VALUE HANDLING
+                     */
+                    $status  = $b['status'] ?? 'active';
+                    $current = (int)($b['current_count'] ?? 0);
+                    $initial = (int)($b['initial_count'] ?? 0);
 
-                    $statusClass = match ($status) {
-                        'active'   => 'bg-success',
-                        'closed'   => 'bg-secondary',
-                        'depleted' => 'bg-danger',
-                        default    => 'bg-dark'
-                    };
+                    /**
+                     * STATUS BADGE (PHP 7.4 SAFE)
+                     */
+                    $statusClass = 'bg-dark';
 
-                    $current = $b['current_count'] ?? 0;
-                    $initial = $b['initial_count'] ?? 0;
+                    if ($status === 'active') {
+                        $statusClass = 'bg-success';
+                    } elseif ($status === 'closed') {
+                        $statusClass = 'bg-secondary';
+                    } elseif ($status === 'depleted') {
+                        $statusClass = 'bg-danger';
+                    }
                 ?>
 
                 <tr>
@@ -86,10 +94,11 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                     <td><?= htmlspecialchars($b['species'] ?? '-') ?></td>
                     <td><?= ucfirst($b['source'] ?? '-') ?></td>
 
-                    <td><?= number_format((int)$initial) ?></td>
+                    <td><?= number_format($initial) ?></td>
 
                     <td>
-                        <strong><?= number_format((int)$current) ?></strong>
+                        <strong><?= number_format($current) ?></strong>
+
                         <?php if ($current < $initial): ?>
                             <small class="text-danger d-block">
                                 ↓ Loss detected
