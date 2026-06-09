@@ -70,7 +70,7 @@ $can_view_financials = in_array(
     [
         'owner',
         'super_admin',
-        'manager'
+       
     ]
 );
 
