@@ -84,19 +84,42 @@ $unassignedPonds    = [];
 
 while($row = $stmt->fetch(PDO::FETCH_ASSOC)){
 
-    if(empty($row['section_id'])){
+    $fishCount = (int)$row['total_fish'];
+
+    /*
+    =====================================
+    UNASSIGNED
+    =====================================
+    */
+
+    if(
+
+        empty($row['section_id'])
+
+        ||
+
+        $fishCount <= 0
+
+    ){
 
         $unassignedPonds[] = $row;
 
-    }else{
-
-        $section =
-        $row['section_name']
-        ?: 'Unnamed Section';
-
-        $assignedSections[$section][] =
-        $row;
+        continue;
     }
+
+    /*
+    =====================================
+    ASSIGNED
+    =====================================
+    */
+
+    $section =
+    !empty($row['section_name'])
+    ? $row['section_name']
+    : 'Unnamed Section';
+
+    $assignedSections[$section][] =
+    $row;
 }
 
 
