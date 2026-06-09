@@ -375,7 +375,19 @@ id="sidebar"
     href="/yotribe-system/app/modules/stocking/index.php"
     class="nav-link">
 
-    🐟 Stocking
+    🐟 Stocking Ponds
+
+    </a>
+     <?php endif; ?>
+
+
+    <?php if(canAccess('stocking')): ?>
+
+    <a
+    href="/yotribe-system/app/modules/batches/index.php"
+    class="nav-link">
+
+    🐟 Stocking batches
 
     </a>
 

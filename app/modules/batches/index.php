@@ -29,16 +29,12 @@ $stmt = $pdo->prepare("
 $stmt->execute([$farm_id]);
 
 $batches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+require_once __DIR__.'/../../includes/header.php';
+
+require_once __DIR__.'/../../includes/sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html>
-<head>
-<title>Fish Batches</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
 
-<body class="container mt-4">
 
 <div class="d-flex justify-content-between mb-3">
     <h4>Fish Batches</h4>
