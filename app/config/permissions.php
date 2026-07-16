@@ -47,7 +47,8 @@ return [
         'maggot',
         'finance',
         'reports',
-        'water'
+        'water',
+        'harvest'
 
     ],
 
@@ -72,7 +73,8 @@ return [
         'maggot',
         'finance',
         'reports',
-        'water'
+        'water',
+        'harvest'
 
     ],
 
@@ -95,7 +97,8 @@ return [
         'hatchery',
         'maggot',
         'reports',
-        'water'
+        'water',
+        'harvest'
 
     ],
 
@@ -147,7 +150,8 @@ return [
         'mortality',
         'ponds',
         'reports',
-        'water'
+        'water',
+        'harvest'
 
     ]
 
