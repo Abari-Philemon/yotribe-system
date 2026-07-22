@@ -14,7 +14,7 @@ function getJuvenileLimits($pond_type)
             return ['min' => 200, 'max' => 1000];
 
         case 'tarpaulin':
-            return ['min' => 2000, 'max' => 8000];
+            return ['min' => 400, 'max' => 8000];
 
         default:
             return null;

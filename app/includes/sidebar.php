@@ -64,7 +64,7 @@ function nav_active(array $pages)
     left:0;
     bottom:0;
 
-    background:#fff;
+    background: #e1e9ef;
 
     overflow-y:auto;
 
@@ -105,7 +105,7 @@ function nav_active(array $pages)
 
     align-items:center;
 
-    background:blue;
+    background:#b0b0b0;
 
     padding:0 20px;
 
@@ -281,7 +281,7 @@ id="sidebar"
         <img
             src="<?= BASE_URL ?>/public/uploads/logo.png"
             class="img-fluid mb-2"
-            style="max-height:70px"
+            style="max-height:100px"
         >
 
         <div class="fw-bold">
@@ -376,7 +376,19 @@ id="sidebar"
     href="/yotribe-system/app/modules/stocking/index.php"
     class="nav-link">
 
-    🐟 Stocking
+    🐟 Stocking Ponds
+
+    </a>
+     <?php endif; ?>
+
+
+    <?php if(canAccess('stocking')): ?>
+
+    <a
+    href="/yotribe-system/app/modules/batches/index.php"
+    class="nav-link">
+
+    🐟 Stocking batches
 
     </a>
 

@@ -10,7 +10,7 @@ if (!isset($page_title)) {
 <title><?= htmlspecialchars($page_title) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -30,7 +30,7 @@ body{
     top:0;
     left:0;
     background:#0f172a;
-    color:#fff;
+    color:#493737;
     padding:20px;
     overflow-y:auto;
 }

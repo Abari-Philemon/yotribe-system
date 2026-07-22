@@ -38,6 +38,7 @@ return [
         'dashboard',
         'staff',
         'stocking',
+        'batches',
         'ponds',
         'mortality',
         'growth',
@@ -64,6 +65,7 @@ return [
         'dashboard',
         'staff',
         'stocking',
+        'batches',
         'ponds',
         'mortality',
         'growth',
@@ -88,6 +90,7 @@ return [
     'manager' => [
 
         'dashboard',
+        'batches',
         'stocking',
         'ponds',
         'mortality',
@@ -148,7 +151,6 @@ return [
         'feeding',
         'growth',
         'mortality',
-        'ponds',
         'reports',
         'water',
         'harvest'
