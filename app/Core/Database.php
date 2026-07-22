@@ -76,8 +76,12 @@ final class Database
      */
     public function execute(string $sql, array $params = []): bool
     {
-        return $this->query($sql, $params)->rowCount() > 0;
+        $this->query($sql, $params);
+
+        return true;
     }
+
+    
 
     /**
      * Last inserted ID.

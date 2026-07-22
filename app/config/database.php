@@ -2,7 +2,7 @@
 
 require_once __DIR__.'/env.php';
 // database.php
-$host = '192.168.1.187';
+$host = '192.168.18.2';
 $db   = 'yotribe_ifms';
 $user = 'devuser';
 $pass = 'Judith1998.';
