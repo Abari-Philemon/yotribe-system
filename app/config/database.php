@@ -4,7 +4,7 @@
 $host = '192.168.18.2';
 $db   = 'yotribe_ifms';
 $user = 'root';
-$pass = '';
+$pass = 'Judith1998.';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
