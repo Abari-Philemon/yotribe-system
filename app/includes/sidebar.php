@@ -475,7 +475,7 @@ id="sidebar"
     </div>
 
     <a
-        href="/yotribe-system/app/modules/sales/index.php"
+        href="/yotribe-system/app/modules/sales/dashboard.php"
         class="nav-link <?= nav_active([
             'index.php',
             'create.php',
