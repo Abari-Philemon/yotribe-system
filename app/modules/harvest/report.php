@@ -542,7 +542,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                <li>
                   Staff share quantity:
                   <strong>
-                  <?= number_format(
+                  <?= number_format((float)
                      $staffShares['quantity_kg'] ?? 0,
                      2
                      ) ?>
