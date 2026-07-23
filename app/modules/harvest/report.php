@@ -482,7 +482,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                      Quantity Shared
                   </th>
                   <td class="text-end">
-                     <?= number_format(
+                     <?= number_format((float)
                         $staffShares['quantity_kg'] ?? 0,
                         2
                         ) ?>
