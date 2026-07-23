@@ -533,7 +533,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                <li>
                   Harvest revenue:
                   <strong>
-                  ₦<?= number_format(
+                  ₦<?= number_format((float)
                      $revenue['revenue'],
                      2
                      ) ?>
