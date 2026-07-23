@@ -414,6 +414,7 @@ function getHarvestRevenue(PDO $pdo, int $farmId): array
           AND s.status = 'completed'
     ");
 
+
     $stmt->execute([$farmId]);
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -429,41 +430,23 @@ function getHarvestRevenue(PDO $pdo, int $farmId): array
  *
  * ------------------------------------------------------------
  */
-function getStaffShareSummary(
-    PDO $pdo,
-    int $farmId
-): array {
-
-    /*
-    ------------------------------------------------------------
-    Version 1
-
-    Assumes shares are recorded
-    in harvest_distributions.
-
-    ------------------------------------------------------------
-    */
-
+function getStaffShareSummary(PDO $pdo, int $farmId): array
+{
     $stmt = $pdo->prepare("
-
         SELECT
-
-            COUNT(*) AS distributions,
-
-            COALESCE(SUM(quantity_kg),0) AS quantity_kg
-
-        FROM harvest_distributions
-
-        WHERE
-
-            farm_id = ?
-
-        AND distribution_type = 'staff_share'
-
+            COUNT(DISTINCT s.id) AS transactions,
+            COALESCE(SUM(si.quantity_fish), 0) AS quantity_fish,
+            COALESCE(SUM(si.quantity_kg), 0) AS quantity_kg,
+            COALESCE(SUM(si.line_total), 0) AS total_value
+        FROM sales s
+        INNER JOIN sale_items si
+            ON si.sale_id = s.id
+        WHERE s.farm_id = ?
+          AND s.sale_type = 'staff_share'
+          AND s.status = 'completed'
     ");
 
     $stmt->execute([$farmId]);
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
-
 }
