@@ -1,8 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-echo "<h1>Dashboard Started</h1>";
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../middleware/authorize.php';
@@ -645,28 +641,28 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     });
 </script>
 <script>
-async function loadLiveDashboard() {
-    try {
-        const res = await fetch('/yotribe-system/app/api/dashboard_realtime.php');
-        const data = await res.json();
+    async function loadLiveDashboard() {
+        try {
+            const res = await fetch('/yotribe-system/app/api/dashboard_realtime.php');
+            const data = await res.json();
 
-        document.getElementById('biomass').innerText = Number(data.biomass).toFixed(2);
-        document.getElementById('feed').innerText = Number(data.feed).toFixed(2);
-        document.getElementById('sales').innerText = Number(data.sales).toLocaleString();
-        document.getElementById('profit').innerText = Number(data.profit).toLocaleString();
-        document.getElementById('feed_today').innerText = Number(data.feed_today).toFixed(2);
-        document.getElementById('alerts').innerText = data.alerts;
+            document.getElementById('biomass').innerText = Number(data.biomass).toFixed(2);
+            document.getElementById('feed').innerText = Number(data.feed).toFixed(2);
+            document.getElementById('sales').innerText = Number(data.sales).toLocaleString();
+            document.getElementById('profit').innerText = Number(data.profit).toLocaleString();
+            document.getElementById('feed_today').innerText = Number(data.feed_today).toFixed(2);
+            document.getElementById('alerts').innerText = data.alerts;
 
-    } catch (e) {
-        console.log("Live update error", e);
+        } catch (e) {
+            console.log("Live update error", e);
+        }
     }
-}
 
-/**
- * LIVE LOOP (REAL TIME FEEL)
- */
-loadLiveDashboard();
-setInterval(loadLiveDashboard, 5000); // every 5 seconds
+    /**
+    * LIVE LOOP (REAL TIME FEEL)
+    */
+    loadLiveDashboard();
+    setInterval(loadLiveDashboard, 5000); // every 5 seconds
 </script>
 
 
