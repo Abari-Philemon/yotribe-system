@@ -76,6 +76,13 @@ function nav_active(array $pages)
 
     z-index:1050;
 }
+.sidebar .dropdown-arrow {
+    transition: transform .25s ease;
+}
+
+.sidebar .nav-link:not(.collapsed) .dropdown-arrow {
+    transform: rotate(180deg);
+}
 
 .main{
 
@@ -468,6 +475,103 @@ id="sidebar"
     </a>
 
     <?php endif; ?>
+
+    <!-- ===========================================================
+HARVEST MANAGEMENT
+=========================================================== -->
+
+<?php if (canAccess('harvest')): ?>
+
+<?php
+$harvestPages = [
+    'create.php',
+    'save.php',
+    'history.php',
+    'view.php',
+    'report.php',
+    'print.php',
+    'close.php'
+];
+?>
+
+<li class="nav-item">
+
+    <a class="nav-link d-flex justify-content-between align-items-center <?= nav_active($harvestPages) ? '' : 'collapsed' ?>"
+       data-bs-toggle="collapse"
+       href="#harvestMenu"
+       role="button"
+       aria-expanded="<?= nav_active($harvestPages) ? 'true' : 'false' ?>"
+       aria-controls="harvestMenu">
+
+        <span>
+            <i class="bi bi-basket-fill me-2"></i>
+            Harvest
+        </span>
+
+        <i class="bi bi-chevron-down dropdown-arrow"></i>
+
+    </a>
+
+    <div id="harvestMenu"
+         class="collapse <?= nav_active($harvestPages) ? 'show' : '' ?>">
+
+        <ul class="btn-toggle-nav list-unstyled fw-normal small">
+
+            <li>
+                <a href="/yotribe-system/app/modules/harvest/create.php"
+                   class="nav-link <?= nav_active(['create.php','save.php']) ? 'active' : '' ?>">
+                    <i class="bi bi-plus-circle-fill me-2"></i>
+                    New Harvest
+                </a>
+            </li>
+
+            <li>
+                <a href="/yotribe-system/app/modules/harvest/history.php"
+                   class="nav-link <?= nav_active(['history.php']) ? 'active' : '' ?>">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Harvest History
+                </a>
+            </li>
+
+            <li>
+                <a href="/yotribe-system/app/modules/harvest/view.php"
+                   class="nav-link <?= nav_active(['view.php']) ? 'active' : '' ?>">
+                    <i class="bi bi-eye-fill me-2"></i>
+                    View Harvest
+                </a>
+            </li>
+
+            <li>
+                <a href="/yotribe-system/app/modules/harvest/report.php"
+                   class="nav-link <?= nav_active(['report.php']) ? 'active' : '' ?>">
+                    <i class="bi bi-file-earmark-bar-graph-fill me-2"></i>
+                    Harvest Reports
+                </a>
+            </li>
+
+            <li>
+                <a href="/yotribe-system/app/modules/harvest/print.php"
+                   class="nav-link <?= nav_active(['print.php']) ? 'active' : '' ?>">
+                    <i class="bi bi-printer-fill me-2"></i>
+                    Print Harvest
+                </a>
+            </li>
+
+            <li>
+                <a href="/yotribe-system/app/modules/harvest/close.php"
+                   class="nav-link <?= nav_active(['close.php']) ? 'active' : '' ?>">
+                    <i class="bi bi-lock-fill me-2"></i>
+                    Close Harvest
+                </a>
+            </li>
+
+        </ul>
+
+    </div>
+
+</li>
+
+<?php endif; ?>
     
     <?php if (canAccess('sales')): ?>
 
