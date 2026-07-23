@@ -199,7 +199,7 @@ Today's Sales
 
 <h2>
 
-₦<?= number_format($today['revenue'],2) ?>
+₦<?= number_format((float)($today['revenue'] ?? 0), 2) ?>
 
 </h2>
 
