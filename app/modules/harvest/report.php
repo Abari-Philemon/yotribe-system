@@ -322,7 +322,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                      Revenue
                   </th>
                   <td class="text-end fw-bold">
-                     ₦<?= number_format($revenue['revenue'],2) ?>
+                     ₦<?= number_format((float)$revenue['revenue'], 2) ?>
                   </td>
                </tr>
             </table>
