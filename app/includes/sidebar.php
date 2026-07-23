@@ -468,6 +468,28 @@ id="sidebar"
     </a>
 
     <?php endif; ?>
+    <?php if (canAccess('sales')): ?>
+
+    <div class="nav-title">
+        Sales
+    </div>
+
+    <a
+        href="/yotribe-system/app/modules/sales/index.php"
+        class="nav-link <?= nav_active([
+            'index.php',
+            'create.php',
+            'view.php',
+            'edit.php',
+            'invoice.php',
+            'receipt.php',
+            'customers.php',
+            'returns.php'
+        ]) ?>">
+        💵 Sales
+    </a>
+
+    <?php endif; ?>
 
 
     <?php if(canAccess('finance')): ?>
