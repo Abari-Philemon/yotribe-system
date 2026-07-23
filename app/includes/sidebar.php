@@ -498,8 +498,8 @@ id="sidebar"
 
                     <div class="accordion-body p-0">
 
-                        <a href="/yotribe-system/app/modules/sales/index.php"
-                        class="nav-link <?= nav_active(['index.php']) ?>">
+                        <a href="/yotribe-system/app/modules/sales/dashboard.php"
+                        class="nav-link <?= nav_active(['dashboard.php']) ?>">
                             📋 Dashboard
                         </a>
 
