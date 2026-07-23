@@ -399,35 +399,24 @@ function getTopHarvestPonds(
  *
  * ------------------------------------------------------------
  */
-function getHarvestRevenue(
-    PDO $pdo,
-    int $farmId
-): array {
-
+function getHarvestRevenue(PDO $pdo, int $farmId): array
+{
     $stmt = $pdo->prepare("
-
         SELECT
-
-            COUNT(*) AS transactions,
-
-            COALESCE(SUM(total_amount),0) AS revenue,
-
-            COALESCE(SUM(quantity_kg),0) AS quantity_kg
-
-        FROM sales
-
-        WHERE
-
-            farm_id = ?
-
-        AND product_type = 'table_fish'
-
+            COUNT(DISTINCT s.id) AS transactions,
+            COALESCE(SUM(si.line_total), 0) AS revenue,
+            COALESCE(SUM(si.quantity_kg), 0) AS quantity_kg,
+            COALESCE(SUM(si.quantity_fish), 0) AS quantity_fish
+        FROM sales s
+        INNER JOIN sale_items si
+            ON si.sale_id = s.id
+        WHERE s.farm_id = ?
+          AND s.status = 'completed'
     ");
 
     $stmt->execute([$farmId]);
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
-
 }
 
 
