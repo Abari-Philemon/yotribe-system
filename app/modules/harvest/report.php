@@ -313,7 +313,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                      Fish Sold
                   </th>
                   <td class="text-end">
-                     <?= number_format($revenue['quantity_kg'],2) ?>
+                     <?= number_format((float)$revenue['revenue'], 2) ?>
                      kg
                   </td>
                </tr>
@@ -322,7 +322,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                      Revenue
                   </th>
                   <td class="text-end fw-bold">
-                     ₦<?= number_format((float)$revenue['revenue'], 2) ?>
+                     ₦<?= number_format($revenue['revenue'],2) ?>
                   </td>
                </tr>
             </table>
