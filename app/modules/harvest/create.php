@@ -213,4 +213,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 require_once __DIR__ . '/../../includes/sidebar.php';
 
+// View
+require_once __DIR__ . '/partials/create.php';
+
 ?>
