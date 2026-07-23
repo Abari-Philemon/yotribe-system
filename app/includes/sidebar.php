@@ -470,26 +470,69 @@ id="sidebar"
     <?php endif; ?>
     <?php if (canAccess('sales')): ?>
 
-    <div class="nav-title">
-        Sales
-    </div>
+        <div class="nav-title">
+            Sales
+        </div>
 
-    <a
-        href="/yotribe-system/app/modules/sales/dashboard.php"
-        class="nav-link <?= nav_active([
-            'index.php',
-            'create.php',
-            'view.php',
-            'edit.php',
-            'invoice.php',
-            'receipt.php',
-            'customers.php',
-            'returns.php'
-        ]) ?>">
-        💵 Sales
-    </a>
+        <div class="accordion" id="salesMenu">
+
+            <div class="accordion-item border-0 bg-transparent">
+
+                <h2 class="accordion-header">
+
+                    <button
+                        class="accordion-button collapsed shadow-none bg-transparent px-3 py-2"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#salesCollapse">
+
+                        💵 Sales
+
+                    </button>
+
+                </h2>
+
+                <div
+                    id="salesCollapse"
+                    class="accordion-collapse collapse">
+
+                    <div class="accordion-body p-0">
+
+                        <a href="/yotribe-system/app/modules/sales/index.php"
+                        class="nav-link <?= nav_active(['index.php']) ?>">
+                            📋 Dashboard
+                        </a>
+
+                        <a href="/yotribe-system/app/modules/sales/create.php"
+                        class="nav-link <?= nav_active(['create.php']) ?>">
+                            ➕ New Sale
+                        </a>
+
+                        <a href="/yotribe-system/app/modules/customers/index.php"
+                        class="nav-link <?= nav_active(['customers.php']) ?>">
+                            👥 Customers
+                        </a>
+
+                        <a href="/yotribe-system/app/modules/sales/returns.php"
+                        class="nav-link <?= nav_active(['returns.php']) ?>">
+                            ↩ Returns
+                        </a>
+
+                        <a href="/yotribe-system/app/modules/sales/reports.php"
+                        class="nav-link <?= nav_active(['reports.php']) ?>">
+                            📊 Sales Reports
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
 
     <?php endif; ?>
+
 
 
     <?php if(canAccess('finance')): ?>
