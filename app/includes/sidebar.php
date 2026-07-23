@@ -468,6 +468,80 @@ id="sidebar"
     </a>
 
     <?php endif; ?>
+    <!-- ==========================================================
+    HARVEST MANAGEMENT
+    ========================================================== -->
+
+    <?php if (canAccess('harvest')): ?>
+
+        <li class="nav-item">
+
+            <?php
+            $harvestPages = [
+                'create.php',
+                'history.php',
+                'view.php',
+                'report.php',
+                'print.php',
+                'close.php',
+                'save.php'
+            ];
+
+            $harvestActive = nav_active($harvestPages);
+            ?>
+
+            <a class="nav-link d-flex justify-content-between align-items-center <?= $harvestActive ? '' : 'collapsed' ?>"
+            data-bs-toggle="collapse"
+            href="#harvestMenu"
+            role="button"
+            aria-expanded="<?= $harvestActive ? 'true' : 'false' ?>"
+            aria-controls="harvestMenu">
+
+                <span>
+                    <i class="bi bi-basket-fill"></i>
+                    Harvest
+                </span>
+
+                <i class="bi bi-chevron-down"></i>
+
+            </a>
+
+            <div class="collapse <?= $harvestActive ? 'show' : '' ?>"
+                id="harvestMenu">
+
+                <ul class="btn-toggle-nav list-unstyled fw-normal small ms-3">
+
+                    <li>
+                        <a href="<?= BASE_URL ?>/modules/harvest/create.php"
+                        class="nav-link <?= nav_active(['create.php']) ?>">
+                            <i class="bi bi-plus-circle"></i>
+                            New Harvest
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="<?= BASE_URL ?>/modules/harvest/history.php"
+                        class="nav-link <?= nav_active(['history.php']) ?>">
+                            <i class="bi bi-clock-history"></i>
+                            Harvest History
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="<?= BASE_URL ?>/modules/harvest/report.php"
+                        class="nav-link <?= nav_active(['report.php']) ?>">
+                            <i class="bi bi-bar-chart"></i>
+                            Harvest Reports
+                        </a>
+                    </li>
+
+                </ul>
+
+            </div>
+
+        </li>
+
+    <?php endif; ?>
     <?php if (canAccess('sales')): ?>
 
         <div class="nav-title">
