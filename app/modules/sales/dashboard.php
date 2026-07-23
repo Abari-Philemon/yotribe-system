@@ -223,7 +223,9 @@ Today's Revenue
 
 <h2>
 
-₦<?= number_format($today['outstanding'],2) ?>
+₦<?= number_format((float)($today['revenue'] ?? 0), 2) ?>
+
+
 
 </h2>
 
