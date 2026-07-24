@@ -34,7 +34,7 @@ function toggleSidebar() {
     }
 }
 
-const CSRF_TOKEN = "<?= csrf_token() ?>";
+const CSRF_TOKEN = "<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>";
 
 </script>
 
