@@ -156,407 +156,457 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         <div>
 
             <a href="create.php"
-            class="btn btn-success">
+                class="btn btn-success">
 
-            <i class="bi bi-plus-circle"></i>
+                <i class="bi bi-plus-circle"></i>
 
-            New Harvest
+                New Harvest
 
             </a>
 
         </div>
 
-    /div>
+    </div>
 
-<!-- =====================================================
-FILTERS
-====================================================== -->
+    <!-- =====================================================
+    FILTERS
+    ====================================================== -->
 
-<div class="card shadow-sm mb-4">
+    <div class="card shadow-sm mb-4">
 
-<div class="card-body">
+        <div class="card-body">
 
-<form class="row g-3">
+            <form class="row g-3">
 
-<div class="col-md-4">
+                <div class="col-md-4">
 
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="Search Harvest No or Batch"
-value="<?= htmlspecialchars($search) ?>">
+                    <input
+                    type="text"
+                    name="search"
+                    class="form-control"
+                    placeholder="Search Harvest No or Batch"
+                    value="<?= htmlspecialchars($search) ?>">
 
-</div>
+                </div>
 
-<div class="col-md-3">
+                <div class="col-md-3">
 
-<select
-name="status"
-class="form-select">
+                    <select
+                        name="status"
+                        class="form-select">
 
-<option value="">
+                        <option value="">
 
-All Status
+                        All Status
 
-</option>
+                        </option>
 
-<option
-value="selling"
-<?= $status=='selling'?'selected':'' ?>>
+                        <option
+                        value="selling"
+                        <?= $status=='selling'?'selected':'' ?>>
 
-Selling
+                        Selling
 
-</option>
+                        </option>
 
-<option
-value="closed"
-<?= $status=='closed'?'selected':'' ?>>
+                        <option
+                        value="closed"
+                        <?= $status=='closed'?'selected':'' ?>>
 
-Closed
+                        Closed
 
-</option>
+                        </option>
 
-</select>
+                    </select>
 
-</div>
+                </div>
 
-<div class="col-md-2">
+                <div class="col-md-2">
 
-<button
-class="btn btn-primary w-100">
+                    <button
+                        class="btn btn-primary w-100">
 
-Search
+                        Search
 
-</button>
+                    </button>
 
-</div>
+                </div>
 
-<div class="col-md-2">
+                <div class="col-md-2">
 
-<a
-href="history.php"
-class="btn btn-secondary w-100">
+                    <a
+                        href="history.php"
+                        class="btn btn-secondary w-100">
 
-Reset
+                        Reset
 
-</a>
+                    </a>
 
-</div>
+                </div>
 
-</form>
+            </form>
 
-</div>
-
-</div>
-
-<!-- ===========================================================
-    HARVEST HISTORY
-=========================================================== -->
-
-<div class="card shadow-sm">
-
-    <div class="card-header bg-primary text-white">
-
-        <h5 class="mb-0">
-
-            <i class="bi bi-clock-history"></i>
-
-            Harvest Records
-
-        </h5>
+        </div>
 
     </div>
 
-    <div class="card-body">
+    <!-- ===========================================================
+        HARVEST HISTORY
+    =========================================================== -->
 
-        <?php if (empty($harvests)): ?>
+    <div class="card shadow-sm">
 
-            <div class="alert alert-warning mb-0">
+        <div class="card-header bg-primary text-white">
 
-                No harvest records found.
+            <h5 class="mb-0">
 
-            </div>
+                <i class="bi bi-clock-history"></i>
 
-        <?php else: ?>
+                Harvest Records
 
-            <div class="table-responsive">
+            </h5>
 
-                <table class="table table-striped table-hover align-middle">
+        </div>
 
-                    <thead class="table-light">
+        <div class="card-body">
 
-                        <tr>
+            <?php if (empty($harvests)): ?>
 
-                            <th width="12%">
+                <div class="alert alert-warning mb-0">
 
-                                Harvest No
+                    No harvest records found.
 
-                            </th>
+                </div>
 
-                            <th width="12%">
+            <?php else: ?>
 
-                                Batch
+                <div class="table-responsive">
 
-                            </th>
+                    <table class="table table-striped table-hover align-middle">
 
-                            <th width="12%">
-
-                                Species
-
-                            </th>
-
-                            <th width="12%">
-
-                                Harvest Date
-
-                            </th>
-
-                            <th class="text-center" width="8%">
-
-                                Ponds
-
-                            </th>
-
-                            <th width="10%">
-
-                                Status
-
-                            </th>
-
-                            <th width="15%">
-
-                                Created
-
-                            </th>
-
-                            <th width="19%" class="text-center">
-
-                                Actions
-
-                            </th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                        <?php foreach ($harvests as $harvest): ?>
+                        <thead class="table-light">
 
                             <tr>
 
-                                <td>
+                                <th width="12%">
 
-                                    <strong>
+                                    Harvest No
 
-                                        <?= htmlspecialchars($harvest['harvest_no']) ?>
+                                </th>
 
-                                    </strong>
+                                <th width="12%">
 
-                                </td>
+                                    Batch
 
-                                <td>
+                                </th>
 
-                                    <?= htmlspecialchars($harvest['batch_code']) ?>
+                                <th width="12%">
 
-                                </td>
+                                    Species
 
-                                <td>
+                                </th>
 
-                                    <?= htmlspecialchars($harvest['species']) ?>
+                                <th width="12%">
 
-                                </td>
+                                    Harvest Date
 
-                                <td>
+                                </th>
 
-                                    <?= date(
-                                        'd M Y',
-                                        strtotime($harvest['harvest_date'])
-                                    ) ?>
+                                <th class="text-center" width="8%">
 
-                                </td>
+                                    Ponds
 
-                                <td class="text-center">
+                                </th>
 
-                                    <span class="badge bg-info">
+                                <th width="10%">
 
-                                        <?= number_format($harvest['ponds']) ?>
+                                    Status
 
-                                    </span>
+                                </th>
 
-                                </td>
+                                <th width="15%">
 
-                                <td>
+                                    Created
 
-                                    <?php if ($harvest['is_open']): ?>
+                                </th>
 
-                                        <span class="badge bg-success">
+                                <th width="19%" class="text-center">
 
-                                            SELLING
+                                    Actions
 
-                                        </span>
-
-                                    <?php else: ?>
-
-                                        <span class="badge bg-secondary">
-
-                                            CLOSED
-
-                                        </span>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                                <td>
-
-                                    <?= date(
-                                        'd M Y H:i',
-                                        strtotime($harvest['created_at'])
-                                    ) ?>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="btn-group btn-group-sm">
-
-                                        <!-- View -->
-
-                                        <a
-                                            href="view.php?id=<?= $harvest['id'] ?>"
-                                            class="btn btn-outline-primary"
-                                            title="View Harvest">
-
-                                            <i class="bi bi-eye"></i>
-
-                                        </a>
-
-                                        <!-- Print -->
-
-                                        <a
-                                            href="print.php?id=<?= $harvest['id'] ?>"
-                                            class="btn btn-outline-dark"
-                                            title="Print">
-
-                                            <i class="bi bi-printer"></i>
-
-                                        </a>
-
-                                        <?php if ($harvest['is_open']): ?>
-
-                                            <!-- Close -->
-
-                                            <form
-                                                action="close.php"
-                                                method="POST"
-                                                class="d-inline">
-
-                                                <input
-                                                    type="hidden"
-                                                    name="csrf_token"
-                                                    value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-
-                                                <input
-                                                    type="hidden"
-                                                    name="harvest_id"
-                                                    value="<?= $harvest['id'] ?>">
-
-                                                <button
-                                                    type="submit"
-                                                    class="btn btn-outline-danger"
-                                                    title="Close Harvest"
-
-                                                    onclick="return confirm(
-                                                        'Close this harvest?\n\nNo further sales will be allowed.'
-                                                    );">
-
-                                                    <i class="bi bi-lock"></i>
-
-                                                </button>
-
-                                            </form>
-
-                                        <?php else: ?>
-
-                                            <button
-                                                class="btn btn-outline-success"
-                                                disabled
-                                                title="Harvest Closed">
-
-                                                <i class="bi bi-check-circle"></i>
-
-                                            </button>
-
-                                        <?php endif; ?>
-
-                                    </div>
-
-                                </td>
+                                </th>
 
                             </tr>
 
-                        <?php endforeach; ?>
+                        </thead>
 
-                    </tbody>
+                        <tbody>
 
-                </table>
+                            <?php foreach ($harvests as $harvest): ?>
 
-            </div>
+                                <tr>
 
-        <?php endif; ?>
+                                    <td>
+
+                                        <strong>
+
+                                            <?= htmlspecialchars($harvest['harvest_no']) ?>
+
+                                        </strong>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?= htmlspecialchars($harvest['batch_code']) ?>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?= htmlspecialchars($harvest['species']) ?>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?= date(
+                                            'd M Y',
+                                            strtotime($harvest['harvest_date'])
+                                        ) ?>
+
+                                    </td>
+
+                                    <td class="text-center">
+
+                                        <span class="badge bg-info">
+
+                                            <?= number_format($harvest['ponds']) ?>
+
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?php if ($harvest['is_open']): ?>
+
+                                            <span class="badge bg-success">
+
+                                                SELLING
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="badge bg-secondary">
+
+                                                CLOSED
+
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?= date(
+                                            'd M Y H:i',
+                                            strtotime($harvest['created_at'])
+                                        ) ?>
+
+                                    </td>
+
+                                    <td>
+
+                                        <div class="btn-group btn-group-sm">
+
+                                            <!-- View -->
+
+                                            <a
+                                                href="view.php?id=<?= $harvest['id'] ?>"
+                                                class="btn btn-outline-primary"
+                                                title="View Harvest">
+
+                                                <i class="bi bi-eye"></i>
+
+                                            </a>
+
+                                            <!-- Print -->
+
+                                            <a
+                                                href="print.php?id=<?= $harvest['id'] ?>"
+                                                class="btn btn-outline-dark"
+                                                title="Print">
+
+                                                <i class="bi bi-printer"></i>
+
+                                            </a>
+
+                                            <?php if ($harvest['is_open']): ?>
+
+                                                <!-- Close -->
+
+                                                <form
+                                                    action="close.php"
+                                                    method="POST"
+                                                    class="d-inline">
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="csrf_token"
+                                                        value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+
+                                                    <input
+                                                        type="hidden"
+                                                        name="harvest_id"
+                                                        value="<?= $harvest['id'] ?>">
+
+                                                    <button
+                                                        type="submit"
+                                                        class="btn btn-outline-danger"
+                                                        title="Close Harvest"
+
+                                                        onclick="return confirm(
+                                                            'Close this harvest?\n\nNo further sales will be allowed.'
+                                                        );">
+
+                                                        <i class="bi bi-lock"></i>
+
+                                                    </button>
+
+                                                </form>
+
+                                            <?php else: ?>
+
+                                                <button
+                                                    class="btn btn-outline-success"
+                                                    disabled
+                                                    title="Harvest Closed">
+
+                                                    <i class="bi bi-check-circle"></i>
+
+                                                </button>
+
+                                            <?php endif; ?>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            <?php endif; ?>
+
+        </div>
 
     </div>
+    <!-- ===========================================================
+        HARVEST SUMMARY
+    =========================================================== -->
 
-</div>
-<!-- ===========================================================
-    HARVEST SUMMARY
-=========================================================== -->
+    <div class="row mt-4">
 
-<div class="row mt-4">
+        <?php
 
-    <?php
+        $totalHarvests = count($harvests);
 
-    $totalHarvests = count($harvests);
+        $openHarvests = 0;
 
-    $openHarvests = 0;
+        $closedHarvests = 0;
 
-    $closedHarvests = 0;
+        foreach ($harvests as $item) {
 
-    foreach ($harvests as $item) {
+            if ((int)$item['is_open'] === 1) {
 
-        if ((int)$item['is_open'] === 1) {
+                $openHarvests++;
 
-            $openHarvests++;
+            } else {
 
-        } else {
+                $closedHarvests++;
 
-            $closedHarvests++;
+            }
 
         }
 
-    }
+        ?>
 
-    ?>
+        <div class="col-md-4 mb-3">
 
-    <div class="col-md-4 mb-3">
+            <div class="card border-0 bg-success text-white shadow-sm">
 
-        <div class="card border-0 bg-success text-white shadow-sm">
+                <div class="card-body text-center">
 
-            <div class="card-body text-center">
+                    <h2>
 
-                <h2>
+                        <?= number_format($totalHarvests) ?>
 
-                    <?= number_format($totalHarvests) ?>
+                    </h2>
 
-                </h2>
+                    <small>
 
-                <small>
+                        Total Harvests
 
-                    Total Harvests
+                    </small>
 
-                </small>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-4 mb-3">
+
+            <div class="card border-0 bg-primary text-white shadow-sm">
+
+                <div class="card-body text-center">
+
+                    <h2>
+
+                        <?= number_format($openHarvests) ?>
+
+                    </h2>
+
+                    <small>
+
+                        Open Harvests
+
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-4 mb-3">
+
+            <div class="card border-0 bg-secondary text-white shadow-sm">
+
+                <div class="card-body text-center">
+
+                    <h2>
+
+                        <?= number_format($closedHarvests) ?>
+
+                    </h2>
+
+                    <small>
+
+                        Closed Harvests
+
+                    </small>
+
+                </div>
 
             </div>
 
@@ -564,115 +614,51 @@ Reset
 
     </div>
 
-    <div class="col-md-4 mb-3">
 
-        <div class="card border-0 bg-primary text-white shadow-sm">
 
-            <div class="card-body text-center">
+    <!-- ===========================================================
+        PAGE FOOTER
+    =========================================================== -->
 
-                <h2>
+    <div class="mt-4">
 
-                    <?= number_format($openHarvests) ?>
+        <small class="text-muted">
 
-                </h2>
+            Showing
 
-                <small>
+            <strong>
 
-                    Open Harvests
+                <?= number_format($totalHarvests) ?>
 
-                </small>
+            </strong>
 
-            </div>
+            harvest record(s).
 
-        </div>
-
-    </div>
-
-    <div class="col-md-4 mb-3">
-
-        <div class="card border-0 bg-secondary text-white shadow-sm">
-
-            <div class="card-body text-center">
-
-                <h2>
-
-                    <?= number_format($closedHarvests) ?>
-
-                </h2>
-
-                <small>
-
-                    Closed Harvests
-
-                </small>
-
-            </div>
-
-        </div>
+        </small>
 
     </div>
-
-</div>
-
-
-
-<!-- ===========================================================
-    PAGE FOOTER
-=========================================================== -->
-
-<div class="mt-4">
-
-    <small class="text-muted">
-
-        Showing
-
-        <strong>
-
-            <?= number_format($totalHarvests) ?>
-
-        </strong>
-
-        harvest record(s).
-
-    </small>
-
-</div>
 
 </div>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 
 <script>
+    document.addEventListener('DOMContentLoaded', () => {
 
-document.addEventListener('DOMContentLoaded', () => {
+        /* ==========================================================
+        Bootstrap Tooltips
+        ========================================================== */
 
-    /*
-    ------------------------------------------------------------
-    Enable Bootstrap Tooltips
-    ------------------------------------------------------------
-    */
+        document
+            .querySelectorAll('[data-bs-toggle="tooltip"]')
+            .forEach(el => new bootstrap.Tooltip(el));
 
-    const tooltipTriggerList = [].slice.call(
 
-        document.querySelectorAll('[title]')
+        /* ==========================================================
+        Auto-hide Success Alerts
+        ========================================================== */
 
-    );
-
-    tooltipTriggerList.map(function (element) {
-
-        return new bootstrap.Tooltip(element);
-
-    });
-
-    /*
-    ------------------------------------------------------------
-    Auto-hide Success Messages
-    ------------------------------------------------------------
-    */
-
-    document.querySelectorAll('.alert-success')
-
-        .forEach(alert => {
+        document.querySelectorAll('.alert-success').forEach(alert => {
 
             setTimeout(() => {
 
@@ -688,5 +674,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
         });
 
-});
+
+        /* ==========================================================
+        Confirm Harvest Closure
+        ========================================================== */
+
+        document.querySelectorAll('.btn-close-harvest').forEach(button => {
+
+            button.addEventListener('click', function (e) {
+
+                if (!confirm(
+                    'Are you sure you want to close this harvest?\n\nNo further sales will be allowed.'
+                )) {
+
+                    e.preventDefault();
+
+                }
+
+            });
+
+        });
+
+
+        /* ==========================================================
+        Auto Focus Search
+        ========================================================== */
+
+        const searchBox = document.querySelector('input[name="search"]');
+
+        if (searchBox) {
+
+            searchBox.focus();
+
+        }
+
+
+        /* ==========================================================
+        Press "/" to Search
+        ========================================================== */
+
+        document.addEventListener('keydown', function (e) {
+
+            if (e.key === '/' &&
+                document.activeElement.tagName !== 'INPUT' &&
+                document.activeElement.tagName !== 'TEXTAREA') {
+
+                e.preventDefault();
+
+                searchBox.focus();
+
+            }
+
+        });
+
+
+        /* ==========================================================
+        Highlight Current Search
+        ========================================================== */
+
+        if (searchBox && searchBox.value.trim() !== '') {
+
+            searchBox.classList.add('border-primary');
+
+        }
+
+
+        /* ==========================================================
+        Export Button (Future)
+        ========================================================== */
+
+        const exportBtn = document.getElementById('btnExport');
+
+        if (exportBtn) {
+
+            exportBtn.addEventListener('click', function () {
+
+                alert('Export feature coming soon.');
+
+            });
+
+        }
+
+    });
 </script>
