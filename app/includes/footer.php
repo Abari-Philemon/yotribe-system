@@ -1,164 +1,73 @@
-<?php
-/**
- * ==========================================================
- * YOTRIBE IFMS
- * Global Footer
- * ==========================================================
- */
-
-$module = $module ?? '';
-?>
-
+<?php $farm_id = farm_id();?>
 </div> <!-- END MAIN -->
 
-<!-- ==========================================================
-Bootstrap
-========================================================== -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- ==========================================================
-Chart.js
-========================================================== -->
+<script src="/modules/harvest/assets/harvest.js"></script>
+<script>
+function toggleSidebar(){
+    document.getElementById('sidebar').classList.toggle('active');
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- ==========================================================
-Global JavaScript
-========================================================== -->
 <script>
-
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-
-    if (sidebar) {
-        sidebar.classList.toggle('active');
-    }
-}
-
 const CSRF_TOKEN = "<?= csrf_token() ?>";
-
 </script>
 
-<!-- ==========================================================
-Module JavaScript
-========================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<?php if ($module === 'harvest'): ?>
-<script src="/yotribe-system/app/modules/harvest/assets/harvest.js"></script>
-<?php endif; ?>
 
-<?php if ($module === 'dashboard'): ?>
 
 <script>
+    function loadRealtime(){
 
-function loadRealtime() {
+        fetch('/yotribe-system/app/modules/dashboard/realtime.php')
+        .then(res => res.json())
+        .then(d => {
 
-    fetch('/yotribe-system/app/modules/dashboard/realtime.php')
-    .then(res => res.json())
-    .then(d => {
+            document.getElementById('rt_biomass').innerText = d.biomass + ' kg';
+            document.getElementById('rt_feed').innerText = d.today_feed + ' kg';
+            document.getElementById('rt_cost').innerText = '₦' + d.today_cost.toLocaleString();
+            document.getElementById('rt_ponds').innerText = d.ponds;
 
-        const biomass = document.getElementById('rt_biomass');
-        const feed     = document.getElementById('rt_feed');
-        const cost     = document.getElementById('rt_cost');
-        const ponds    = document.getElementById('rt_ponds');
-        const time     = document.getElementById('rt_time');
-
-        if (!biomass) return;
-
-        biomass.innerText = d.biomass + ' kg';
-        feed.innerText    = d.today_feed + ' kg';
-        cost.innerText    = '₦' + Number(d.today_cost).toLocaleString();
-        ponds.innerText   = d.ponds;
-        time.innerText    = 'Updated: ' + d.time;
-
-    });
-
-}
-
-loadRealtime();
-
-setInterval(loadRealtime, 10000);
-
-/*
-----------------------------------------------------------
-Biomass Chart
-----------------------------------------------------------
-*/
-
-const biomassChart = document.getElementById('biomassChart');
-
-if (biomassChart) {
-
-    fetch('charts.php?type=biomass')
-    .then(r => r.json())
-    .then(d => {
-
-        new Chart(biomassChart, {
-
-            type: 'line',
-
-            data: {
-
-                labels: d.labels,
-
-                datasets: [{
-
-                    label: 'Biomass',
-
-                    data: d.values,
-
-                    borderWidth: 2
-
-                }]
-
-            }
-
+            document.getElementById('rt_time').innerText = 'Updated: ' + d.time;
         });
+    }
 
-    });
+    // AUTO REFRESH EVERY 10s
+    setInterval(loadRealtime, 10000);
+    loadRealtime();
 
-}
+// Biomass Chart (secure - no farm_id in URL)
+fetch('charts.php?type=biomass')
+.then(r => r.json())
+.then(d => new Chart(document.getElementById('biomassChart'), {
+    type: 'line',
+    data: {
+        labels: d.labels,
+        datasets: [{
+            label: 'Biomass',
+            data: d.values,
+            borderWidth: 2
+        }]
+    }
+}));
 
-/*
-----------------------------------------------------------
-Sales Chart
-----------------------------------------------------------
-*/
-
-const salesChart = document.getElementById('salesChart');
-
-if (salesChart) {
-
-    fetch('charts.php?type=sales')
-    .then(r => r.json())
-    .then(d => {
-
-        new Chart(salesChart, {
-
-            type: 'bar',
-
-            data: {
-
-                labels: d.labels,
-
-                datasets: [{
-
-                    label: 'Sales',
-
-                    data: d.values
-
-                }]
-
-            }
-
-        });
-
-    });
-
-}
-
+// Sales Chart
+fetch('charts.php?type=sales')
+.then(r => r.json())
+.then(d => new Chart(document.getElementById('salesChart'), {
+    type: 'bar',
+    data: {
+        labels: d.labels,
+        datasets: [{
+            label: 'Sales',
+            data: d.values
+        }]
+    }
+}));
 </script>
-
-<?php endif; ?>
+        
 
 </body>
 </html>
