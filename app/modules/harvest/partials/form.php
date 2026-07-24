@@ -469,7 +469,7 @@
 
                 <div>
 
-                    <a href="history.php"
+                    <a href="index.php"
                        class="btn btn-outline-secondary me-2">
 
                         <i class="bi bi-x-circle"></i>
@@ -508,4 +508,5 @@
     </div>
 
 </form>
+<script src="../../modules/harvest/assets/harvest.js"></script>
   
