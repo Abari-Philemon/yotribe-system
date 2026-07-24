@@ -343,7 +343,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                     <input
                         type="text"
                         class="form-control"
-                        value="<?= htmlspecialchars($harvest['farm_name']) ?>"
+                        value="<?= htmlspecialchars($harvest['name']) ?>"
                         readonly>
 
                 </div>
