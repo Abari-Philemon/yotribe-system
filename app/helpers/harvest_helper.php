@@ -38,7 +38,7 @@ function getHarvestById(
 
             fb.avg_weight_g,
 
-            f.farm_name
+            f.name
 
         FROM harvests h
 
