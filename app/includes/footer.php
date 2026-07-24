@@ -3,8 +3,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+<?php
+$module = $module ?? '';
+?>
+
 <?php if ($module === 'harvest'): ?>
-    <script src="../../modules/harvest/assets/harvest.js"></script>
+    <script src="/yotribe-system/app/modules/harvest/assets/harvest.js"></script>
 <?php endif; ?>
 <script>
 function toggleSidebar(){
