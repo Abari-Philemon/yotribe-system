@@ -6,7 +6,7 @@ declare(strict_types=1);
  * ============================================================
  * YOTRIBE IFMS
  * Sales & Distribution Management
- * Save Sale
+ * Save Sale (Version 2)
  * ============================================================
  */
 
@@ -17,10 +17,8 @@ require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
 
 require_once __DIR__ . '/../../helpers/permission.php';
-
 require_once __DIR__ . '/../../helpers/csrf_helper.php';
 require_once __DIR__ . '/../../helpers/uuid_helper.php';
-
 
 require_permission('sales');
 
@@ -39,26 +37,53 @@ validate_csrf();
 |--------------------------------------------------------------------------
 */
 
-$farm_id  = farm_id();
-$staff_id = $_SESSION['staff_id'];
+$farmId  = farm_id();
+$staffId = $_SESSION['staff_id'];
 
-$sale_no        = trim($_POST['sale_no'] ?? '');
-$sale_date      = trim($_POST['sale_date'] ?? '');
-$harvest_id     = (int)($_POST['harvest_id'] ?? 0);
+/*
+|--------------------------------------------------------------------------
+| Sale Header
+|--------------------------------------------------------------------------
+*/
 
-$sale_type      = trim($_POST['sale_type'] ?? 'customer_sale');
+$saleNo          = trim($_POST['sale_no'] ?? '');
+$saleDate        = trim($_POST['sale_date'] ?? '');
+$harvestId       = (int)($_POST['harvest_id'] ?? 0);
 
-$customer_name  = trim($_POST['customer_name'] ?? '');
+$saleType        = trim($_POST['sale_type'] ?? 'customer_sale');
 
-$customer_phone = trim($_POST['customer_phone'] ?? '');
+$customerName    = trim($_POST['customer_name'] ?? '');
 
-$customer_address = trim($_POST['customer_address'] ?? '');
+$customerPhone   = trim($_POST['customer_phone'] ?? '');
 
-$discount = (float)($_POST['discount'] ?? 0);
+$customerAddress = trim($_POST['customer_address'] ?? '');
 
-$remarks = trim($_POST['remarks'] ?? '');
+$discount        = (float)($_POST['discount'] ?? 0);
 
-$items = $_POST['items'] ?? [];
+$amountPaid      = (float)($_POST['amount_paid'] ?? 0);
+
+$paymentMethod   = trim($_POST['payment_method'] ?? 'cash');
+
+$referenceNo     = trim($_POST['reference_no'] ?? '');
+
+$remarks         = trim($_POST['remarks'] ?? '');
+
+/*
+|--------------------------------------------------------------------------
+| Sale Item Arrays
+|--------------------------------------------------------------------------
+|
+| sales.js submits parallel arrays.
+|
+*/
+
+$harvestPondIds = $_POST['harvest_pond_id'] ?? [];
+
+$quantityFish   = $_POST['quantity_fish'] ?? [];
+
+$quantityKg     = $_POST['quantity_kg'] ?? [];
+
+$unitPrices     = $_POST['unit_price'] ?? [];
 
 /*
 |--------------------------------------------------------------------------
@@ -68,21 +93,45 @@ $items = $_POST['items'] ?? [];
 
 $errors = [];
 
-if ($sale_no === '') {
+if ($saleNo === '') {
 
     $errors[] = 'Sale number is required.';
 
 }
 
-if ($harvest_id <= 0) {
+if ($saleDate === '') {
+
+    $errors[] = 'Sale date is required.';
+
+}
+
+if ($harvestId <= 0) {
 
     $errors[] = 'Please select a harvest.';
 
 }
 
-if (empty($items)) {
+if (empty($harvestPondIds)) {
 
-    $errors[] = 'At least one sale item is required.';
+    $errors[] = 'Please add at least one sale item.';
+
+}
+
+if (
+
+    count($harvestPondIds) !== count($quantityFish)
+
+    ||
+
+    count($quantityFish) !== count($quantityKg)
+
+    ||
+
+    count($quantityKg) !== count($unitPrices)
+
+) {
+
+    $errors[] = 'Sale item arrays are inconsistent.';
 
 }
 
@@ -98,66 +147,6 @@ if (!empty($errors)) {
 
 /*
 |--------------------------------------------------------------------------
-| Verify Harvest
-|--------------------------------------------------------------------------
-*/
-
-$stmt = $pdo->prepare("
-
-SELECT
-
-id,
-
-harvest_no,
-
-status,
-
-is_open
-
-FROM harvests
-
-WHERE
-
-id=?
-
-AND farm_id=?
-
-LIMIT 1
-
-");
-
-$stmt->execute([
-
-    $harvest_id,
-
-    $farm_id
-
-]);
-
-$harvest = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$harvest) {
-
-    $_SESSION['error'] = 'Harvest not found.';
-
-    header('Location:create.php');
-
-    exit;
-
-}
-
-if ((int)$harvest['is_open'] !== 1) {
-
-    $_SESSION['error'] = 'Harvest has already been closed.';
-
-    header('Location:create.php');
-
-    exit;
-
-}
-
-/*
-|--------------------------------------------------------------------------
 | Begin Transaction
 |--------------------------------------------------------------------------
 */
@@ -166,61 +155,124 @@ $pdo->beginTransaction();
 
 try {
 
-    /*
-    ============================================================
-    Continue in Part 2
-    ============================================================
-    */
-        /*
-    |--------------------------------------------------------------------------
-    | Calculate Sale Totals
-    |--------------------------------------------------------------------------
-    */
-
-    $subtotal = 0;
     $validatedItems = [];
 
-    foreach ($items as $index => $item) {
+    $subtotal = 0;
 
-        $harvest_pond_id = (int)($item['harvest_pond_id'] ?? 0);
+    /*
+     * ===== Part 2 continues here =====
+     */
+        /*
+    |--------------------------------------------------------------------------
+    | Verify Harvest
+    |--------------------------------------------------------------------------
+    */
 
-        $quantity_fish = (int)($item['quantity_fish'] ?? 0);
+    $stmt = $pdo->prepare("
+        SELECT
+            id,
+            harvest_no,
+            status,
+            is_open
+        FROM harvests
+        WHERE
+            id = ?
+        AND farm_id = ?
+        LIMIT 1
+    ");
 
-        $quantity_kg = (float)($item['quantity_kg'] ?? 0);
+    $stmt->execute([
+        $harvestId,
+        $farmId
+    ]);
 
-        $unit_price = (float)($item['unit_price'] ?? 0);
+    $harvest = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$harvest) {
+
+        throw new Exception('Harvest record not found.');
+
+    }
+
+    if ((int)$harvest['is_open'] !== 1) {
+
+        throw new Exception(
+            'This harvest has already been closed.'
+        );
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validate Sale Items
+    |--------------------------------------------------------------------------
+    */
+
+    foreach ($harvestPondIds as $index => $harvestPondId) {
+
+        $harvestPondId = (int)$harvestPondId;
+
+        $fish = (int)($quantityFish[$index] ?? 0);
+
+        $weight = (float)($quantityKg[$index] ?? 0);
+
+        $price = (float)($unitPrices[$index] ?? 0);
 
         if (
-            $harvest_pond_id <= 0 ||
-            $quantity_kg <= 0 ||
-            $unit_price < 0
+            $harvestPondId <= 0 ||
+            $fish <= 0 ||
+            $weight <= 0 ||
+            $price < 0
         ) {
+
             throw new Exception(
                 'Invalid sale item on row ' . ($index + 1)
             );
+
         }
 
         /*
-        ------------------------------------------------------------
-        Verify Harvest Inventory
-        ------------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Load Harvest Inventory
+        |--------------------------------------------------------------------------
         */
 
         $stmt = $pdo->prepare("
 
             SELECT
 
-                hp.id,
-
-                hp.harvest_id,
+                hp.id AS harvest_pond_id,
 
                 hp.pond_stocking_id,
 
-                hp.quantity_fish,
+                ps.harvested_count,
 
-                hp.quantity_kg,
+                ps.current_count,
 
-                ps.current_count
+                ps.avg_weight_g,
+
+                COALESCE(
+
+                    (
+
+                        SELECT SUM(si.quantity_fish)
+
+                        FROM sale_items si
+
+                        INNER JOIN sales s
+                            ON s.id = si.sale_id
+
+                        WHERE
+
+                            si.harvest_pond_id = hp.id
+
+                        AND s.status <> 'cancelled'
+
+                    ),
+
+                    0
+
+                ) AS sold_fish
 
             FROM harvest_ponds hp
 
@@ -240,9 +292,9 @@ try {
 
         $stmt->execute([
 
-            $harvest_pond_id,
+            $harvestPondId,
 
-            $harvest_id
+            $harvestId
 
         ]);
 
@@ -257,28 +309,52 @@ try {
         }
 
         /*
-        ------------------------------------------------------------
-        Prevent Overselling
-        ------------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Calculate Available Fish
+        |--------------------------------------------------------------------------
         */
 
-        if ($quantity_fish > (int)$inventory['current_count']) {
+        $availableFish =
+
+            (int)$inventory['harvested_count']
+
+            -
+
+            (int)$inventory['sold_fish'];
+
+        if ($availableFish < 0) {
+
+            $availableFish = 0;
+
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Prevent Overselling
+        |--------------------------------------------------------------------------
+        */
+
+        if ($fish > $availableFish) {
 
             throw new Exception(
-                'Fish quantity exceeds available inventory.'
+
+                "Sale quantity exceeds available inventory on row "
+
+                . ($index + 1)
+
             );
 
         }
 
         /*
-        ------------------------------------------------------------
-        Calculate Line Total
-        ------------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Calculate Totals
+        |--------------------------------------------------------------------------
         */
 
         $lineTotal = round(
 
-            $quantity_kg * $unit_price,
+            $weight * $price,
 
             2
 
@@ -288,15 +364,25 @@ try {
 
         $validatedItems[] = [
 
-            'harvest_pond_id' => $harvest_pond_id,
+            'harvest_pond_id' => $harvestPondId,
 
-            'quantity_fish'   => $quantity_fish,
+            'pond_stocking_id' => (int)$inventory['pond_stocking_id'],
 
-            'quantity_kg'     => $quantity_kg,
+            'quantity_fish' => $fish,
 
-            'unit_price'      => $unit_price,
+            'quantity_kg' => $weight,
 
-            'line_total'      => $lineTotal
+            'average_weight_kg' => round(
+
+                $weight / $fish,
+
+                3
+
+            ),
+
+            'unit_price' => $price,
+
+            'line_total' => $lineTotal
 
         ];
 
@@ -304,27 +390,21 @@ try {
 
     /*
     |--------------------------------------------------------------------------
-    | Calculate Totals
+    | Calculate Sale Totals
     |--------------------------------------------------------------------------
     */
 
     $discount = max(0, $discount);
 
+    $subtotal = round($subtotal, 2);
+
     $grandTotal = max(
 
         0,
 
-        round(
-
-            $subtotal - $discount,
-
-            2
-
-        )
+        round($subtotal - $discount, 2)
 
     );
-
-    $amountPaid = (float)($_POST['amount_paid'] ?? 0);
 
     $amountPaid = max(0, $amountPaid);
 
@@ -337,40 +417,33 @@ try {
     );
 
     /*
+     * ===== Part 3 continues here =====
+     */
+        /*
     |--------------------------------------------------------------------------
-    | Generate UUID
+    | Generate Sale UUID
     |--------------------------------------------------------------------------
     */
 
-    $saleUuid = sprintf(
-
-        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-
-        mt_rand(0, 0xffff),
-
-        mt_rand(0, 0xffff),
-
-        mt_rand(0, 0xffff),
-
-        mt_rand(0, 0x0fff) | 0x4000,
-
-        mt_rand(0, 0x3fff) | 0x8000,
-
-        mt_rand(0, 0xffff),
-
-        mt_rand(0, 0xffff),
-
-        mt_rand(0, 0xffff)
-
-    );
+    $saleUuid = generateUuid();
 
     /*
     |--------------------------------------------------------------------------
-    | Save Sale Header
+    | Sale Status
     |--------------------------------------------------------------------------
     */
 
-    $stmt = $pdo->prepare("
+    $saleStatus = ($balance <= 0)
+        ? 'completed'
+        : 'partial';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Insert Sale Header
+    |--------------------------------------------------------------------------
+    */
+
+    $stmtSale = $pdo->prepare("
 
         INSERT INTO sales (
 
@@ -412,33 +485,33 @@ try {
 
         VALUES (
 
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
 
         )
 
     ");
 
-    $stmt->execute([
+    $stmtSale->execute([
 
         $saleUuid,
 
-        $farm_id,
+        $farmId,
 
-        $harvest_id,
+        $harvestId,
 
-        $sale_no,
+        $saleNo,
 
-        $sale_date,
+        $saleDate,
 
-        $customer_name,
+        $customerName,
 
-        $customer_phone,
+        $customerPhone,
 
-        $customer_address,
+        $customerAddress,
 
-        $sale_type,
+        $saleType,
 
-        'completed',
+        $saleStatus,
 
         $subtotal,
 
@@ -452,20 +525,29 @@ try {
 
         $remarks,
 
-        $staff_id
+        $staffId
 
     ]);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sale ID
+    |--------------------------------------------------------------------------
+    */
+
     $saleId = (int)$pdo->lastInsertId();
 
+    if ($saleId <= 0) {
+
+        throw new Exception(
+            'Unable to create sale header.'
+        );
+
+    }
+
     /*
-    ============================================================
-    Continue in Part 3
-    ============================================================
-    */
-        /*
     |--------------------------------------------------------------------------
-    | Save Sale Items
+    | Prepare Statements
     |--------------------------------------------------------------------------
     */
 
@@ -479,7 +561,7 @@ try {
 
             harvest_pond_id,
 
-            product_name,
+            product_id,
 
             quantity_fish,
 
@@ -503,38 +585,7 @@ try {
 
     ");
 
-    /*
-    |--------------------------------------------------------------------------
-    | Update Harvest Inventory
-    |--------------------------------------------------------------------------
-    |
-    | Version 1:
-    | Reduce harvest_ponds available inventory.
-    | (Version 2 will use harvest_inventory ledger.)
-    |--------------------------------------------------------------------------
-    */
-
-    $stmtInventory = $pdo->prepare("
-
-        UPDATE harvest_ponds
-
-        SET
-
-            available_fish = available_fish - ?,
-
-            available_weight_kg = available_weight_kg - ?
-
-        WHERE id = ?
-
-    ");
-
-    /*
-    |--------------------------------------------------------------------------
-    | Update Pond Stocking
-    |--------------------------------------------------------------------------
-    */
-
-    $stmtPond = $pdo->prepare("
+    $stmtUpdatePond = $pdo->prepare("
 
         UPDATE pond_stocking
 
@@ -546,76 +597,38 @@ try {
 
     ");
 
+    /*
+     * ===== Part 4 continues here =====
+     */
+        /*
+    |--------------------------------------------------------------------------
+    | Save Sale Items
+    |--------------------------------------------------------------------------
+    */
+
     foreach ($validatedItems as $item) {
 
         /*
-        ------------------------------------------------------------
-        Generate Item UUID
-        ------------------------------------------------------------
-        */
-
-        $itemUuid = sprintf(
-
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-
-            mt_rand(0,0xffff),
-            mt_rand(0,0xffff),
-
-            mt_rand(0,0xffff),
-
-            mt_rand(0,0x0fff)|0x4000,
-
-            mt_rand(0,0x3fff)|0x8000,
-
-            mt_rand(0,0xffff),
-            mt_rand(0,0xffff),
-            mt_rand(0,0xffff)
-
-        );
-
-        /*
-        ------------------------------------------------------------
-        Average Weight
-        ------------------------------------------------------------
-        */
-
-        $averageWeight = 0;
-
-        if ($item['quantity_fish'] > 0) {
-
-            $averageWeight = round(
-
-                $item['quantity_kg']
-                /
-                $item['quantity_fish'],
-
-                3
-
-            );
-
-        }
-
-        /*
-        ------------------------------------------------------------
-        Save Item
-        ------------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Save Sale Item
+        |--------------------------------------------------------------------------
         */
 
         $stmtSaleItem->execute([
 
-            $itemUuid,
+            generateUuid(),
 
             $saleId,
 
             $item['harvest_pond_id'],
 
-            'Table Fish',
+            'TABLE_FISH',
 
             $item['quantity_fish'],
 
             $item['quantity_kg'],
 
-            $averageWeight,
+            $item['average_weight_kg'],
 
             $item['unit_price'],
 
@@ -626,89 +639,70 @@ try {
         ]);
 
         /*
-        ------------------------------------------------------------
-        Reduce Harvest Inventory
-        ------------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Update Pond Stocking
+        |--------------------------------------------------------------------------
+        |
+        | Reduce the number of fish currently in the pond.
+        |
         */
 
-        $stmtInventory->execute([
+        $stmtUpdatePond->execute([
 
             $item['quantity_fish'],
 
-            $item['quantity_kg'],
-
-            $item['harvest_pond_id']
+            $item['pond_stocking_id']
 
         ]);
 
         /*
-        ------------------------------------------------------------
-        Find Pond Stocking Record
-        ------------------------------------------------------------
+        |--------------------------------------------------------------------------
+        | Verify Inventory Update
+        |--------------------------------------------------------------------------
         */
 
-        $stmt = $pdo->prepare("
+        if ($stmtUpdatePond->rowCount() !== 1) {
 
-            SELECT pond_stocking_id
-
-            FROM harvest_ponds
-
-            WHERE id = ?
-
-            LIMIT 1
-
-        ");
-
-        $stmt->execute([
-
-            $item['harvest_pond_id']
-
-        ]);
-
-        $pondStock = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($pondStock) {
-
-            $stmtPond->execute([
-
-                $item['quantity_fish'],
-
-                $pondStock['pond_stocking_id']
-
-            ]);
+            throw new Exception(
+                'Unable to update pond inventory.'
+            );
 
         }
 
     }
 
     /*
-    ============================================================
-    Continue in Part 4
-    ============================================================
+    |--------------------------------------------------------------------------
+    | Inventory Notes
+    |--------------------------------------------------------------------------
+    |
+    | We DO NOT update harvest_ponds.
+    |
+    | Available harvest inventory is calculated dynamically:
+    |
+    | harvested_count
+    |      -
+    | quantity_fish sold
+    |
+    | This prevents duplicate inventory records and keeps
+    | harvest_ponds as a relationship table only.
+    |
     */
+
+    /*
+     * ===== Part 5 continues here =====
+     */
         /*
     |--------------------------------------------------------------------------
     | Save Payment
     |--------------------------------------------------------------------------
     */
 
-    $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
-    $referenceNo   = trim($_POST['reference_no'] ?? '');
-
     if ($amountPaid > 0) {
 
         $paymentNo = 'PAY-' . date('YmdHis');
 
-        $paymentUuid = sprintf(
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0,0xffff), mt_rand(0,0xffff),
-            mt_rand(0,0xffff),
-            mt_rand(0,0x0fff) | 0x4000,
-            mt_rand(0,0x3fff) | 0x8000,
-            mt_rand(0,0xffff), mt_rand(0,0xffff), mt_rand(0,0xffff)
-        );
-
-        $stmt = $pdo->prepare("
+        $stmtPayment = $pdo->prepare("
 
             INSERT INTO sale_payments (
 
@@ -732,19 +726,23 @@ try {
 
             )
 
-            VALUES (?,?,?,?,?,?,?,?,?)
+            VALUES (
+
+                ?,?,?,?,?,?,?,?,?
+
+            )
 
         ");
 
-        $stmt->execute([
+        $stmtPayment->execute([
 
-            $paymentUuid,
+            generateUuid(),
 
             $saleId,
 
             $paymentNo,
 
-            $sale_date,
+            $saleDate,
 
             $paymentMethod,
 
@@ -754,7 +752,7 @@ try {
 
             'completed',
 
-            $staff_id
+            $staffId
 
         ]);
 
@@ -766,18 +764,9 @@ try {
     |--------------------------------------------------------------------------
     */
 
-    $receiptUuid = sprintf(
-        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-        mt_rand(0,0xffff), mt_rand(0,0xffff),
-        mt_rand(0,0xffff),
-        mt_rand(0,0x0fff) | 0x4000,
-        mt_rand(0,0x3fff) | 0x8000,
-        mt_rand(0,0xffff), mt_rand(0,0xffff), mt_rand(0,0xffff)
-    );
-
     $receiptNo = 'RCT-' . date('YmdHis');
 
-    $stmt = $pdo->prepare("
+    $stmtReceipt = $pdo->prepare("
 
         INSERT INTO sale_receipts (
 
@@ -795,19 +784,23 @@ try {
 
         )
 
-        VALUES (?,?,?,?,?,?)
+        VALUES (
+
+            ?,?,?,?,?,?
+
+        )
 
     ");
 
-    $stmt->execute([
+    $stmtReceipt->execute([
 
-        $receiptUuid,
+        generateUuid(),
 
         $saleId,
 
         $receiptNo,
 
-        $sale_date,
+        $saleDate,
 
         'pending',
 
@@ -821,16 +814,7 @@ try {
     |--------------------------------------------------------------------------
     */
 
-    $logUuid = sprintf(
-        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-        mt_rand(0,0xffff), mt_rand(0,0xffff),
-        mt_rand(0,0xffff),
-        mt_rand(0,0x0fff) | 0x4000,
-        mt_rand(0,0x3fff) | 0x8000,
-        mt_rand(0,0xffff), mt_rand(0,0xffff), mt_rand(0,0xffff)
-    );
-
-    $stmt = $pdo->prepare("
+    $stmtAudit = $pdo->prepare("
 
         INSERT INTO sale_logs (
 
@@ -852,13 +836,17 @@ try {
 
         )
 
-        VALUES (?,?,?,?,?,?,?,?)
+        VALUES (
+
+            ?,?,?,?,?,?,?,?
+
+        )
 
     ");
 
-    $stmt->execute([
+    $stmtAudit->execute([
 
-        $logUuid,
+        generateUuid(),
 
         $saleId,
 
@@ -866,49 +854,38 @@ try {
 
         'Sale created successfully.',
 
-        json_encode($_POST),
+        json_encode($_POST, JSON_UNESCAPED_UNICODE),
 
         $_SERVER['REMOTE_ADDR'] ?? null,
 
         substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
 
-        $staff_id
+        $staffId
 
     ]);
 
     /*
-    ============================================================
-    Continue in Part 5
-    ============================================================
-    */
-        /*
     |--------------------------------------------------------------------------
-    | Queue Offline Synchronization
-    |--------------------------------------------------------------------------
-    |
-    | Every completed sale is queued for synchronization.
-    | The background sync worker will process pending records.
+    | Offline Synchronization Queue
     |--------------------------------------------------------------------------
     */
 
     $deviceUuid = $_SESSION['device_uuid'] ?? 'WEB-SERVER';
 
-    $queueUuid = generateUuid();
-
     $payload = [
 
-        'sale_id'      => $saleId,
-        'sale_uuid'    => $saleUuid,
-        'sale_no'      => $sale_no,
-        'farm_id'      => $farm_id,
-        'harvest_id'   => $harvest_id,
-        'sale_date'    => $sale_date,
-        'staff_id'     => $staff_id,
-        'created_at'   => date('Y-m-d H:i:s')
+        'sale_id'    => $saleId,
+        'sale_uuid'  => $saleUuid,
+        'sale_no'    => $saleNo,
+        'farm_id'    => $farmId,
+        'harvest_id' => $harvestId,
+        'sale_date'  => $saleDate,
+        'staff_id'   => $staffId,
+        'created_at' => date('Y-m-d H:i:s')
 
     ];
 
-    $stmt = $pdo->prepare("
+    $stmtSync = $pdo->prepare("
 
         INSERT INTO sales_sync_queue (
 
@@ -934,9 +911,9 @@ try {
 
     ");
 
-    $stmt->execute([
+    $stmtSync->execute([
 
-        $queueUuid,
+        generateUuid(),
 
         $saleUuid,
 
@@ -951,6 +928,9 @@ try {
     ]);
 
     /*
+     * ===== Part 6 continues here =====
+     */
+        /*
     |--------------------------------------------------------------------------
     | Commit Transaction
     |--------------------------------------------------------------------------
@@ -960,19 +940,22 @@ try {
 
     /*
     |--------------------------------------------------------------------------
-    | Success
+    | Success Message
     |--------------------------------------------------------------------------
     */
 
-    $_SESSION['success'] =
-
-        'Sale saved successfully.';
-
-    header(
-
-        'Location: view.php?id=' . $saleId
-
+    $_SESSION['success'] = sprintf(
+        'Sale %s was saved successfully.',
+        $saleNo
     );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Redirect
+    |--------------------------------------------------------------------------
+    */
+
+    header('Location: view.php?id=' . $saleId);
 
     exit;
 
@@ -985,30 +968,37 @@ try {
 catch (Throwable $e) {
 
     if ($pdo->inTransaction()) {
-
         $pdo->rollBack();
-
     }
 
-    error_log(
+    /*
+    |--------------------------------------------------------------------------
+    | Log Error
+    |--------------------------------------------------------------------------
+    */
 
-        '[SALES SAVE ERROR] ' .
+    error_log(sprintf(
+        '[SALES SAVE ERROR] %s | File: %s | Line: %d',
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine()
+    ));
 
-        $e->getMessage()
+    /*
+    |--------------------------------------------------------------------------
+    | User Message
+    |--------------------------------------------------------------------------
+    */
 
-    );
+    $_SESSION['error'] = $e->getMessage();
 
-    $_SESSION['error'] =
+    /*
+    |--------------------------------------------------------------------------
+    | Redirect Back
+    |--------------------------------------------------------------------------
+    */
 
-        'Unable to save sale. ' .
-
-        $e->getMessage();
-
-    header(
-
-        'Location: create.php'
-
-    );
+    header('Location: create.php');
 
     exit;
 

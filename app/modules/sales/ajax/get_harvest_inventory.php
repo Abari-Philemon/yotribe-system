@@ -10,163 +10,207 @@ declare(strict_types=1);
  * ============================================================
  */
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=UTF-8');
 
 require_once __DIR__ . '/../../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../../config/database.php';
 
-$farm_id = farm_id();
+try {
 
-$harvest_id = filter_input(
-    INPUT_GET,
-    'harvest_id',
-    FILTER_VALIDATE_INT
-);
+    $farmId = farm_id();
 
-if (!$harvest_id) {
+    $harvestId = filter_input(
+        INPUT_GET,
+        'harvest_id',
+        FILTER_VALIDATE_INT
+    );
 
-    echo json_encode([
-        'success' => false,
-        'message' => 'Invalid harvest selected.'
+    if (!$harvestId) {
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Invalid harvest selected.'
+        ]);
+
+        exit;
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Harvest Inventory
+    |--------------------------------------------------------------------------
+    |
+    | Inventory comes from:
+    |
+    | harvests
+    |      ↓
+    | harvest_ponds
+    |      ↓
+    | pond_stocking
+    |      ↓
+    | sale_items
+    |
+    */
+
+    $sql = "
+
+    SELECT
+
+        hp.id AS harvest_pond_id,
+
+        ps.id AS pond_stocking_id,
+
+        ps.pond_id,
+
+        pt.pond_code,
+
+        ps.harvested_count,
+
+        ps.avg_weight_g,
+
+        COALESCE(
+
+            (
+
+                SELECT SUM(si.quantity_fish)
+
+                FROM sale_items si
+
+                INNER JOIN sales s
+                    ON s.id = si.sale_id
+
+                WHERE
+
+                    si.harvest_pond_id = hp.id
+
+                AND s.status <> 'cancelled'
+
+            ),
+
+            0
+
+        ) AS sold_fish
+
+    FROM harvest_ponds hp
+
+    INNER JOIN harvests h
+        ON h.id = hp.harvest_id
+
+    INNER JOIN pond_stocking ps
+        ON ps.id = hp.pond_stocking_id
+
+    INNER JOIN ponds_tanks pt
+        ON pt.id = ps.pond_id
+
+    WHERE
+
+        hp.harvest_id = ?
+
+    AND h.farm_id = ?
+
+    ORDER BY
+
+        pt.pond_code ASC
+
+    ";
+
+    $stmt = $pdo->prepare($sql);
+
+    $stmt->execute([
+        $harvestId,
+        $farmId
     ]);
 
-    exit;
-}
+    $inventory = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
-/*
-|--------------------------------------------------------------------------
-| Harvest Inventory
-|--------------------------------------------------------------------------
-|
-| Available fish =
-| Harvested Fish - Sold Fish
-|
-*/
+        $harvestedFish = (int) $row['harvested_count'];
+        $soldFish      = (int) $row['sold_fish'];
 
-$stmt = $pdo->prepare("
+        $availableFish = max(0, $harvestedFish - $soldFish);
 
-SELECT
+        /*
+        |--------------------------------------------------------------------------
+        | Average Weight
+        |--------------------------------------------------------------------------
+        |
+        | Stored in grams.
+        | Convert to kilograms.
+        |
+        */
 
-    hp.id                    AS harvest_pond_id,
+        $averageWeightKg = ((float) $row['avg_weight_g']) / 1000;
 
-    hp.pond_stocking_id,
+        /*
+        |--------------------------------------------------------------------------
+        | Weight Calculations
+        |--------------------------------------------------------------------------
+        */
 
-    hp.pond_id,
+        $harvestWeight = $harvestedFish * $averageWeightKg;
 
-    pt.pond_code,
+        $availableWeight = $availableFish * $averageWeightKg;
 
-    hp.harvested_count       AS harvested_fish,
+        $inventory[] = [
 
-    hp.harvest_weight_kg     AS harvest_weight,
+            'harvest_pond_id'  => (int) $row['harvest_pond_id'],
 
-    COALESCE(
+            'pond_stocking_id' => (int) $row['pond_stocking_id'],
 
-        (
-            SELECT SUM(si.fish_count)
+            'pond_id'          => (int) $row['pond_id'],
 
-            FROM sale_items si
+            'pond_code'        => $row['pond_code'],
 
-            INNER JOIN sales s
-                ON s.id = si.sale_id
+            'harvested_fish'   => $harvestedFish,
 
-            WHERE
+            'sold_fish'        => $soldFish,
 
-                si.harvest_pond_id = hp.id
+            'available_fish'   => $availableFish,
 
-            AND s.status <> 'cancelled'
+            'average_weight'   => round($averageWeightKg, 3),
 
-        ),
+            'harvest_weight'   => round($harvestWeight, 2),
 
-        0
+            'available_weight' => round($availableWeight, 2),
 
-    ) AS sold_fish
+            'status' => $availableFish > 0
+                ? 'Available'
+                : 'Sold Out'
 
-FROM harvest_ponds hp
-
-INNER JOIN harvests h
-
-    ON h.id = hp.harvest_id
-
-INNER JOIN ponds_tanks pt
-
-    ON pt.id = hp.pond_id
-
-WHERE
-
-    hp.harvest_id = ?
-
-AND h.farm_id = ?
-
-ORDER BY
-
-    pt.pond_code ASC
-
-");
-
-$stmt->execute([
-
-    $harvest_id,
-
-    $farm_id
-
-]);
-
-$rows = [];
-
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-
-    $availableFish = (int)$row['harvested_fish'] - (int)$row['sold_fish'];
-
-    if ($availableFish < 0) {
-        $availableFish = 0;
-    }
-
-    $harvestWeight = (float)$row['harvest_weight'];
-
-    $availableWeight = $harvestWeight;
-
-    if ((int)$row['harvested_fish'] > 0) {
-
-        $availableWeight =
-            ($availableFish / (int)$row['harvested_fish']) * $harvestWeight;
+        ];
 
     }
 
-    $rows[] = [
+    echo json_encode([
 
-        'harvest_pond_id'  => (int)$row['harvest_pond_id'],
+        'success' => true,
 
-        'pond_stocking_id' => (int)$row['pond_stocking_id'],
+        'count'   => count($inventory),
 
-        'pond_id'          => (int)$row['pond_id'],
+        'data'    => $inventory
 
-        'pond_code'        => $row['pond_code'],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        'harvested_fish'   => (int)$row['harvested_fish'],
+} catch (Throwable $e) {
 
-        'sold_fish'        => (int)$row['sold_fish'],
+    http_response_code(500);
 
-        'available_fish'   => $availableFish,
+    error_log(
+        'Harvest Inventory Error: ' . $e->getMessage()
+    );
 
-        'harvest_weight'   => round($harvestWeight, 2),
+    echo json_encode([
 
-        'available_weight' => round($availableWeight, 2),
+        'success' => false,
 
-        'status' => $availableFish > 0
-            ? 'Available'
-            : 'Sold Out'
+        'message' => 'Unable to load harvest inventory.',
 
-    ];
+        // Remove this line in production if you don't want
+        // exception details returned to the browser.
+        'error' => $e->getMessage()
+
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 }
-
-echo json_encode([
-
-    'success' => true,
-
-    'count' => count($rows),
-
-    'data' => $rows
-
-]);

@@ -383,89 +383,8 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                 </div>
 
 
-        <!-- ==========================================================
-        PAYMENT INFORMATION
-        =========================================================== -->
 
-        <div class="card shadow-sm mb-4">
-
-            <div class="card-header bg-warning">
-
-                <h5 class="mb-0">
-
-                Payment Information
-
-                </h5>
-
-            </div>
-
-            <div class="card-body">
-
-                <div class="row">
-
-                    <div class="col-md-4">
-
-                        <label>
-
-                        Payment Method
-
-                        </label>
-
-                        <select
-                            name="payment_method"
-                            class="form-select">
-
-                            <?php foreach($paymentMethods as $key=>$value): ?>
-
-                            <option value="<?= $key ?>">
-
-                            <?= htmlspecialchars($value) ?>
-
-                            </option>
-
-                            <?php endforeach; ?>
-
-                        </select>
-
-                    </div>
-
-                    <div class="col-md-4">
-
-                        <label>
-
-                        Amount Paid
-
-                        </label>
-
-                        <input
-                        type="number"
-                        step="0.01"
-                        name="amount_paid"
-                        id="amount_paid"
-                        class="form-control">
-
-                    </div>
-
-                    <div class="col-md-4">
-
-                    <label>
-
-                    Reference No.
-
-                    </label>
-
-                    <input
-                    type="text"
-                    name="reference_no"
-                    class="form-control">
-
-                </div>
-
-            </div>
-
-        </div>
-
-        </div>
+      
 
         <!-- ==========================================================
         HARVEST INVENTORY
@@ -702,6 +621,90 @@ require_once __DIR__ . '/../../includes/sidebar.php';
             </div>
 
         </div>
+
+        <!-- ==========================================================
+        PAYMENT INFORMATION
+        =========================================================== -->
+
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header bg-warning">
+
+                <h5 class="mb-0">
+
+                Payment Information
+
+                </h5>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="row">
+
+                    <div class="col-md-4">
+
+                        <label>
+
+                        Payment Method
+
+                        </label>
+
+                        <select
+                            name="payment_method"
+                            class="form-select" id="payment_method">
+
+                            <?php foreach($paymentMethods as $key=>$value): ?>
+
+                            <option value="<?= $key ?>">
+
+                            <?= htmlspecialchars($value) ?>
+
+                            </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label>
+
+                        Amount Paid
+
+                        </label>
+
+                        <input
+                        type="number"
+                        step="0.01"
+                        name="amount_paid"
+                        id="amount_paid"
+                        class="form-control">
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label>
+
+                        Reference No.
+
+                        </label>
+
+                        <input
+                        type="text"
+                        name="reference_no"
+                        class="form-control" id="reference_no">
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
 
         <!-- ==========================================================
         GENERAL REMARKS
