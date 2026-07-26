@@ -310,13 +310,13 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
             </div>
 
-            <!-- ==========================================================
-            CUSTOMER INFORMATION
-            =========================================================== -->
+        <!-- ==========================================================
+        CUSTOMER INFORMATION
+        =========================================================== -->
 
-            <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4">
 
-                <div class="card-header bg-primary text-white">w
+                <div class="card-header bg-primary text-white">
 
                     <h5 class="mb-0">
 
@@ -382,181 +382,88 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                 </div>
 
-                <!-- ==========================================================
-                SALE ITEMS
-                =========================================================== -->
 
-                <div class="card shadow-sm mb-4">
+        <!-- ==========================================================
+        PAYMENT INFORMATION
+        =========================================================== -->
 
-                    <div class="card-header bg-info text-white d-flex justify-content-between">
+        <div class="card shadow-sm mb-4">
 
-                        <h5 class="mb-0">
+            <div class="card-header bg-warning">
 
-                            Sale Items
+                <h5 class="mb-0">
 
-                        </h5>
+                Payment Information
 
-                        <button
-                            type="button"
-                            class="btn btn-light btn-sm"
-                            id="addItem">
+                </h5>
 
-                            <i class="bi bi-plus-circle"></i>
+            </div>
 
-                            Add Item
+            <div class="card-body">
 
-                        </button>
+                <div class="row">
+
+                    <div class="col-md-4">
+
+                        <label>
+
+                        Payment Method
+
+                        </label>
+
+                        <select
+                            name="payment_method"
+                            class="form-select">
+
+                            <?php foreach($paymentMethods as $key=>$value): ?>
+
+                            <option value="<?= $key ?>">
+
+                            <?= htmlspecialchars($value) ?>
+
+                            </option>
+
+                            <?php endforeach; ?>
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label>
+
+                        Amount Paid
+
+                        </label>
+
+                        <input
+                        type="number"
+                        step="0.01"
+                        name="amount_paid"
+                        id="amount_paid"
+                        class="form-control">
 
                     </div>
 
-                    <div class="card-body p-0">
+                    <div class="col-md-4">
 
-                        <div class="table-responsive">
+                    <label>
 
+                    Reference No.
 
-                            <table class="table table-bordered mb-0">
+                    </label>
 
-                            <thead>
-
-                            <tr>
-
-                                <th width="25%">
-
-                                    Harvest Pond
-
-                                </th>
-
-                                <th width="10%">
-
-                                    Fish
-
-                                </th>
-
-                                <th width="15%">
-
-                                    Weight (Kg)
-
-                                </th>
-
-                                <th width="15%">
-
-                                    Unit Price
-
-                                </th>
-
-                                <th width="15%">
-
-                                    Total
-
-                                </th>
-
-                                <th width="20%">
-
-                                    Remarks
-
-                                </th>
-
-                                    <th width="5%"></th>
-
-                            </tr>
-
-                            </thead>
-
-                                <tbody id="saleItems">
-
-                                <!-- AJAX -->
-
-                                </tbody>
-
-                            </table>
-
-                        </div>
-
-                    </div>
+                    <input
+                    type="text"
+                    name="reference_no"
+                    class="form-control">
 
                 </div>
 
-                <!-- ==========================================================
-                PAYMENT INFORMATION
-                =========================================================== -->
+            </div>
 
-                <div class="card shadow-sm mb-4">
-
-                    <div class="card-header bg-warning">
-
-                        <h5 class="mb-0">
-
-                        Payment Information
-
-                        </h5>
-
-                    </div>
-
-                    <div class="card-body">
-
-                        <div class="row">
-
-                            <div class="col-md-4">
-
-                                <label>
-
-                                Payment Method
-
-                                </label>
-
-                                <select
-                                    name="payment_method"
-                                    class="form-select">
-
-                                    <?php foreach($paymentMethods as $key=>$value): ?>
-
-                                    <option value="<?= $key ?>">
-
-                                    <?= htmlspecialchars($value) ?>
-
-                                    </option>
-
-                                    <?php endforeach; ?>
-
-                                </select>
-
-                            </div>
-
-                            <div class="col-md-4">
-
-                                <label>
-
-                                Amount Paid
-
-                                </label>
-
-                                <input
-                                type="number"
-                                step="0.01"
-                                name="amount_paid"
-                                id="amount_paid"
-                                class="form-control">
-
-                            </div>
-
-                            <div class="col-md-4">
-
-                            <label>
-
-                            Reference No.
-
-                            </label>
-
-                            <input
-                            type="text"
-                            name="reference_no"
-                            class="form-control">
-
-                        </div>
-
-                    </div>
-
-                </div>
+        </div>
 
         </div>
 
