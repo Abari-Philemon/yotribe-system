@@ -25,7 +25,6 @@ Chart.js
 Global JavaScript
 ========================================================== -->
 <script>
-
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
 
@@ -35,7 +34,6 @@ function toggleSidebar() {
 }
 
 const CSRF_TOKEN = "<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>";
-
 </script>
 
 <!-- ==========================================================
@@ -44,6 +42,10 @@ Module JavaScript
 
 <?php if ($module === 'harvest'): ?>
 <script src="/yotribe-system/app/modules/harvest/assets/harvest.js"></script>
+<?php endif; ?>
+
+<?php if ($module === 'sales'): ?>
+<script src="/yotribe-system/app/modules/sales/assets/sales.js"></script>
 <?php endif; ?>
 
 <?php if ($module === 'dashboard'): ?>
