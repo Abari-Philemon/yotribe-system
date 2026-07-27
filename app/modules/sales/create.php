@@ -696,7 +696,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
                         <input
                         type="text"
                         name="reference_no"
-                        class="form-control" id="reference_no">
+                        class="form-control" id="reference_no" >
                     </div>
 
                 </div>
