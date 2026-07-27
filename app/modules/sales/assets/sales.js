@@ -46,32 +46,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     harvestSelect?.addEventListener('change', function () {
 
+        console.log("Harvest changed:", this.value);
+
         const harvestId = this.value;
 
         saleItemsBody.innerHTML = '';
-
         inventory = [];
-
         calculateTotals();
 
         if (!harvestId) {
-
-            inventoryBody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center text-muted">
-                        Select a harvest to load inventory.
-                    </td>
-                </tr>
-            `;
-
-            addItemBtn.disabled = true;
-
             return;
-
         }
 
         loadHarvestInventory(harvestId);
-
     });
 
     /*
