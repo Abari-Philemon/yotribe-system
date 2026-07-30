@@ -8,11 +8,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    console.log("EVENT FIRED");
-    console.log("this =", this);
-    console.log("value =", this.value);
 
-    loadHarvestInventory(this.value);
 
     /*
     |--------------------------------------------------------------------------
@@ -52,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     harvestSelect?.addEventListener('change', function () {
 
-        console.log("Harvest changed:", this.value);
-
         const harvestId = this.value;
 
         saleItemsBody.innerHTML = '';
@@ -75,21 +69,97 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadHarvestInventory(harvestId) {
 
-        console.log("loadHarvestInventory called:", harvestId);
-
         const url = `/yotribe-system/app/modules/sales/ajax/get_harvest_inventory.php?harvest_id=${harvestId}`;
-
-        console.log("URL:", url);
 
         try {
 
             const response = await fetch(url);
 
-            console.log("HTTP Status:", response.status);
+        } catch (e) {
 
-            const text = await response.text();
+            console.error(e);
 
-            console.log("Response Body:", text);
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Render Harvest Inventory
+    |--------------------------------------------------------------------------
+    */
+
+    function renderInventory() {
+
+        if (inventory.length === 0) {
+
+            inventoryBody.innerHTML = `
+                <tr>
+                    <td colspan="6"
+                        class="text-center">
+
+                        No inventory available.
+
+                    </td>
+                </tr>
+            `;
+
+            return;
+
+        }
+
+        inventoryBody.innerHTML = inventory.map(item => `
+
+            <tr>
+
+                <td>${item.pond_code}</td>
+
+                <td class="text-end">
+
+                    ${Number(item.harvested_fish).toLocaleString()}
+
+                </td>
+
+                <td class="text-end">
+
+                    ${Number(item.available_fish).toLocaleString()}
+
+                </td>
+
+                <td class="text-end">
+
+                    ${Number(item.harvest_weight).toFixed(2)}
+
+                </td>
+
+                <td class="text-end">
+
+                    ${Number(item.available_weight).toFixed(2)}
+
+                </td>
+
+                <td>
+
+                    ${item.status}
+
+                </td>
+
+            </tr>
+
+        `).join('');
+
+    }
+
+    async function getInventory() {
+
+        try {
+
+            const response = await fetch('sales/getInventory');
+
+            const data = await response.json();
+
+            inventory = data;
+
+            renderInventory();
 
         } catch (e) {
 
