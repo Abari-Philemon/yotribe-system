@@ -81,8 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
 
-            const response = await fetch(
-                `ajax/get_harvest_inventory.php?harvest_id=${harvestId}`
+            const response = await fetch(`/yotribe-system/app/modules/sales/ajax/get_harvest_inventory.php?harvest_id=${harvestId}`
             );
 
             if (!response.ok) {
