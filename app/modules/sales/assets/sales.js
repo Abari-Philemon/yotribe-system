@@ -69,102 +69,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadHarvestInventory(harvestId) {
 
-        const url = `/yotribe-system/app/modules/sales/ajax/get_harvest_inventory.php?harvest_id=${harvestId}`;
+        const url =
+            `/yotribe-system/app/modules/sales/ajax/get_harvest_inventory.php?harvest_id=${harvestId}`;
 
         try {
 
             const response = await fetch(url);
 
-        } catch (e) {
+            const result = await response.json();
 
-            console.error(e);
+            if (!result.success) {
 
-        }
-    }
+                inventory = [];
+                renderInventory();
+                addItemBtn.disabled = true;
 
-    /*
-    |--------------------------------------------------------------------------
-    | Render Harvest Inventory
-    |--------------------------------------------------------------------------
-    */
+                alert(result.message);
 
-    function renderInventory() {
+                return;
+            }
 
-        if (inventory.length === 0) {
-
-            inventoryBody.innerHTML = `
-                <tr>
-                    <td colspan="6"
-                        class="text-center">
-
-                        No inventory available.
-
-                    </td>
-                </tr>
-            `;
-
-            return;
-
-        }
-
-        inventoryBody.innerHTML = inventory.map(item => `
-
-            <tr>
-
-                <td>${item.pond_code}</td>
-
-                <td class="text-end">
-
-                    ${Number(item.harvested_fish).toLocaleString()}
-
-                </td>
-
-                <td class="text-end">
-
-                    ${Number(item.available_fish).toLocaleString()}
-
-                </td>
-
-                <td class="text-end">
-
-                    ${Number(item.harvest_weight).toFixed(2)}
-
-                </td>
-
-                <td class="text-end">
-
-                    ${Number(item.available_weight).toFixed(2)}
-
-                </td>
-
-                <td>
-
-                    ${item.status}
-
-                </td>
-
-            </tr>
-
-        `).join('');
-
-    }
-
-    async function getInventory() {
-
-        try {
-
-            const response = await fetch('sales/getInventory');
-
-            const data = await response.json();
-
-            inventory = data;
+            inventory = result.data;
 
             renderInventory();
 
+            addItemBtn.disabled = inventory.length === 0;
+
         } catch (e) {
 
             console.error(e);
 
+            inventory = [];
+
+            renderInventory();
+
+            addItemBtn.disabled = true;
         }
     }
 

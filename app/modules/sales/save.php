@@ -572,10 +572,10 @@ try {
 
                     inventory_status = CASE
 
-                        WHEN (available_count - :fish) <= 0
+                        WHEN GREATEST(0, available_count - :fish) = 0
                             THEN 'sold_out'
 
-                        WHEN (available_count - :fish) < harvested_count
+                        WHEN GREATEST(0, available_count - :fish) < harvested_count
                             THEN 'partial'
 
                         ELSE 'available'
