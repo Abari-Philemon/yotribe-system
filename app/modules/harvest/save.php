@@ -341,42 +341,47 @@ try {
         INSERT INTO harvest_ponds (
 
             harvest_id,
-
             pond_stocking_id,
-
             pond_id,
-
             batch_id,
 
+            harvested_count,
+            average_weight_g,
+            harvested_weight_kg,
+
+            available_count,
+            available_weight_kg,
+            inventory_status,
+
             harvest_start,
-
             harvest_end,
-
             remarks
 
         ) VALUES (
 
             :harvest_id,
-
             :pond_stocking_id,
-
             :pond_id,
-
             :batch_id,
 
+            :harvested_count,
+            :average_weight_g,
+            :harvested_weight_kg,
+
+            :available_count,
+            :available_weight_kg,
+            :inventory_status,
+
             :harvest_start,
-
             :harvest_end,
-
             :remarks
-
         )
     ");
 
     $updatePondStocking = $pdo->prepare("
         UPDATE pond_stocking
         SET
-
+            current_count = 0,
             status = 'harvested'
 
         WHERE
@@ -450,23 +455,17 @@ try {
 
         $verify = $pdo->prepare("
             SELECT
-
                 id,
                 pond_id,
                 batch_id,
                 farm_id,
                 status,
-                current_count
-
+                current_count,
+                avg_weight_g
             FROM pond_stocking
-
-            WHERE
-
-                id = ?
-
+            WHERE id = ?
             AND farm_id = ?
-
-            LIMIT 1
+            LIMIT 1;
         ");
 
         $verify->execute([
@@ -484,6 +483,7 @@ try {
 
         }
 
+
         if ($stocking['status'] !== 'active') {
 
             throw new Exception(
@@ -500,6 +500,21 @@ try {
 
         }
 
+                $currentCount = (int)$stocking['current_count'];
+
+        $averageWeight = (float)$stocking['avg_weight_g'];
+
+        $harvestWeightKg = round(
+            ($currentCount * $averageWeight) / 1000,
+            2
+        );
+
+        $availableCount = $currentCount;
+
+        $availableWeightKg = $harvestWeightKg;
+
+        $inventoryStatus = 'available';
+
         /*
         ------------------------------------------------------------
         Insert Harvest Pond
@@ -515,6 +530,14 @@ try {
             ':pond_id'          => $pondId,
 
             ':batch_id'         => $batchId,
+
+            ':harvested_count'      => $currentCount,
+
+            ':average_weight_g'     => $averageWeight,
+            ':harvested_weight_kg'  => $harvestWeightKg,
+            ':available_count'      => $availableCount,
+            ':available_weight_kg'  => $availableWeightKg,
+            ':inventory_status'     => $inventoryStatus,
 
             ':harvest_start'    => $harvest_date . ' ' . $startTime . ':00',
 

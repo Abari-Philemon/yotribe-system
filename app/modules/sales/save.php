@@ -231,735 +231,743 @@ try {
 
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Load Harvest Inventory
-        |--------------------------------------------------------------------------
-        */
+                /*
+                |--------------------------------------------------------------------------
+                | Load Harvest Inventory
+                |--------------------------------------------------------------------------
+                */
 
-        $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
 
-            SELECT
+                    SELECT
 
-                hp.id AS harvest_pond_id,
+                        hp.id AS harvest_pond_id,
 
-                hp.pond_stocking_id,
+                        hp.pond_stocking_id,
 
-                ps.harvested_count,
+                        hp.harvested_count,
 
-                ps.current_count,
+                        hp.available_count,
 
-                ps.avg_weight_g,
+                        hp.average_weight_g,
 
-                COALESCE(
+                        hp.harvested_weight_kg,
 
-                    (
+                        hp.available_weight_kg,
 
-                        SELECT SUM(si.quantity_fish)
+                        hp.inventory_status
 
-                        FROM sale_items si
+                    FROM harvest_ponds hp
 
-                        INNER JOIN sales s
-                            ON s.id = si.sale_id
+                    WHERE
 
-                        WHERE
+                        hp.id = ?
 
-                            si.harvest_pond_id = hp.id
+                    AND hp.harvest_id = ?
 
-                        AND s.status <> 'cancelled'
+                    LIMIT 1
+
+                ");
+
+                $stmt->execute([
+
+                    $harvestPondId,
+
+                    $harvestId
+
+                ]);
+
+                $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$inventory) {
+
+                    throw new Exception(
+                        'Harvest inventory not found.'
+                    );
+
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Calculate Available Fish
+                |--------------------------------------------------------------------------
+                */
+
+
+
+                $availableFish = (int)$inventory['available_count'];
+
+                
+
+                /*
+                |--------------------------------------------------------------------------
+                | Prevent Overselling
+                |--------------------------------------------------------------------------
+                */
+
+                if ($fish > $availableFish) {
+
+                    throw new Exception(
+
+                        "Sale quantity exceeds available inventory on row "
+
+                        . ($index + 1)
+
+                    );
+
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Calculate Totals
+                |--------------------------------------------------------------------------
+                */
+
+                $lineTotal = round(
+
+                    $weight * $price,
+
+                    2
+
+                );
+
+                $subtotal += $lineTotal;
+
+                $validatedItems[] = [
+
+                    'harvest_pond_id' => $harvestPondId,
+
+                    'quantity_fish' => $fish,
+
+                    'quantity_kg' => $weight,
+
+                    'average_weight_kg' => round(
+
+                        $weight / $fish,
+
+                        3
 
                     ),
 
-                    0
+                    'unit_price' => $price,
 
-                ) AS sold_fish
+                    'line_total' => $lineTotal
 
-            FROM harvest_ponds hp
+                ];
 
-            INNER JOIN pond_stocking ps
+            }
 
-                ON ps.id = hp.pond_stocking_id
+            /*
+            |--------------------------------------------------------------------------
+            | Calculate Sale Totals
+            |--------------------------------------------------------------------------
+            */
 
-            WHERE
+            $discount = max(0, $discount);
 
-                hp.id = ?
+            $subtotal = round($subtotal, 2);
 
-            AND hp.harvest_id = ?
+            $grandTotal = max(
 
-            LIMIT 1
+                0,
 
-        ");
-
-        $stmt->execute([
-
-            $harvestPondId,
-
-            $harvestId
-
-        ]);
-
-        $inventory = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$inventory) {
-
-            throw new Exception(
-                'Harvest inventory not found.'
-            );
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Calculate Available Fish
-        |--------------------------------------------------------------------------
-        */
-
-        $availableFish =
-
-            (int)$inventory['harvested_count']
-
-            -
-
-            (int)$inventory['sold_fish'];
-
-        if ($availableFish < 0) {
-
-            $availableFish = 0;
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Prevent Overselling
-        |--------------------------------------------------------------------------
-        */
-
-        if ($fish > $availableFish) {
-
-            throw new Exception(
-
-                "Sale quantity exceeds available inventory on row "
-
-                . ($index + 1)
+                round($subtotal - $discount, 2)
 
             );
 
-        }
+            $amountPaid = max(0, $amountPaid);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Calculate Totals
-        |--------------------------------------------------------------------------
-        */
+            $balance = round(
 
-        $lineTotal = round(
+                $grandTotal - $amountPaid,
 
-            $weight * $price,
+                2
 
-            2
-
-        );
-
-        $subtotal += $lineTotal;
-
-        $validatedItems[] = [
-
-            'harvest_pond_id' => $harvestPondId,
-
-            'pond_stocking_id' => (int)$inventory['pond_stocking_id'],
-
-            'quantity_fish' => $fish,
-
-            'quantity_kg' => $weight,
-
-            'average_weight_kg' => round(
-
-                $weight / $fish,
-
-                3
-
-            ),
-
-            'unit_price' => $price,
-
-            'line_total' => $lineTotal
-
-        ];
-
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Calculate Sale Totals
-    |--------------------------------------------------------------------------
-    */
-
-    $discount = max(0, $discount);
-
-    $subtotal = round($subtotal, 2);
-
-    $grandTotal = max(
-
-        0,
-
-        round($subtotal - $discount, 2)
-
-    );
-
-    $amountPaid = max(0, $amountPaid);
-
-    $balance = round(
-
-        $grandTotal - $amountPaid,
-
-        2
-
-    );
-
-    /*
-     * ===== Part 3 continues here =====
-     */
-        /*
-    |--------------------------------------------------------------------------
-    | Generate Sale UUID
-    |--------------------------------------------------------------------------
-    */
-
-    $saleUuid = generateUuid();
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sale Status
-    |--------------------------------------------------------------------------
-    */
-
-    $saleStatus = ($balance <= 0)
-        ? 'completed'
-        : 'partial';
-
-    /*
-    |--------------------------------------------------------------------------
-    | Insert Sale Header
-    |--------------------------------------------------------------------------
-    */
-
-    $stmtSale = $pdo->prepare("
-
-        INSERT INTO sales (
-
-            uuid,
-
-            farm_id,
-
-            harvest_id,
-
-            sale_no,
-
-            sale_date,
-
-            customer_name,
-
-            customer_phone,
-
-            customer_address,
-
-            sale_type,
-
-            status,
-
-            subtotal,
-
-            discount,
-
-            total_amount,
-
-            amount_paid,
-
-            balance,
-
-            remarks,
-
-            recorded_by
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-
-        )
-
-    ");
-
-    $stmtSale->execute([
-
-        $saleUuid,
-
-        $farmId,
-
-        $harvestId,
-
-        $saleNo,
-
-        $saleDate,
-
-        $customerName,
-
-        $customerPhone,
-
-        $customerAddress,
-
-        $saleType,
-
-        $saleStatus,
-
-        $subtotal,
-
-        $discount,
-
-        $grandTotal,
-
-        $amountPaid,
-
-        $balance,
-
-        $remarks,
-
-        $staffId
-
-    ]);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sale ID
-    |--------------------------------------------------------------------------
-    */
-
-    $saleId = (int)$pdo->lastInsertId();
-
-    if ($saleId <= 0) {
-
-        throw new Exception(
-            'Unable to create sale header.'
-        );
-
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Prepare Statements
-    |--------------------------------------------------------------------------
-    */
-
-    $stmtSaleItem = $pdo->prepare("
-
-        INSERT INTO sale_items (
-
-            uuid,
-
-            sale_id,
-
-            harvest_pond_id,
-
-            product_id,
-
-            quantity_fish,
-
-            quantity_kg,
-
-            average_weight_kg,
-
-            unit_price,
-
-            line_total,
-
-            remarks
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?,?,?,?,?
-
-        )
-
-    ");
-
-    $stmtUpdatePond = $pdo->prepare("
-
-        UPDATE pond_stocking
-
-        SET
-
-            current_count = current_count - ?
-
-        WHERE id = ?
-
-    ");
-
-    /*
-     * ===== Part 4 continues here =====
-     */
-        /*
-    |--------------------------------------------------------------------------
-    | Save Sale Items
-    |--------------------------------------------------------------------------
-    */
-
-    foreach ($validatedItems as $item) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | Save Sale Item
-        |--------------------------------------------------------------------------
-        */
-
-        $stmtSaleItem->execute([
-
-            generateUuid(),
-
-            $saleId,
-
-            $item['harvest_pond_id'],
-
-            'TABLE_FISH',
-
-            $item['quantity_fish'],
-
-            $item['quantity_kg'],
-
-            $item['average_weight_kg'],
-
-            $item['unit_price'],
-
-            $item['line_total'],
-
-            null
-
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Update Pond Stocking
-        |--------------------------------------------------------------------------
-        |
-        | Reduce the number of fish currently in the pond.
-        |
-        */
-
-        $stmtUpdatePond->execute([
-
-            $item['quantity_fish'],
-
-            $item['pond_stocking_id']
-
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Verify Inventory Update
-        |--------------------------------------------------------------------------
-        */
-
-        if ($stmtUpdatePond->rowCount() !== 1) {
-
-            throw new Exception(
-                'Unable to update pond inventory.'
             );
 
+            /*
+            * ===== Part 3 continues here =====
+            */
+                /*
+            |--------------------------------------------------------------------------
+            | Generate Sale UUID
+            |--------------------------------------------------------------------------
+            */
+
+            $saleUuid = generateUuid();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Sale Status
+            |--------------------------------------------------------------------------
+            */
+
+            $saleStatus = ($balance <= 0)
+                ? 'completed'
+                : 'partial';
+
+            /*
+            |--------------------------------------------------------------------------
+            | Insert Sale Header
+            |--------------------------------------------------------------------------
+            */
+
+            $stmtSale = $pdo->prepare("
+
+                INSERT INTO sales (
+
+                    uuid,
+
+                    farm_id,
+
+                    harvest_id,
+
+                    sale_no,
+
+                    sale_date,
+
+                    customer_name,
+
+                    customer_phone,
+
+                    customer_address,
+
+                    sale_type,
+
+                    status,
+
+                    subtotal,
+
+                    discount,
+
+                    total_amount,
+
+                    amount_paid,
+
+                    balance,
+
+                    remarks,
+
+                    recorded_by
+
+                )
+
+                VALUES (
+
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+
+                )
+
+            ");
+
+            $stmtSale->execute([
+
+                $saleUuid,
+
+                $farmId,
+
+                $harvestId,
+
+                $saleNo,
+
+                $saleDate,
+
+                $customerName,
+
+                $customerPhone,
+
+                $customerAddress,
+
+                $saleType,
+
+                $saleStatus,
+
+                $subtotal,
+
+                $discount,
+
+                $grandTotal,
+
+                $amountPaid,
+
+                $balance,
+
+                $remarks,
+
+                $staffId
+
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Sale ID
+            |--------------------------------------------------------------------------
+            */
+
+            $saleId = (int)$pdo->lastInsertId();
+
+            if ($saleId <= 0) {
+
+                throw new Exception(
+                    'Unable to create sale header.'
+                );
+
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Prepare Statements
+            |--------------------------------------------------------------------------
+            */
+
+            $stmtSaleItem = $pdo->prepare("
+
+                INSERT INTO sale_items (
+
+                    uuid,
+
+                    sale_id,
+
+                    harvest_pond_id,
+
+                    product_id,
+
+                    quantity_fish,
+
+                    quantity_kg,
+
+                    average_weight_kg,
+
+                    unit_price,
+
+                    line_total,
+
+                    remarks
+
+                )
+
+                VALUES (
+
+                    ?,?,?,?,?,?,?,?,?,?
+
+                )
+
+            ");
+
+            $stmtUpdateHarvestInventory = $pdo->prepare("
+
+                UPDATE harvest_ponds
+
+                SET
+
+                    available_count = GREATEST(
+                        0,
+                        available_count - :fish
+                    ),
+
+                    available_weight_kg = GREATEST(
+                        0,
+                        available_weight_kg - :weight
+                    ),
+
+                    inventory_status = CASE
+
+                        WHEN (available_count - :fish) <= 0
+                            THEN 'sold_out'
+
+                        WHEN (available_count - :fish) < harvested_count
+                            THEN 'partial'
+
+                        ELSE 'available'
+
+                    END
+
+                    WHERE
+
+                        id = :harvest_pond_id
+
+                    AND harvest_id = :harvest_id
+
+            ");
+
+            /*
+            * ===== Part 4 continues here =====
+            */
+                /*
+            |--------------------------------------------------------------------------
+            | Save Sale Items
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($validatedItems as $item) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Save Sale Item
+                |--------------------------------------------------------------------------
+                */
+
+                $stmtSaleItem->execute([
+
+                    generateUuid(),
+
+                    $saleId,
+
+                    $item['harvest_pond_id'],
+
+                    'TABLE_FISH',
+
+                    $item['quantity_fish'],
+
+                    $item['quantity_kg'],
+
+                    $item['average_weight_kg'],
+
+                    $item['unit_price'],
+
+                    $item['line_total'],
+
+                    null
+
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update Harvest Inventory
+                |--------------------------------------------------------------------------
+                |
+                | Reduce available harvested inventory after a successful sale.
+                |
+                */
+
+                $stmtUpdateHarvestInventory->execute([
+
+                    ':fish'            => $item['quantity_fish'],
+
+                    ':weight'          => $item['quantity_kg'],
+
+                    ':harvest_pond_id' => $item['harvest_pond_id'],
+
+                    ':harvest_id'      => $harvestId
+
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update Harvest Inventory
+                |--------------------------------------------------------------------------
+                |
+                | Harvest Inventory V2.0
+                |
+                | Every successful sale updates:
+                |
+                | - available_count
+                | - available_weight_kg
+                | - inventory_status
+                |
+                | harvested_count and harvested_weight_kg remain unchanged
+                | as historical values.
+                |
+                */
+
+                if ($stmtUpdateHarvestInventory->rowCount() !== 1) {
+
+                    throw new Exception(
+                        'Unable to update pond inventory.'
+                    );
+
+                }
+
+            }
+            /*
+            |--------------------------------------------------------------------------
+            | Harvest Inventory
+            |--------------------------------------------------------------------------
+            |
+            | Harvest Inventory V2.0
+            |
+            | Each successful sale updates:
+            |
+            | - available_count
+            | - available_weight_kg
+            | - inventory_status
+            |
+            | harvested_count and harvested_weight_kg remain unchanged
+            | to preserve the original harvest record.
+            |
+            */
+
+            /*
+            * ===== Part 5 continues here =====
+            */
+                /*
+            |--------------------------------------------------------------------------
+            | Save Payment
+            |--------------------------------------------------------------------------
+            */
+
+            if ($amountPaid > 0) {
+
+                $paymentNo = 'PAY-' . date('YmdHis');
+
+                $stmtPayment = $pdo->prepare("
+
+                    INSERT INTO sale_payments (
+
+                        uuid,
+
+                        sale_id,
+
+                        payment_no,
+
+                        payment_date,
+
+                        payment_method,
+
+                        amount,
+
+                        reference_no,
+
+                        payment_status,
+
+                        received_by
+
+                    )
+
+                    VALUES (
+
+                        ?,?,?,?,?,?,?,?,?
+
+                    )
+
+                ");
+
+                $stmtPayment->execute([
+
+                    generateUuid(),
+
+                    $saleId,
+
+                    $paymentNo,
+
+                    $saleDate,
+
+                    $paymentMethod,
+
+                    $amountPaid,
+
+                    $referenceNo,
+
+                    'completed',
+
+                    $staffId
+
+                ]);
+
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Generate Receipt
+            |--------------------------------------------------------------------------
+            */
+
+            $receiptNo = 'RCT-' . date('YmdHis');
+
+            $stmtReceipt = $pdo->prepare("
+
+                INSERT INTO sale_receipts (
+
+                    uuid,
+
+                    sale_id,
+
+                    receipt_no,
+
+                    receipt_date,
+
+                    receipt_status,
+
+                    print_count
+
+                )
+
+                VALUES (
+
+                    ?,?,?,?,?,?
+
+                )
+
+            ");
+
+            $stmtReceipt->execute([
+
+                generateUuid(),
+
+                $saleId,
+
+                $receiptNo,
+
+                $saleDate,
+
+                'pending',
+
+                0
+
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Audit Log
+            |--------------------------------------------------------------------------
+            */
+
+            $stmtAudit = $pdo->prepare("
+
+                INSERT INTO sale_logs (
+
+                    uuid,
+
+                    sale_id,
+
+                    action,
+
+                    description,
+
+                    new_values,
+
+                    ip_address,
+
+                    user_agent,
+
+                    recorded_by
+
+                )
+
+                VALUES (
+
+                    ?,?,?,?,?,?,?,?
+
+                )
+
+            ");
+
+            $stmtAudit->execute([
+
+                generateUuid(),
+
+                $saleId,
+
+                'create',
+
+                'Sale created successfully.',
+
+                json_encode($_POST, JSON_UNESCAPED_UNICODE),
+
+                $_SERVER['REMOTE_ADDR'] ?? null,
+
+                substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
+
+                $staffId
+
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Offline Synchronization Queue
+            |--------------------------------------------------------------------------
+            */
+
+            $deviceUuid = $_SESSION['device_uuid'] ?? 'WEB-SERVER';
+
+            $payload = [
+
+                'sale_id'    => $saleId,
+                'sale_uuid'  => $saleUuid,
+                'sale_no'    => $saleNo,
+                'farm_id'    => $farmId,
+                'harvest_id' => $harvestId,
+                'sale_date'  => $saleDate,
+                'staff_id'   => $staffId,
+                'created_at' => date('Y-m-d H:i:s')
+
+            ];
+
+            $stmtSync = $pdo->prepare("
+
+                INSERT INTO sales_sync_queue (
+
+                    uuid,
+
+                    sale_uuid,
+
+                    device_uuid,
+
+                    operation,
+
+                    payload_json,
+
+                    status
+
+                )
+
+                VALUES (
+
+                    ?,?,?,?,?,?
+
+                )
+
+            ");
+
+            $stmtSync->execute([
+
+                generateUuid(),
+
+                $saleUuid,
+
+                $deviceUuid,
+
+                'insert',
+
+                json_encode($payload, JSON_UNESCAPED_UNICODE),
+
+                'pending'
+
+            ]);
+
+            /*
+            * ===== Part 6 continues here =====
+            */
+                /*
+            |--------------------------------------------------------------------------
+            | Commit Transaction
+            |--------------------------------------------------------------------------
+            */
+
+            $pdo->commit();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Success Message
+            |--------------------------------------------------------------------------
+            */
+
+            $_SESSION['success'] = sprintf(
+                'Sale %s was saved successfully.',
+                $saleNo
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Redirect
+            |--------------------------------------------------------------------------
+            */
+
+            header('Location: view.php?id=' . $saleId);
+
+            exit;
+
         }
-
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Inventory Notes
-    |--------------------------------------------------------------------------
-    |
-    | We DO NOT update harvest_ponds.
-    |
-    | Available harvest inventory is calculated dynamically:
-    |
-    | harvested_count
-    |      -
-    | quantity_fish sold
-    |
-    | This prevents duplicate inventory records and keeps
-    | harvest_ponds as a relationship table only.
-    |
-    */
-
-    /*
-     * ===== Part 5 continues here =====
-     */
-        /*
-    |--------------------------------------------------------------------------
-    | Save Payment
-    |--------------------------------------------------------------------------
-    */
-
-    if ($amountPaid > 0) {
-
-        $paymentNo = 'PAY-' . date('YmdHis');
-
-        $stmtPayment = $pdo->prepare("
-
-            INSERT INTO sale_payments (
-
-                uuid,
-
-                sale_id,
-
-                payment_no,
-
-                payment_date,
-
-                payment_method,
-
-                amount,
-
-                reference_no,
-
-                payment_status,
-
-                received_by
-
-            )
-
-            VALUES (
-
-                ?,?,?,?,?,?,?,?,?
-
-            )
-
-        ");
-
-        $stmtPayment->execute([
-
-            generateUuid(),
-
-            $saleId,
-
-            $paymentNo,
-
-            $saleDate,
-
-            $paymentMethod,
-
-            $amountPaid,
-
-            $referenceNo,
-
-            'completed',
-
-            $staffId
-
-        ]);
-
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Generate Receipt
-    |--------------------------------------------------------------------------
-    */
-
-    $receiptNo = 'RCT-' . date('YmdHis');
-
-    $stmtReceipt = $pdo->prepare("
-
-        INSERT INTO sale_receipts (
-
-            uuid,
-
-            sale_id,
-
-            receipt_no,
-
-            receipt_date,
-
-            receipt_status,
-
-            print_count
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?
-
-        )
-
-    ");
-
-    $stmtReceipt->execute([
-
-        generateUuid(),
-
-        $saleId,
-
-        $receiptNo,
-
-        $saleDate,
-
-        'pending',
-
-        0
-
-    ]);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Audit Log
-    |--------------------------------------------------------------------------
-    */
-
-    $stmtAudit = $pdo->prepare("
-
-        INSERT INTO sale_logs (
-
-            uuid,
-
-            sale_id,
-
-            action,
-
-            description,
-
-            new_values,
-
-            ip_address,
-
-            user_agent,
-
-            recorded_by
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?,?,?
-
-        )
-
-    ");
-
-    $stmtAudit->execute([
-
-        generateUuid(),
-
-        $saleId,
-
-        'create',
-
-        'Sale created successfully.',
-
-        json_encode($_POST, JSON_UNESCAPED_UNICODE),
-
-        $_SERVER['REMOTE_ADDR'] ?? null,
-
-        substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
-
-        $staffId
-
-    ]);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Offline Synchronization Queue
-    |--------------------------------------------------------------------------
-    */
-
-    $deviceUuid = $_SESSION['device_uuid'] ?? 'WEB-SERVER';
-
-    $payload = [
-
-        'sale_id'    => $saleId,
-        'sale_uuid'  => $saleUuid,
-        'sale_no'    => $saleNo,
-        'farm_id'    => $farmId,
-        'harvest_id' => $harvestId,
-        'sale_date'  => $saleDate,
-        'staff_id'   => $staffId,
-        'created_at' => date('Y-m-d H:i:s')
-
-    ];
-
-    $stmtSync = $pdo->prepare("
-
-        INSERT INTO sales_sync_queue (
-
-            uuid,
-
-            sale_uuid,
-
-            device_uuid,
-
-            operation,
-
-            payload_json,
-
-            status
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?
-
-        )
-
-    ");
-
-    $stmtSync->execute([
-
-        generateUuid(),
-
-        $saleUuid,
-
-        $deviceUuid,
-
-        'insert',
-
-        json_encode($payload, JSON_UNESCAPED_UNICODE),
-
-        'pending'
-
-    ]);
-
-    /*
-     * ===== Part 6 continues here =====
-     */
-        /*
-    |--------------------------------------------------------------------------
-    | Commit Transaction
-    |--------------------------------------------------------------------------
-    */
-
-    $pdo->commit();
-
-    /*
-    |--------------------------------------------------------------------------
-    | Success Message
-    |--------------------------------------------------------------------------
-    */
-
-    $_SESSION['success'] = sprintf(
-        'Sale %s was saved successfully.',
-        $saleNo
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Redirect
-    |--------------------------------------------------------------------------
-    */
-
-    header('Location: view.php?id=' . $saleId);
-
-    exit;
-
-}
 /*
 |--------------------------------------------------------------------------
 | Rollback

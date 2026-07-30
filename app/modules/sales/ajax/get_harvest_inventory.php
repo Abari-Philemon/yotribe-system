@@ -7,6 +7,7 @@ declare(strict_types=1);
  * YOTRIBE IFMS
  * Sales & Distribution Management
  * AJAX - Harvest Inventory
+ * Harvest Inventory V2.0
  * ============================================================
  */
 
@@ -34,7 +35,6 @@ try {
         ]);
 
         exit;
-
     }
 
     /*
@@ -42,13 +42,11 @@ try {
     | Harvest Inventory
     |--------------------------------------------------------------------------
     |
-    | Inventory comes from:
+    | Inventory Source:
     |
     | harvests
     |      ↓
-    | harvest_ponds
-    |      ↓
-    | pond_stocking
+    | harvest_ponds (Inventory)
     |      ↓
     | sale_items
     |
@@ -56,63 +54,68 @@ try {
 
     $sql = "
 
-    SELECT
+        SELECT
 
-        hp.id AS harvest_pond_id,
+            hp.id AS harvest_pond_id,
 
-        ps.id AS pond_stocking_id,
+            hp.pond_stocking_id,
 
-        ps.pond_id,
+            hp.pond_id,
 
-        pt.pond_code,
+            pt.pond_code,
 
-        ps.harvested_count,
+            hp.harvested_count,
 
-        ps.avg_weight_g,
+            hp.average_weight_g,
 
-        COALESCE(
+            hp.harvested_weight_kg,
 
-            (
+            hp.available_count,
 
-                SELECT SUM(si.quantity_fish)
+            hp.available_weight_kg,
 
-                FROM sale_items si
+            hp.inventory_status,
 
-                INNER JOIN sales s
-                    ON s.id = si.sale_id
+            COALESCE(
 
-                WHERE
+                (
 
-                    si.harvest_pond_id = hp.id
+                    SELECT SUM(si.quantity_fish)
 
-                AND s.status <> 'cancelled'
+                    FROM sale_items si
 
-            ),
+                    INNER JOIN sales s
+                        ON s.id = si.sale_id
 
-            0
+                    WHERE
+                        si.harvest_pond_id = hp.id
+                    AND s.status <> 'cancelled'
 
-        ) AS sold_fish
+                ),
 
-    FROM harvest_ponds hp
+                0
 
-    INNER JOIN harvests h
-        ON h.id = hp.harvest_id
+            ) AS sold_fish
 
-    INNER JOIN pond_stocking ps
-        ON ps.id = hp.pond_stocking_id
+        FROM harvest_ponds hp
 
-    INNER JOIN ponds_tanks pt
-        ON pt.id = ps.pond_id
+        INNER JOIN harvests h
+            ON h.id = hp.harvest_id
 
-    WHERE
+        INNER JOIN ponds_tanks pt
+            ON pt.id = hp.pond_id
 
-        hp.harvest_id = ?
+        WHERE
 
-    AND h.farm_id = ?
+            hp.harvest_id = ?
 
-    ORDER BY
+        AND h.farm_id = ?
 
-        pt.pond_code ASC
+        AND hp.inventory_status <> 'sold_out'
+
+        ORDER BY
+
+            pt.pond_code ASC
 
     ";
 
@@ -124,42 +127,31 @@ try {
     ]);
 
     $inventory = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
-        $harvestedFish = (int) $row['harvested_count'];
-        $soldFish      = (int) $row['sold_fish'];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
-        $availableFish = max(0, $harvestedFish - $soldFish);
+        $harvestedFish = (int)$row['harvested_count'];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Average Weight
-        |--------------------------------------------------------------------------
-        |
-        | Stored in grams.
-        | Convert to kilograms.
-        |
-        */
+        $availableFish = (int)$row['available_count'];
 
-        $averageWeightKg = ((float) $row['avg_weight_g']) / 1000;
+        $soldFish = (int)$row['sold_fish'];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Weight Calculations
-        |--------------------------------------------------------------------------
-        */
+        $averageWeightKg =
+            ((float)$row['average_weight_g']) / 1000;
 
-        $harvestWeight = $harvestedFish * $averageWeightKg;
+        $harvestWeight =
+            (float)$row['harvested_weight_kg'];
 
-        $availableWeight = $availableFish * $averageWeightKg;
+        $availableWeight =
+            (float)$row['available_weight_kg'];
 
         $inventory[] = [
 
-            'harvest_pond_id'  => (int) $row['harvest_pond_id'],
+            'harvest_pond_id'  => (int)$row['harvest_pond_id'],
 
-            'pond_stocking_id' => (int) $row['pond_stocking_id'],
+            'pond_stocking_id' => (int)$row['pond_stocking_id'],
 
-            'pond_id'          => (int) $row['pond_id'],
+            'pond_id'          => (int)$row['pond_id'],
 
             'pond_code'        => $row['pond_code'],
 
@@ -175,9 +167,15 @@ try {
 
             'available_weight' => round($availableWeight, 2),
 
-            'status' => $availableFish > 0
-                ? 'Available'
-                : 'Sold Out'
+            'inventory_status' => $row['inventory_status'],
+
+            'status' => ucwords(
+                str_replace(
+                    '_',
+                    ' ',
+                    $row['inventory_status']
+                )
+            )
 
         ];
 
@@ -187,9 +185,9 @@ try {
 
         'success' => true,
 
-        'count'   => count($inventory),
+        'count' => count($inventory),
 
-        'data'    => $inventory
+        'data' => $inventory
 
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -207,8 +205,6 @@ try {
 
         'message' => 'Unable to load harvest inventory.',
 
-        // Remove this line in production if you don't want
-        // exception details returned to the browser.
         'error' => $e->getMessage()
 
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

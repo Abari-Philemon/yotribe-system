@@ -136,6 +136,48 @@ CREATE TABLE IF NOT EXISTS harvest_ponds (
         REFERENCES fish_batches(id)
 
 );
+
+/*
+============================================================
+YOTRIBE IFMS
+Migration : 015_upgrade_harvest_inventory_v2.sql
+Purpose   : Harvest Inventory Version 2.0
+Author    : ChatGPT
+============================================================
+*/
+
+START TRANSACTION;
+
+ALTER TABLE harvest_ponds
+
+    ADD COLUMN harvested_count INT NOT NULL DEFAULT 0
+        AFTER batch_id,
+
+    ADD COLUMN average_weight_g DECIMAL(10,2) NOT NULL DEFAULT 0.00
+        AFTER harvested_count,
+
+    ADD COLUMN harvested_weight_kg DECIMAL(12,2) NOT NULL DEFAULT 0.00
+        AFTER average_weight_g,
+
+    ADD COLUMN available_count INT NOT NULL DEFAULT 0
+        AFTER harvested_weight_kg,
+
+    ADD COLUMN available_weight_kg DECIMAL(12,2) NOT NULL DEFAULT 0.00
+        AFTER available_count,
+
+    ADD COLUMN inventory_status ENUM(
+        'available',
+        'partial',
+        'sold_out'
+    ) NOT NULL DEFAULT 'available'
+        AFTER available_weight_kg;
+
+CREATE INDEX idx_hp_inventory_status
+ON harvest_ponds (inventory_status);
+
+
+
+COMMIT;
 /*=====================================================================
 TABLE : harvest_movements
 
