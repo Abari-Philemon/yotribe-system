@@ -8,6 +8,12 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+    console.log("EVENT FIRED");
+    console.log("this =", this);
+    console.log("value =", this.value);
+
+    loadHarvestInventory(this.value);
+
     /*
     |--------------------------------------------------------------------------
     | DOM Elements
@@ -69,76 +75,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadHarvestInventory(harvestId) {
 
-        inventoryBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center">
-                    Loading inventory...
-                </td>
-            </tr>
-        `;
+        console.log("loadHarvestInventory called:", harvestId);
 
-        addItemBtn.disabled = true;
+        const url = `/yotribe-system/app/modules/sales/ajax/get_harvest_inventory.php?harvest_id=${harvestId}`;
+
+        console.log("URL:", url);
 
         try {
 
-            const response = await fetch(`/yotribe-system/app/modules/sales/ajax/get_harvest_inventory.php?harvest_id=${harvestId}`
-            );
+            const response = await fetch(url);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            console.log("HTTP Status:", response.status);
 
-            const result = await response.json();
+            const text = await response.text();
 
-            if (!result.success) {
+            console.log("Response Body:", text);
 
-                inventoryBody.innerHTML = `
-                    <tr>
-                        <td colspan="6"
-                            class="text-center text-danger">
-                            ${result.message}
-                        </td>
-                    </tr>
-                `;
+        } catch (e) {
 
-                inventory = [];
-
-                addItemBtn.disabled = true;
-
-                return;
-
-            }
-
-            inventory = result.data || [];
-
-            renderInventory();
-
-            addItemBtn.disabled = inventory.length === 0;
-
-        } catch (error) {
-
-            console.error(
-                "Inventory Load Error:",
-                error
-            );
-
-            inventoryBody.innerHTML = `
-                <tr>
-                    <td colspan="6"
-                        class="text-center text-danger">
-
-                        Unable to load harvest inventory.
-
-                    </td>
-                </tr>
-            `;
-
-            inventory = [];
-
-            addItemBtn.disabled = true;
+            console.error(e);
 
         }
-
     }
 
     /*
