@@ -1,4 +1,12 @@
 <?php
+if (!empty($_SESSION['error'])) {
+    echo '<pre style="background:#ffe6e6;color:#900;padding:15px;border:1px solid #900;">';
+    echo $_SESSION['error'];
+    echo '</pre>';
+    unset($_SESSION['error']);
+}
+?>
+<?php
 
 declare(strict_types=1);
 
