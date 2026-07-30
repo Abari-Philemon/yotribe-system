@@ -23,6 +23,7 @@ $farm_id  = farm_id();
 $staff_id = $_SESSION['staff_id'];
 
 $page_title = 'Create Sale';
+$module = 'sales';
 
 /*
 |--------------------------------------------------------------------------
