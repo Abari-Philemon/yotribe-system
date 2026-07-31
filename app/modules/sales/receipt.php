@@ -179,18 +179,14 @@ if ($receipt) {
     $pdo->prepare("
 
         UPDATE sale_receipts
-
         SET
-
-            print_count=print_count+1,
-
-            last_printed_at=NOW()
-
-        WHERE id=?
+            last_printed_at = NOW(),
+            print_count = print_count + 1
+        WHERE sale_id = ?
 
     ")->execute([
 
-        $receipt['id']
+        $receipt['sale_id']
 
     ]);
 
