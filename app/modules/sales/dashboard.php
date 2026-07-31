@@ -334,13 +334,13 @@ Open Harvests
 
                                 <td class="text-end">
 
-                                    <?= number_format($payment['total']) ?>
+                                    <?= number_format((float)$payment['total']) ?>
 
                                 </td>
 
                                 <td class="text-end">
 
-                                    ₦<?= number_format($payment['amount'],2) ?>
+                                    ₦<?= number_format((float)$payment['amount'],2) ?>
 
                                 </td>
 
