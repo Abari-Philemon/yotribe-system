@@ -828,7 +828,7 @@ SALE ITEMS
 
                             <td class="text-end">
 
-                                ₦<?= number_format(
+                                ₦<?= number_format((float)
                                     $item['unit_price'],
                                     2
                                 ) ?>
@@ -837,7 +837,7 @@ SALE ITEMS
 
                             <td class="text-end fw-bold">
 
-                                ₦<?= number_format(
+                                ₦<?= number_format((float)
                                     $item['line_total'],
                                     2
                                 ) ?>
