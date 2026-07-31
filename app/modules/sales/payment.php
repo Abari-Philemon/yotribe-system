@@ -246,7 +246,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                 <div class="text-success">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['amount_paid'],
                         2
                     ) ?>
