@@ -554,7 +554,7 @@ FINANCIAL SUMMARY
 
                 <h4>
 
-                    ₦<?= number_format($sale['subtotal'],2) ?>
+                    ₦<?= number_format((float)$sale['subtotal'], 2) ?>
 
                 </h4>
 
@@ -570,7 +570,7 @@ FINANCIAL SUMMARY
 
                 <h4>
 
-                    ₦<?= number_format($sale['discount'],2) ?>
+                    ₦<?= number_format((float)$sale['discount'], 2) ?>
 
                 </h4>
 
@@ -586,7 +586,7 @@ FINANCIAL SUMMARY
 
                 <h4 class="text-success">
 
-                    ₦<?= number_format($sale['amount_paid'],2) ?>
+                    ₦<?= number_format((float)$sale['amount_paid'], 2) ?>
 
                 </h4>
 
@@ -602,7 +602,7 @@ FINANCIAL SUMMARY
 
                 <h4 class="text-danger">
 
-                    ₦<?= number_format($sale['balance'],2) ?>
+                    ₦<?= number_format((float)$sale['balance'], 2) ?>
 
                 </h4>
 
