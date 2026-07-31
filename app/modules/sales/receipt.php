@@ -179,12 +179,29 @@ if ($receipt) {
     $pdo->prepare("
 
         UPDATE sale_receipts
+
         SET
-            last_printed_at = NOW(),
+
+            printed_at = NOW(),
+
+            printed_by = ?,
+
+            receipt_status = CASE
+
+                WHEN print_count = 0
+                    THEN 'printed'
+
+                ELSE 'reprinted'
+
+            END,
+
             print_count = print_count + 1
+
         WHERE sale_id = ?
 
     ")->execute([
+
+        $_SESSION['staff_id'],
 
         $receipt['sale_id']
 
