@@ -115,8 +115,7 @@ $stmt = $pdo->prepare("
 
         si.*,
 
-        p.pond_code,
-        p.pond_name
+        pt.pond_code
 
     FROM sale_items si
 
@@ -126,8 +125,8 @@ $stmt = $pdo->prepare("
     LEFT JOIN pond_stocking ps
         ON ps.id = hp.pond_stocking_id
 
-    LEFT JOIN ponds p
-        ON p.id = ps.pond_id
+    LEFT JOIN ponds_tanks pt
+        ON pt.id = ps.pond_id
 
     WHERE
 
@@ -140,7 +139,6 @@ $stmt = $pdo->prepare("
 $stmt->execute([$saleId]);
 
 $saleItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 /*
 |--------------------------------------------------------------------------
 | Load Payments
@@ -789,7 +787,7 @@ SALE ITEMS
                             <td>
 
                                 <?= htmlspecialchars(
-                                    $item['pond_name'] ?? 'Unknown Pond'
+                                    $item['pond_code'] ?? 'Unknown Pond'
                                 ) ?>
 
                             </td>
@@ -797,7 +795,7 @@ SALE ITEMS
                             <td>
 
                                 <?= htmlspecialchars(
-                                    $item['product_name']
+                                    $item['product_id']
                                 ) ?>
 
                             </td>
