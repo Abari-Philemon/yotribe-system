@@ -43,7 +43,7 @@ $stmt = $pdo->prepare("
 
 SELECT *
 
-FROM companies
+FROM farms
 
 WHERE farm_id=?
 
