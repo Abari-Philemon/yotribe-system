@@ -463,7 +463,7 @@ INVOICE ITEMS
 
                     <td class="text-end fw-bold">
 
-                        ₦<?= number_format(
+                        ₦<?= number_format((float)
                             $item['line_total'],
                             2
                         ) ?>
