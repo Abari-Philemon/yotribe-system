@@ -787,7 +787,7 @@ PAYMENT HISTORY
 
                         <td class="text-end">
 
-                            ₦<?= number_format(
+                            ₦<?= number_format((float)
                                 $payment['amount'],
                                 2
                             ) ?>
