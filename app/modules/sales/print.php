@@ -45,7 +45,7 @@ SELECT *
 
 FROM farms
 
-WHERE farm_id=?
+WHERE id=?
 
 LIMIT 1
 
