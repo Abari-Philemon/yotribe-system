@@ -102,7 +102,7 @@ $stmt=$pdo->prepare("
 
 SELECT
 
-product_name,
+product_id,
 
 quantity_fish,
 
