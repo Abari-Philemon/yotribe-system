@@ -224,7 +224,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                 <div>
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['total_amount'],
                         2
                     ) ?>
@@ -239,7 +239,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                 <div>
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['amount_paid'],
                         2
                     ) ?>
@@ -319,13 +319,13 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                     <td class="text-end">
 
-                        <?= number_format($item['quantity_fish']) ?>
+                        <?= number_format((float)$item['quantity_fish']) ?>
 
                     </td>
 
                     <td class="text-end">
 
-                        <?= number_format(
+                        <?= number_format((float)
                             $item['quantity_kg'],
                             2
                         ) ?>
@@ -334,7 +334,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                     <td class="text-end">
 
-                        ₦<?= number_format(
+                        ₦<?= number_format((float)
                             $item['line_total'],
                             2
                         ) ?>
