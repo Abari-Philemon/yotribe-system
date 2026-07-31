@@ -1,21 +1,12 @@
-
 <?php
 
 declare(strict_types=1);
-
-if (!empty($_SESSION['error'])) {
-    echo '<pre style="background:#ffe6e6;color:#900;padding:15px;border:1px solid #900;">';
-    echo $_SESSION['error'];
-    echo '</pre>';
-    unset($_SESSION['error']);
-}
 
 /**
  * ============================================================
  * YOTRIBE IFMS
  * Sales & Distribution Management
  * Create Sale
- * Version 1.0
  * ============================================================
  */
 
@@ -25,6 +16,13 @@ require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
+if (!empty($_SESSION['error'])) {
+    echo '<div style="background:#ffe6e6;border:1px solid #c00;color:#900;padding:12px;margin:15px;border-radius:4px;">';
+    echo $_SESSION['error'];
+    echo '</div>';
+    unset($_SESSION['error']);
+}
+
 require_permission('sales');
 
 $farm_id  = farm_id();
@@ -32,7 +30,6 @@ $staff_id = $_SESSION['staff_id'];
 
 $page_title = 'Create Sale';
 $module = 'sales';
-
 /*
 |--------------------------------------------------------------------------
 | CSRF Token
