@@ -430,13 +430,13 @@ INVOICE ITEMS
 
                     <td class="text-end">
 
-                        <?= number_format($item['quantity_fish']) ?>
+                        <?= number_format((float)$item['quantity_fish'], 2) ?>
 
                     </td>
 
                     <td class="text-end">
 
-                        <?= number_format(
+                        <?= number_format((float)
                             $item['quantity_kg'],
                             2
                         ) ?>
@@ -445,7 +445,7 @@ INVOICE ITEMS
 
                     <td class="text-end">
 
-                        <?= number_format(
+                        <?= number_format((float)
                             $item['average_weight_kg'],
                             3
                         ) ?>
@@ -454,7 +454,7 @@ INVOICE ITEMS
 
                     <td class="text-end">
 
-                        ₦<?= number_format(
+                        ₦<?= number_format((float)
                             $item['unit_price'],
                             2
                         ) ?>
@@ -494,7 +494,7 @@ INVOICE ITEMS
 
                 <th class="text-end">
 
-                    <?= number_format(
+                    <?= number_format((float)
                         $totalWeight,
                         2
                     ) ?>
@@ -549,7 +549,7 @@ FINANCIAL SUMMARY
 
                         <td class="text-end">
 
-                            <?= number_format($totalFish) ?>
+                            <?= number_format((float)$totalFish) ?>
 
                         </td>
 
@@ -561,7 +561,7 @@ FINANCIAL SUMMARY
 
                         <td class="text-end">
 
-                            <?= number_format(
+                            <?= number_format((float)
                                 $totalWeight,
                                 2
                             ) ?>
@@ -608,7 +608,7 @@ FINANCIAL SUMMARY
 
                 <td class="text-end">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['subtotal'],
                         2
                     ) ?>
@@ -627,7 +627,7 @@ FINANCIAL SUMMARY
 
                 <td class="text-end">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['discount'],
                         2
                     ) ?>
@@ -646,7 +646,7 @@ FINANCIAL SUMMARY
 
                 <th class="text-end">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['total_amount'],
                         2
                     ) ?>
@@ -665,7 +665,7 @@ FINANCIAL SUMMARY
 
                 <td class="text-end text-success">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['amount_paid'],
                         2
                     ) ?>
@@ -684,7 +684,7 @@ FINANCIAL SUMMARY
 
                 <td class="text-end text-danger">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['balance'],
                         2
                     ) ?>
