@@ -360,7 +360,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                         <td class="text-end">
 
-                            ₦<?= number_format(
+                            ₦<?= number_format((float)
                                 $payment['amount'],
                                 2
                             ) ?>
