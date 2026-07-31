@@ -518,14 +518,14 @@ require_once __DIR__.'/../../includes/header.php';
                     <td>
 
                         <?= htmlspecialchars(
-                            $item['product_name']
+                            $item['product_id']
                         ) ?>
 
                     </td>
 
                     <td class="text-end">
 
-                        <?= number_format(
+                        <?= number_format((float)
                             $item['quantity_fish']
                         ) ?>
 
@@ -533,7 +533,7 @@ require_once __DIR__.'/../../includes/header.php';
 
                     <td class="text-end">
 
-                        <?= number_format(
+                        <?= number_format((float)
                             $item['quantity_kg'],
                             2
                         ) ?>
@@ -542,7 +542,7 @@ require_once __DIR__.'/../../includes/header.php';
 
                     <td class="text-end">
 
-                        ₦<?= number_format(
+                        ₦<?= number_format((float)
                             $item['line_total'],
                             2
                         ) ?>
@@ -572,7 +572,7 @@ require_once __DIR__.'/../../includes/header.php';
 
             <td class="text-end">
 
-                ₦<?= number_format(
+                ₦<?= number_format((float)
                     $sale['subtotal'],
                     2
                 ) ?>
@@ -591,7 +591,7 @@ require_once __DIR__.'/../../includes/header.php';
 
             <td class="text-end">
 
-                ₦<?= number_format(
+                ₦<?= number_format((float)
                     $sale['discount'],
                     2
                 ) ?>
@@ -612,7 +612,7 @@ require_once __DIR__.'/../../includes/header.php';
 
                 <strong>
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['total_amount'],
                         2
                     ) ?>
@@ -633,7 +633,7 @@ require_once __DIR__.'/../../includes/header.php';
 
             <td class="text-end text-success">
 
-                ₦<?= number_format(
+                ₦<?= number_format((float)
                     $sale['amount_paid'],
                     2
                 ) ?>
@@ -652,7 +652,7 @@ require_once __DIR__.'/../../includes/header.php';
 
             <td class="text-end text-danger">
 
-                ₦<?= number_format(
+                ₦<?= number_format((float)
                     $sale['balance'],
                     2
                 ) ?>
@@ -715,7 +715,7 @@ require_once __DIR__.'/../../includes/header.php';
 
         <td class="text-end">
 
-        ₦<?= number_format(
+        ₦<?= number_format((float)
             $payment['amount'],
             2
         ) ?>
