@@ -555,41 +555,34 @@ try {
             ");
 
             $stmtUpdateHarvestInventory = $pdo->prepare("
-
                 UPDATE harvest_ponds
-
                 SET
-
                     available_count = GREATEST(
                         0,
-                        available_count - :fish
+                        available_count - :fish1
                     ),
 
                     available_weight_kg = GREATEST(
                         0,
-                        available_weight_kg - :weight
+                        available_weight_kg - :weight1
                     ),
 
                     inventory_status = CASE
 
-                        WHEN GREATEST(0, available_count - :fish) = 0
+                        WHEN GREATEST(0, available_count - :fish2) = 0
                             THEN 'sold_out'
 
-                        WHEN GREATEST(0, available_count - :fish) < harvested_count
+                        WHEN GREATEST(0, available_count - :fish3) < harvested_count
                             THEN 'partial'
 
                         ELSE 'available'
 
                     END
 
-                    WHERE
-
-                        id = :harvest_pond_id
-
-                    AND harvest_id = :harvest_id
-
+                WHERE
+                    id = :harvest_pond_id
+                AND harvest_id = :harvest_id
             ");
-
             /*
             * ===== Part 4 continues here =====
             */
@@ -641,15 +634,12 @@ try {
                 */
 
                 $stmtUpdateHarvestInventory->execute([
-
-                    ':fish'            => $item['quantity_fish'],
-
-                    ':weight'          => $item['quantity_kg'],
-
+                    ':fish1'           => $item['quantity_fish'],
+                    ':weight1'         => $item['quantity_kg'],
+                    ':fish2'           => $item['quantity_fish'],
+                    ':fish3'           => $item['quantity_fish'],
                     ':harvest_pond_id' => $item['harvest_pond_id'],
-
                     ':harvest_id'      => $harvestId
-
                 ]);
 
                 /*
