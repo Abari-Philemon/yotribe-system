@@ -810,7 +810,7 @@ SALE ITEMS
 
                             <td class="text-end">
 
-                                <?= number_format(
+                                <?= number_format((float)
                                     $item['quantity_kg'],
                                     2
                                 ) ?>
@@ -819,7 +819,7 @@ SALE ITEMS
 
                             <td class="text-end">
 
-                                <?= number_format(
+                                <?= number_format((float)
                                     $item['average_weight_kg'],
                                     3
                                 ) ?>
