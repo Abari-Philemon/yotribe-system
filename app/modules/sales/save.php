@@ -998,8 +998,10 @@ catch (Throwable $e) {
     |--------------------------------------------------------------------------
     */
 
-    $_SESSION['error'] = $e->getMessage();
-
+   $_SESSION['error'] =
+    $e->getMessage()
+    . '<br><strong>File:</strong> ' . $e->getFile()
+    . '<br><strong>Line:</strong> ' . $e->getLine();
     /*
     |--------------------------------------------------------------------------
     | Redirect Back
