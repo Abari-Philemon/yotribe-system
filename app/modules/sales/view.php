@@ -111,22 +111,29 @@ if (!$sale) {
 
 $stmt = $pdo->prepare("
 
-SELECT
+    SELECT
 
-    si.*,
+        si.*,
 
-    hp.pond_name
+        p.pond_code,
+        p.pond_name
 
-FROM sale_items si
+    FROM sale_items si
 
-LEFT JOIN harvest_ponds hp
-    ON hp.id=si.harvest_pond_id
+    LEFT JOIN harvest_ponds hp
+        ON hp.id = si.harvest_pond_id
 
-WHERE
+    LEFT JOIN pond_stocking ps
+        ON ps.id = hp.pond_stocking_id
 
-    si.sale_id=?
+    LEFT JOIN ponds p
+        ON p.id = ps.pond_id
 
-ORDER BY si.id
+    WHERE
+
+        si.sale_id = ?
+
+    ORDER BY si.id
 
 ");
 
