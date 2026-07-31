@@ -513,7 +513,7 @@ RECEIVE PAYMENT
 
                         Outstanding Balance:
 
-                        ₦<?= number_format($sale['balance'],2) ?>
+                        ₦<?= number_format((float)$sale['balance'],2) ?>
 
                     </small>
 
@@ -608,7 +608,7 @@ PAYMENT SUMMARY
 
                     ₦<span id="balanceDisplay">
 
-                        <?= number_format($sale['balance'],2) ?>
+                        <?= number_format((float)$sale['balance'],2) ?>
 
                     </span>
 
@@ -648,7 +648,7 @@ PAYMENT SUMMARY
 
                     ₦<span id="remainingDisplay">
 
-                        <?= number_format($sale['balance'],2) ?>
+                        <?= number_format((float)$sale['balance'],2) ?>
 
                     </span>
 
