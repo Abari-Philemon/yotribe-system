@@ -19,8 +19,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 require_once __DIR__ . '/../../helpers/csrf_helper.php';
 
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+
 
 require_permission('sales.refund');
 
@@ -360,7 +359,6 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 <!-- ==========================================================
 REFUND AUTHORIZATION
 ========================================================== -->
-<?php echo "<h1 style='color:red'>FORM STARTS HERE</h1>"; ?>
 
 <form action="refund_save.php" method="POST" id="refundForm">
 
@@ -372,7 +370,7 @@ REFUND AUTHORIZATION
     <input
         type="hidden"
         name="csrf_token"
-        value="TEST">
+        value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
 
     <div class="card shadow-sm mb-4">
 
