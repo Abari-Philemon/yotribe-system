@@ -498,7 +498,7 @@ $recentSales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <td class="text-end">
 
-                                        ₦<?= number_format(
+                                        ₦<?= number_format((float)
                                             $sale['total_amount'],
                                             2
                                         ) ?>
