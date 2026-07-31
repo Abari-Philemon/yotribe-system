@@ -19,14 +19,17 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 require_once __DIR__ . '/../../helpers/csrf_helper.php';
 
+
+
 require_permission('sales.refund');
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+
 
 $farm_id = farm_id();
 
 $page_title = 'Refund Sale';
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 $saleId = (int)($_GET['id'] ?? 0);
 
