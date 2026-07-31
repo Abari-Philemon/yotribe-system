@@ -16,12 +16,6 @@ require_once __DIR__ . '/../../middleware/authorize.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 
-if (!empty($_SESSION['error'])) {
-    echo '<div style="background:#ffe6e6;border:1px solid #c00;color:#900;padding:12px;margin:15px;border-radius:4px;">';
-    echo $_SESSION['error'];
-    echo '</div>';
-    unset($_SESSION['error']);
-}
 
 require_permission('sales');
 
