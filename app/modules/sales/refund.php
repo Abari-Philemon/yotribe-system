@@ -19,7 +19,8 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/permission.php';
 require_once __DIR__ . '/../../helpers/csrf_helper.php';
 
-
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 require_permission('sales.refund');
 
@@ -27,9 +28,6 @@ require_permission('sales.refund');
 $farm_id = farm_id();
 
 $page_title = 'Refund Sale';
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
 $saleId = (int)($_GET['id'] ?? 0);
 
@@ -362,6 +360,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 <!-- ==========================================================
 REFUND AUTHORIZATION
 ========================================================== -->
+<?php echo "<h1 style='color:red'>FORM STARTS HERE</h1>"; ?>
 
 <form action="refund_save.php" method="POST" id="refundForm">
 
