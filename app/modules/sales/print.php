@@ -422,7 +422,7 @@ INVOICE ITEMS
 
                         <strong>
 
-                            <?= htmlspecialchars($item['product_name']) ?>
+                            <?= htmlspecialchars($item['product_id']) ?>
 
                         </strong>
 
