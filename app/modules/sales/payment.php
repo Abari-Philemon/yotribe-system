@@ -261,7 +261,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                 <div class="text-danger fw-bold">
 
-                    ₦<?= number_format(
+                    ₦<?= number_format((float)
                         $sale['balance'],
                         2
                     ) ?>
