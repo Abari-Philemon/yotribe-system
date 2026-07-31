@@ -334,42 +334,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const selectedValue = e.target.value;
 
-            /*
-            --------------------------------------------------------
-            Prevent duplicate pond selection
-            --------------------------------------------------------
-            */
-
-            const ponds = Array.from(
-                document.querySelectorAll('.pond')
-            );
-
-            const duplicates = ponds.filter(
-                p => p.value === selectedValue && selectedValue !== ''
-            );
-
-            if (duplicates.length > 1) {
-
-                alert(
-                    "This pond has already been selected."
-                );
-
-                e.target.value = '';
-
-                row.querySelector('.available').value = 0;
-
-                return;
-
-            }
-
             const option = e.target.selectedOptions[0];
 
             row.querySelector('.available').value =
                 option.dataset.available || 0;
+                refreshAvailableFish();
 
         }
 
         calculateRow(row);
+        refreshAvailableFish();
 
     });
 
@@ -400,14 +374,50 @@ document.addEventListener('DOMContentLoaded', () => {
             const available = parseFloat(
                 row.querySelector('.available').value
             ) || 0;
+            const pond = row.querySelector('.pond');
 
-            if (sold > available) {
+            let totalSold = 0;
 
-                alert(
-                    "Fish sold cannot exceed available fish."
+            
+
+            document.querySelectorAll('#saleItems tr').forEach(r => {
+
+                const p = r.querySelector('.pond');
+
+                if (!p) return;
+
+                if (p.value !== pond.value) return;
+
+                totalSold += parseFloat(
+                    r.querySelector('.sold').value
+                ) || 0;
+
+            });
+
+            const originalAvailable =
+                parseFloat(
+                    pond.selectedOptions[0].dataset.available
+                ) || 0;
+
+            if (totalSold > originalAvailable) {
+
+                const remaining = Math.max(
+                    0,
+                    originalAvailable - (totalSold - sold)
                 );
 
-                row.querySelector('.sold').value = available;
+                alert(
+                    "Total fish selected from this pond exceeds available inventory.\n\n" +
+                    "Remaining available fish: " + remaining
+                );
+
+                row.querySelector('.sold').value = remaining;
+
+                refreshAvailableFish();
+
+                calculateRow(row);
+
+                return;
 
             }
 
@@ -416,8 +426,6 @@ document.addEventListener('DOMContentLoaded', () => {
             Auto Weight (optional)
             --------------------------------------------------------
             */
-
-            const pond = row.querySelector('.pond');
 
             const option =
                 pond.selectedOptions[0];
@@ -437,6 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         calculateRow(row);
+        refreshAvailableFish();
 
     });
 
@@ -457,14 +466,71 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.closest('tr').remove();
 
         calculateTotals();
+        refreshAvailableFish();
 
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Refresh Pond Availability
+    |--------------------------------------------------------------------------
+    */
+
+    function refreshAvailableFish() {
+
+        document.querySelectorAll('#saleItems tr').forEach(currentRow => {
+
+            const pond = currentRow.querySelector('.pond');
+
+            if (!pond || !pond.value) {
+
+                currentRow.querySelector('.available').value = 0;
+
+                return;
+
+            }
+
+            const harvestPondId = pond.value;
+
+            const option = pond.selectedOptions[0];
+
+            const originalAvailable =
+                parseFloat(option.dataset.available) || 0;
+
+            let allocated = 0;
+
+            document.querySelectorAll('#saleItems tr').forEach(row => {
+
+                const rowPond = row.querySelector('.pond');
+
+                if (!rowPond) return;
+
+                if (rowPond.value !== harvestPondId) return;
+
+                if (row === currentRow) return;
+
+                allocated += parseFloat(
+                    row.querySelector('.sold').value
+                ) || 0;
+
+            });
+
+            const remaining =
+                Math.max(0, originalAvailable - allocated);
+
+            currentRow.querySelector('.available').value =
+                remaining;
+
+        });
+
+    }
 
     /*
     |--------------------------------------------------------------------------
     | Calculate Row
     |--------------------------------------------------------------------------
     */
+   
 
     function calculateRow(row) {
 
@@ -484,6 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
             total.toFixed(2);
 
         calculateTotals();
+        refreshAvailableFish();
 
     }
 

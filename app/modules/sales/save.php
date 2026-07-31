@@ -207,6 +207,23 @@ try {
     | Validate Sale Items
     |--------------------------------------------------------------------------
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Group Requested Fish By Harvest Pond
+    |--------------------------------------------------------------------------
+    */
+
+    $requestedFish = [];
+
+    foreach ($harvestPondIds as $i => $pondId) {
+ 
+        $pondId = (int)$pondId;
+
+        $requestedFish[$pondId] =
+            ($requestedFish[$pondId] ?? 0)
+            + (int)($quantityFish[$i] ?? 0);
+
+    }
 
     foreach ($harvestPondIds as $index => $harvestPondId) {
 
@@ -305,13 +322,24 @@ try {
                 |--------------------------------------------------------------------------
                 */
 
-                if ($fish > $availableFish) {
+                $totalRequested =
+                    $requestedFish[$harvestPondId] ?? 0;
+
+                if ($totalRequested > $availableFish) {
 
                     throw new Exception(
 
-                        "Sale quantity exceeds available inventory on row "
+                        sprintf(
 
-                        . ($index + 1)
+                            "Pond inventory exceeded on row %d.\n\nAvailable: %d fish\nRequested: %d fish",
+
+                            $index + 1,
+
+                            $availableFish,
+
+                            $totalRequested
+
+                        )
 
                     );
 
