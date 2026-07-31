@@ -150,16 +150,19 @@ SELECT
 
     si.*,
 
-    hp.pond_name
+    pt.pond_code
 
 FROM sale_items si
 
 LEFT JOIN harvest_ponds hp
-ON hp.id = si.harvest_pond_id
+    ON hp.id = si.harvest_pond_id
 
-WHERE sale_id = ?
+LEFT JOIN ponds_tanks pt
+    ON pt.id = hp.pond_id
 
-ORDER BY id
+WHERE si.sale_id = ?
+
+ORDER BY si.id
 
 ");
 
@@ -304,13 +307,13 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
                     <td>
 
-                        <?= htmlspecialchars($item['pond_name']) ?>
+                        <?= htmlspecialchars($item['pond_code']) ?>
 
                     </td>
 
                     <td>
 
-                        <?= htmlspecialchars($item['product_name']) ?>
+                        <?= 'Harvest Fish (' . htmlspecialchars($item['pond_code']) . ')' ?>
 
                     </td>
 
