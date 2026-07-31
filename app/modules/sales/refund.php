@@ -372,7 +372,7 @@ REFUND AUTHORIZATION
     <input
         type="hidden"
         name="csrf_token"
-        value="<?= csrf_token() ?>">
+        value="TEST">
 
     <div class="card shadow-sm mb-4">
 
