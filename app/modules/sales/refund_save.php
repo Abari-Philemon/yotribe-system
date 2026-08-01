@@ -18,6 +18,7 @@ require_once __DIR__ . '/../../config/database.php';
 
 require_once __DIR__ . '/../../helpers/permission.php';
 require_once __DIR__ . '/../../helpers/csrf_helper.php';
+require_once __DIR__ . '/../../helpers/uuid_helper.php';
 
 require_permission('sales.refund');
 
@@ -123,9 +124,9 @@ try {
         );
 
     }
-        /*
+  /*
     ------------------------------------------------------------
-    Refund Record
+    Refund Reference
     ------------------------------------------------------------
     */
 
@@ -135,66 +136,10 @@ try {
 
         date('Ymd'),
 
-        random_int(1,99999)
+        random_int(1, 99999)
 
     );
-
-    $stmt = $pdo->prepare("
-
-        INSERT INTO sale_refunds (
-
-            uuid,
-
-            refund_no,
-
-            sale_id,
-
-            refund_type,
-
-            refund_reason,
-
-            refund_notes,
-
-            refund_date,
-
-            refund_amount,
-
-            refunded_by,
-
-            created_at
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?,?,?,?,NOW()
-
-        )
-
-    ");
-
-    $stmt->execute([
-
-        generateUuid(),
-
-        $refundNo,
-
-        $saleId,
-
-        $refundType,
-
-        $refundReason,
-
-        $refundNotes,
-
-        $refundDate,
-
-        $sale['total_amount'],
-
-        $staffId
-
-    ]);
-        /*
+    /*
     ------------------------------------------------------------
     Update Sale
     ------------------------------------------------------------
@@ -206,9 +151,7 @@ try {
 
         SET
 
-            status='refunded',
-
-            updated_at=NOW()
+            status='refunded'
 
         WHERE id=?
 
@@ -231,15 +174,12 @@ try {
 
         SET
 
-            payment_status='reversed',
-
-            updated_at=NOW()
+            payment_status='reversed'
 
         WHERE sale_id=?
 
         AND payment_status='completed'
-
-    ");
+            ");
 
     $stmt->execute([
 
@@ -302,13 +242,20 @@ try {
 
             SET
 
-                available_fish =
-                    available_fish + ?,
+                available_count =
+                    available_count + ?,
 
                 available_weight_kg =
                     available_weight_kg + ?,
 
-                updated_at = NOW()
+                inventory_status = CASE
+
+                    WHEN (available_count + ?) >= harvested_count
+                        THEN 'available'
+
+                    ELSE 'partial'
+
+                END
 
             WHERE id = ?
 
@@ -316,81 +263,58 @@ try {
 
         $stmt->execute([
 
-            $item['quantity_fish'],
+            $item['quantity_fish'],   // available_count
 
-            $item['quantity_kg'],
+            $item['quantity_kg'],     // available_weight_kg
+
+            $item['quantity_fish'],   // inventory_status CASE
 
             $item['harvest_pond_id']
 
         ]);
 
-        /*
-        --------------------------------------------------------
-        Inventory Movement
-        --------------------------------------------------------
-        */
+            /*
+            --------------------------------------------------------
+            Restore Pond Stocking
+            --------------------------------------------------------
+            */
 
-        $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare("
 
-            INSERT INTO inventory_movements (
+                UPDATE pond_stocking
 
-                uuid,
+                SET
 
-                farm_id,
+                    current_count = current_count + ?,
 
-                movement_type,
+                    status = CASE
 
-                reference_type,
+                        WHEN (current_count + ?) > 0
+                            THEN 'active'
 
-                reference_id,
+                        ELSE status
 
-                harvest_pond_id,
+                    END
 
-                fish_quantity,
+                WHERE id = ?
 
-                weight_kg,
+            ");
 
-                remarks,
+            $stmt->execute([
 
-                recorded_by,
+                $item['quantity_fish'],
 
-                created_at
+                $item['quantity_fish'],
 
-            )
+                $harvestPond['pond_stocking_id']
 
-            VALUES (
+            ]);
 
-                ?,?,?,?,?,?,?,?,?,?,NOW()
 
-            )
-
-        ");
-
-        $stmt->execute([
-
-            generateUuid(),
-
-            $farm_id,
-
-            'refund',
-
-            'sale',
-
-            $saleId,
-
-            $item['harvest_pond_id'],
-
-            $item['quantity_fish'],
-
-            $item['quantity_kg'],
-
-            'Inventory restored after sale refund.',
-
-            $staffId
-
-        ]);
 
     }
+
+
         /*
     ------------------------------------------------------------
     Update Harvest Totals
@@ -470,9 +394,9 @@ try {
 
         SELECT
 
-            SUM(available_fish) fish,
+            SUM(available_count) AS fish,
 
-            SUM(available_weight_kg) weight
+            SUM(available_weight_kg) AS weight
 
         FROM harvest_ponds
 
@@ -563,9 +487,15 @@ try {
 
         INSERT INTO sales_sync_queue (
 
+            uuid,
+
             sale_uuid,
 
-            sync_type,
+            device_uuid,
+
+            operation,
+
+            payload_json,
 
             status,
 
@@ -577,61 +507,7 @@ try {
 
         VALUES (
 
-            ?, 'refund', 'pending', 0, NOW()
-
-        )
-
-        ON DUPLICATE KEY UPDATE
-
-            sync_type = VALUES(sync_type),
-
-            status = 'pending',
-
-            retry_count = 0,
-
-            updated_at = NOW()
-
-    ");
-
-    $stmt->execute([
-
-        $sale['uuid']
-
-    ]);
-
-    /*
-    ------------------------------------------------------------
-    Create Notification
-    ------------------------------------------------------------
-    */
-
-    $stmt = $pdo->prepare("
-
-        INSERT INTO notifications (
-
-            uuid,
-
-            farm_id,
-
-            category,
-
-            title,
-
-            message,
-
-            reference_type,
-
-            reference_id,
-
-            created_by,
-
-            created_at
-
-        )
-
-        VALUES (
-
-            ?,?,?,?,?,?,?,?,NOW()
+            ?, ?, ?, ?, ?, 'pending', 0, NOW()
 
         )
 
@@ -641,27 +517,28 @@ try {
 
         generateUuid(),
 
-        $farm_id,
+        $sale['uuid'],
 
-        'sales',
+        '',
 
-        'Sale Refunded',
+        'update',
 
-        sprintf(
+        json_encode([
 
-            'Sale %s has been refunded successfully.',
+            'action'      => 'refund',
 
-            $sale['sale_no']
+            'sale_id'     => $saleId,
 
-        ),
+            'refund_no'   => $refundNo,
 
-        'sale',
+            'refunded_by' => $staffId,
 
-        $saleId,
+            'refund_date' => $refundDate
 
-        $staffId
+        ], JSON_UNESCAPED_UNICODE)
 
     ]);
+
 
     /*
     ------------------------------------------------------------
