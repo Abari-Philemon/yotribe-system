@@ -476,38 +476,38 @@ try {
     ------------------------------------------------------------
     */
 
-    $pdo->commit();
+$pdo->commit();
 
-    echo "<h2 style='color:green'>Refund Completed Successfully</h2>";
+$_SESSION['success'] =
 
-    echo "<pre>";
+    sprintf(
 
-    print_r($verification);
+        'Refund processed successfully. Refund Number: %s',
 
-    echo "</pre>";
+        $refundNo
+
+    );
+
+header("Location:view.php?id={$saleId}");
+
+exit;
+
+} catch (Throwable $e) {
+
+    if ($pdo->inTransaction()) {
+
+        $pdo->rollBack();
+
+    }
+
+    error_log('[REFUND ERROR] ' . $e->getMessage());
+
+    $_SESSION['error'] =
+        'Refund processing failed. ' .
+        $e->getMessage();
+
+    header("Location:refund.php?id={$saleId}");
 
     exit;
 
-    } catch (Throwable $e) {
-
-        if ($pdo->inTransaction()) {
-
-            $pdo->rollBack();
-
-        }
-
-        echo "<pre style='background:#111;color:#fff;padding:15px;'>";
-
-        echo "ERROR:\n\n";
-
-        echo $e->getMessage();
-
-        echo "\n\n----------------------------------------\n\n";
-
-        echo $e->getTraceAsString();
-
-        echo "</pre>";
-
-        exit;
-
-    } 
+}
