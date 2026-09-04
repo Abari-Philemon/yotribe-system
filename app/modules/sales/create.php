@@ -1,149 +1,149 @@
 <?php
 
-declare(strict_types=1);
+    declare(strict_types=1);
 
-/**
- * ============================================================
- * YOTRIBE IFMS
- * Sales & Distribution Management
- * Create Sale
- * ============================================================
- */
+    /**
+     * ============================================================
+     * YOTRIBE IFMS
+     * Sales & Distribution Management
+     * Create Sale
+     * ============================================================
+     */
 
-require_once __DIR__ . '/../../middleware/auth_guard.php';
-require_once __DIR__ . '/../../middleware/farm_guard.php';
-require_once __DIR__ . '/../../middleware/authorize.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../helpers/permission.php';
+    require_once __DIR__ . '/../../middleware/auth_guard.php';
+    require_once __DIR__ . '/../../middleware/farm_guard.php';
+    require_once __DIR__ . '/../../middleware/authorize.php';
+    require_once __DIR__ . '/../../config/database.php';
+    require_once __DIR__ . '/../../helpers/permission.php';
 
 
-require_permission('sales');
+    require_permission('sales');
 
-$farm_id  = farm_id();
-$staff_id = $_SESSION['staff_id'];
+    $farm_id  = farm_id();
+    $staff_id = $_SESSION['staff_id'];
 
-$page_title = 'Create Sale';
-$module = 'sales';
-/*
-|--------------------------------------------------------------------------
-| CSRF Token
-|--------------------------------------------------------------------------
-*/
+    $page_title = 'Create Sale';
+    $module = 'sales';
+    /*
+    |--------------------------------------------------------------------------
+    | CSRF Token
+    |--------------------------------------------------------------------------
+    */
 
-if (empty($_SESSION['csrf_token'])) {
+    if (empty($_SESSION['csrf_token'])) {
 
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
-}
+    }
 
-/*
-|--------------------------------------------------------------------------
-| Generate Sale Number
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | Generate Sale Number
+    |--------------------------------------------------------------------------
+    */
 
-$today = date('Ymd');
+    $today = date('Ymd');
 
-$stmt = $pdo->prepare("
-SELECT COUNT(*) + 1
-FROM sales
-WHERE DATE(sale_date)=CURDATE()
-");
+    $stmt = $pdo->prepare("
+    SELECT COUNT(*) + 1
+    FROM sales
+    WHERE DATE(sale_date)=CURDATE()
+    ");
 
-$stmt->execute();
+    $stmt->execute();
 
-$sequence = str_pad(
-    (string)$stmt->fetchColumn(),
-    4,
-    '0',
-    STR_PAD_LEFT
-);
+    $sequence = str_pad(
+        (string)$stmt->fetchColumn(),
+        4,
+        '0',
+        STR_PAD_LEFT
+    );
 
-$sale_no = "SAL-{$today}-{$sequence}";
+    $sale_no = "SAL-{$today}-{$sequence}";
 
-/*
-|--------------------------------------------------------------------------
-| Open Harvests Ready For Sale
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | Open Harvests Ready For Sale
+    |--------------------------------------------------------------------------
+    */
 
-$stmt = $pdo->prepare("
-SELECT
+    $stmt = $pdo->prepare("
+    SELECT
 
-    h.id,
+        h.id,
 
-    h.harvest_no,
+        h.harvest_no,
 
-    fb.batch_code,
+        fb.batch_code,
 
-    fb.species,
+        fb.species,
 
-    h.harvest_date
+        h.harvest_date
 
-FROM harvests h
+    FROM harvests h
 
-INNER JOIN fish_batches fb
-    ON fb.id = h.fish_batch_id
+    INNER JOIN fish_batches fb
+        ON fb.id = h.fish_batch_id
 
-WHERE
+    WHERE
 
-    h.farm_id = ?
+        h.farm_id = ?
 
-AND h.is_open = 1
+    AND h.is_open = 1
 
-ORDER BY h.harvest_date ASC
-");
+    ORDER BY h.harvest_date ASC
+    ");
 
-$stmt->execute([$farm_id]);
+    $stmt->execute([$farm_id]);
 
-$harvests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $harvests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/*
-|--------------------------------------------------------------------------
-| Sale Types
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | Sale Types
+    |--------------------------------------------------------------------------
+    */
 
-$saleTypes = [
+    $saleTypes = [
 
-    'customer_sale'      => 'Customer Sale',
+        'customer_sale'      => 'Customer Sale',
 
-    'staff_share'        => 'Staff Share',
+        'staff_share'        => 'Staff Share',
 
-    'company_use'        => 'Company Use',
+        'company_use'        => 'Company Use',
 
-    'donation'           => 'Donation',
+        'donation'           => 'Donation',
 
-    'promotion'          => 'Promotion',
+        'promotion'          => 'Promotion',
 
-    'mortality_disposal' => 'Mortality Disposal',
+        'mortality_disposal' => 'Mortality Disposal',
 
-    'return'             => 'Return'
+        'return'             => 'Return'
 
-];
+    ];
 
-/*
-|--------------------------------------------------------------------------
-| Payment Methods
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Methods
+    |--------------------------------------------------------------------------
+    */
 
-$paymentMethods = [
+    $paymentMethods = [
 
-    'cash'     => 'Cash',
+        'cash'     => 'Cash',
 
-    'transfer' => 'Bank Transfer',
+        'transfer' => 'Bank Transfer',
 
-    'pos'      => 'POS',
+        'pos'      => 'POS',
 
-    'wallet'   => 'Wallet',
+        'wallet'   => 'Wallet',
 
-    'credit'   => 'Credit'
+        'credit'   => 'Credit'
 
-];
+    ];
 
-require_once __DIR__ . '/../../includes/header.php';
-require_once __DIR__ . '/../../includes/sidebar.php';
+    require_once __DIR__ . '/../../includes/header.php';
+    require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
 <div class="container-fluid py-4">
