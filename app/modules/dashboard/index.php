@@ -51,6 +51,65 @@ $stmt = $pdo->prepare("
 $stmt->execute([$farm_id]);
 $total_biomass = (float)$stmt->fetchColumn();
 
+// Fish Population
+$stmt = $pdo->prepare("
+    SELECT COALESCE(SUM(current_count), 0)
+    FROM pond_stocking
+    WHERE farm_id = ?
+      AND status = 'active'
+");
+$stmt->execute([$farm_id]);
+$total_fish_population = (int)$stmt->fetchColumn();
+
+// Active Batches
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM fish_batches
+    WHERE farm_id = ?
+      AND status = 'active'
+");
+$stmt->execute([$farm_id]);
+$active_batches = (int)$stmt->fetchColumn();
+
+// Harvest Inventory
+$stmt = $pdo->prepare("
+    SELECT
+        COUNT(DISTINCT hp.batch_id) AS harvested_batches,
+        COALESCE(SUM(hp.harvested_count), 0) AS harvested_fish,
+        COALESCE(SUM(hp.harvested_weight_kg), 0) AS harvested_weight_kg
+    FROM harvest_ponds hp
+    INNER JOIN harvests h
+        ON h.id = hp.harvest_id
+    WHERE h.farm_id = ?
+");
+$stmt->execute([$farm_id]);
+
+$harvest_inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$harvested_batches    = (int)($harvest_inventory['harvested_batches'] ?? 0);
+$total_harvested_fish = (int)($harvest_inventory['harvested_fish'] ?? 0);
+$total_harvested_weight = (float)($harvest_inventory['harvested_weight_kg'] ?? 0);
+
+/**
+ * AVAILABLE HARVEST INVENTORY
+ */
+
+$stmt = $pdo->prepare("
+    SELECT
+        COALESCE(SUM(hp.available_count), 0) AS available_fish,
+        COALESCE(SUM(hp.available_weight_kg), 0) AS available_weight_kg
+    FROM harvest_ponds hp
+    INNER JOIN harvests h
+        ON h.id = hp.harvest_id
+    WHERE h.farm_id = ?
+");
+$stmt->execute([$farm_id]);
+
+$available_inventory = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$available_harvest_fish = (int)($available_inventory['available_fish'] ?? 0);
+$available_harvest_weight = (float)($available_inventory['available_weight_kg'] ?? 0);
+
 // Feed
 $stmt = $pdo->prepare("
     SELECT COALESCE(SUM(quantity_kg),0)
@@ -59,6 +118,56 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$farm_id]);
 $total_feed = (float)$stmt->fetchColumn();
+
+/**
+ * POND OPERATIONS SNAPSHOT
+ */
+
+// Total ponds
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM ponds_tanks
+    WHERE farm_id = ?
+");
+$stmt->execute([$farm_id]);
+$total_ponds = (int)$stmt->fetchColumn();
+
+
+// Active ponds
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM ponds_tanks
+    WHERE farm_id = ?
+      AND status = 'active'
+");
+$stmt->execute([$farm_id]);
+$active_ponds = (int)$stmt->fetchColumn();
+
+
+// Occupied active ponds
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM ponds_tanks p
+    WHERE p.farm_id = ?
+      AND p.status = 'active'
+      AND EXISTS (
+          SELECT 1
+          FROM pond_stocking ps
+          WHERE ps.pond_id = p.id
+            AND ps.farm_id = ?
+            AND ps.status = 'active'
+            AND ps.current_count > 0
+      )
+");
+$stmt->execute([$farm_id, $farm_id]);
+$occupied_ponds = (int)$stmt->fetchColumn();
+
+
+// Empty active ponds
+$empty_active_ponds = max(
+    0,
+    $active_ponds - $occupied_ponds
+);
 
 /**
  * FINANCIAL PERMISSION
@@ -312,6 +421,21 @@ $view_data = [
     'farm_location'  => $farm_location,
     'farm_size'      => $farm_size,
 
+    'total_ponds'         => $total_ponds,
+    'active_ponds'        => $active_ponds,
+    'occupied_ponds'      => $occupied_ponds,
+    'empty_active_ponds'  => $empty_active_ponds,
+
+    'active_batches'          => $active_batches,
+    'total_fish_population'   => $total_fish_population,
+
+    'harvested_batches'       => $harvested_batches,
+    'total_harvested_fish'    => $total_harvested_fish,
+    'total_harvested_weight'  => $total_harvested_weight,
+
+    'available_harvest_fish'   => $available_harvest_fish,
+    'available_harvest_weight' => $available_harvest_weight,
+
     'total_biomass'  => $total_biomass,
     'total_feed'     => $total_feed,
     'total_sales'    => $total_sales,
@@ -332,21 +456,109 @@ require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-           <!-- HERO HEADER -->
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+<!-- =========================================================
+     YOTRIBE EXECUTIVE DASHBOARD HEADER
+     ========================================================= -->
 
-        <div>
-            <h2 class="mb-0 fw-bold"><?= htmlspecialchars($farm_name) ?></h2>
-            <small class="text-muted">
-                <?= htmlspecialchars($farm_location) ?> • <?= $farm_size ?> Farm
-            </small>
-        </div>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3 px-4">
 
-        <div class="d-flex gap-2 align-items-center">
-            <select id="farmSwitcher" class="form-select form-select-sm shadow-sm"></select>
+        <div class="row align-items-center g-3">
+
+            <!-- FARM IDENTITY -->
+            <div class="col-lg-7 col-md-8">
+
+                <div class="d-flex align-items-center gap-3">
+
+                    <!-- FARM ICON -->
+                    <div class="d-flex align-items-center justify-content-center
+                                bg-success bg-opacity-10 text-success rounded-circle"
+                         style="width:52px;height:52px;">
+
+                        <i class="bi bi-water fs-4"></i>
+
+                    </div>
+
+                    <!-- FARM INFORMATION -->
+                    <div>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+
+                            <h3 class="mb-0 fw-bold">
+                                <?= htmlspecialchars($farm_name) ?>
+                            </h3>
+
+                            <span class="badge bg-success">
+                                Active Farm
+                            </span>
+
+                        </div>
+
+                        <div class="text-muted small mt-1">
+
+                            <span>
+                                <i class="bi bi-geo-alt me-1"></i>
+                                <?= htmlspecialchars($farm_location) ?>
+                            </span>
+
+                            <span class="mx-2">•</span>
+
+                            <span>
+                                <?= htmlspecialchars($farm_size) ?> Farm
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- DASHBOARD CONTEXT -->
+            <div class="col-lg-5 col-md-4">
+
+                <div class="d-flex justify-content-md-end align-items-center
+                            gap-3 flex-wrap">
+
+                    <!-- DATE / TIME -->
+                    <div class="text-md-end">
+
+                        <div class="fw-semibold" id="dashboardDate">
+                            <?= date('l, d F Y') ?>
+                        </div>
+
+                        <div class="text-muted small" id="dashboardTime">
+                            <?= date('h:i A') ?>
+                        </div>
+
+                    </div>
+
+
+                    <!-- FARM SWITCHER -->
+                    <div style="min-width:190px;">
+
+                        <label for="farmSwitcher"
+                               class="form-label small text-muted mb-1">
+                            Current Farm
+                        </label>
+
+                        <select id="farmSwitcher"
+                                class="form-select form-select-sm shadow-sm">
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
     </div>
+</div>
 
 
 <!-- ALERT STRIP -->
@@ -366,73 +578,296 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 </div>
 
-<!-- KPI GRID (EXECUTIVE METRICS) -->
- 
-<!-- KPI GRID (EXECUTIVE METRICS) -->
+<!-- =========================================================
+     KPI GRID — YOTRIBE EXECUTIVE METRICS
+     ========================================================= -->
 
 <div class="row g-3 mb-4">
 
-    <!-- Biomass -->
-
+    <!-- LIVE FISH POPULATION -->
     <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-                <small class="text-muted">Biomass</small>
 
-                <h4 class="fw-bold">
-                    <?= number_format($total_biomass,2) ?> kg
-                </h4>
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Live Fish Population
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($total_fish_population) ?>
+                        </h4>
+
+                        <small class="text-success">
+                            Currently in ponds
+                        </small>
+                    </div>
+
+                    <div class="text-success">
+                        <i class="bi bi-fish fs-3"></i>
+                    </div>
+
+                </div>
+
             </div>
         </div>
     </div>
 
-    <!-- Feed -->
 
+    <!-- ACTIVE BATCHES -->
     <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-                <small class="text-muted">Feed Stock</small>
 
-                <h4 class="fw-bold">
-                    <?= number_format($total_feed,2) ?> kg
-                </h4>
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Active Batches
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($active_batches) ?>
+                        </h4>
+
+                        <small class="text-primary">
+                            Currently growing
+                        </small>
+                    </div>
+
+                    <div class="text-primary">
+                        <i class="bi bi-box-seam fs-3"></i>
+                    </div>
+
+                </div>
+
             </div>
         </div>
     </div>
+
+
+    <!-- HARVESTED BATCHES -->
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Harvested Batches
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($harvested_batches) ?>
+                        </h4>
+
+                        <small class="text-warning">
+                            Batches with harvest records
+                        </small>
+                    </div>
+
+                    <div class="text-warning">
+                        <i class="bi bi-basket2 fs-3"></i>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- HARVESTED FISH -->
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Harvested Fish
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($total_harvested_fish) ?>
+                        </h4>
+
+                        <small class="text-muted">
+                            Total fish harvested
+                        </small>
+                    </div>
+
+                    <div class="text-info">
+                        <i class="bi bi-box-arrow-down fs-3"></i>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- HARVESTED WEIGHT -->
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Harvested Weight
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($total_harvested_weight, 2) ?> kg
+                        </h4>
+
+                        <small class="text-muted">
+                            Total harvested biomass
+                        </small>
+                    </div>
+
+                    <div class="text-success">
+                        <i class="bi bi-speedometer2 fs-3"></i>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- BIOMASS -->
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Current Biomass
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($total_biomass, 2) ?> kg
+                        </h4>
+
+                        <small class="text-muted">
+                            Estimated live biomass
+                        </small>
+                    </div>
+
+                    <div class="text-primary">
+                        <i class="bi bi-bar-chart-line fs-3"></i>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- FEED STOCK -->
+    <div class="<?= $can_view_financials ? 'col-md-3' : 'col-md-6' ?>">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <div>
+                        <small class="text-muted">
+                            Feed Stock
+                        </small>
+
+                        <h4 class="fw-bold mb-0">
+                            <?= number_format($total_feed, 2) ?> kg
+                        </h4>
+
+                        <small class="text-muted">
+                            Current feed inventory
+                        </small>
+                    </div>
+
+                    <div class="text-warning">
+                        <i class="bi bi-boxes fs-3"></i>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
 
     <?php if ($can_view_financials): ?>
 
-        <!-- Revenue -->
-
+        <!-- REVENUE -->
         <div class="col-md-3">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
 
-                    <small class="text-muted">
-                        Revenue
-                    </small>
+                    <div class="d-flex justify-content-between align-items-start">
 
-                    <h4 class="fw-bold text-primary">
-                        ₦<?= number_format($total_sales,2) ?>
-                    </h4>
+                        <div>
+                            <small class="text-muted">
+                                Revenue
+                            </small>
+
+                            <h4 class="fw-bold text-primary mb-0">
+                                ₦<?= number_format($total_sales, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Total sales
+                            </small>
+                        </div>
+
+                        <div class="text-primary">
+                            <i class="bi bi-cash-stack fs-3"></i>
+                        </div>
+
+                    </div>
 
                 </div>
             </div>
         </div>
 
-        <!-- Profit -->
 
+        <!-- NET PROFIT -->
         <div class="col-md-3">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
 
-                    <small class="text-muted">
-                        Net Profit
-                    </small>
+                    <div class="d-flex justify-content-between align-items-start">
 
-                    <h4 class="fw-bold <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
-                        ₦<?= number_format($profit,2) ?>
-                    </h4>
+                        <div>
+                            <small class="text-muted">
+                                Net Profit
+                            </small>
+
+                            <h4 class="fw-bold <?= $profit >= 0 ? 'text-success' : 'text-danger' ?> mb-0">
+                                ₦<?= number_format($profit, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Revenue less expenses
+                            </small>
+                        </div>
+
+                        <div class="<?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <i class="bi bi-graph-up-arrow fs-3"></i>
+                        </div>
+
+                    </div>
 
                 </div>
             </div>
@@ -441,6 +876,298 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     <?php endif; ?>
 
 </div>
+
+
+<!-- =========================================================
+     POND OPERATIONS SNAPSHOT
+     ========================================================= -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+        <div>
+            <strong>Pond Operations</strong>
+            <div class="text-muted small">
+                Current pond utilization for this farm
+            </div>
+        </div>
+
+        <span class="badge bg-light text-dark border">
+            <?= number_format($total_ponds) ?> Total Ponds
+        </span>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <!-- TOTAL PONDS -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Total Ponds
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                <?= number_format($total_ponds) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Registered ponds
+                            </small>
+                        </div>
+
+                        <i class="bi bi-grid-3x3-gap fs-3 text-primary"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- ACTIVE PONDS -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Active Ponds
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-success">
+                                <?= number_format($active_ponds) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Operational ponds
+                            </small>
+                        </div>
+
+                        <i class="bi bi-check-circle fs-3 text-success"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- OCCUPIED PONDS -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Occupied Ponds
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-info">
+                                <?= number_format($occupied_ponds) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Currently stocked
+                            </small>
+                        </div>
+
+                        <i class="bi bi-water fs-3 text-info"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- EMPTY PONDS -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Empty Active Ponds
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-warning">
+                                <?= number_format($empty_active_ponds) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Available for stocking
+                            </small>
+                        </div>
+
+                        <i class="bi bi-house fs-3 text-warning"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     HARVEST INVENTORY SNAPSHOT
+     ========================================================= -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+        <div>
+            <strong>Harvest Inventory</strong>
+            <div class="text-muted small">
+                Harvested fish currently tracked in inventory
+            </div>
+        </div>
+
+        <span class="badge bg-light text-dark border">
+            <?= number_format($harvested_batches) ?> Harvested Batches
+        </span>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <!-- HARVESTED FISH -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Harvested Fish
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                <?= number_format($total_harvested_fish) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Total harvested quantity
+                            </small>
+                        </div>
+
+                        <i class="bi bi-fish fs-3 text-primary"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- HARVESTED WEIGHT -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Harvested Weight
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                <?= number_format($total_harvested_weight, 2) ?>
+                                <small class="fs-6">kg</small>
+                            </h4>
+
+                            <small class="text-muted">
+                                Total harvested biomass
+                            </small>
+                        </div>
+
+                        <i class="bi bi-box-seam fs-3 text-success"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- AVAILABLE FISH -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Available Fish
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-info">
+                                <?= number_format($available_harvest_fish) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Available for sale
+                            </small>
+                        </div>
+
+                        <i class="bi bi-basket fs-3 text-info"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- AVAILABLE WEIGHT -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Available Weight
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-warning">
+                                <?= number_format($available_harvest_weight, 2) ?>
+                                <small class="fs-6">kg</small>
+                            </h4>
+
+                            <small class="text-muted">
+                                Harvest stock available for sale
+                            </small>
+                        </div>
+
+                        <i class="bi bi-boxes fs-3 text-warning"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+
+
 
 <!-- ANALYTICS TABS -->
 <ul class="nav nav-pills mb-3" id="analyticsTabs">
