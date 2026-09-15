@@ -211,6 +211,60 @@ if ($can_view_financials) {
 
     $profit = $total_sales - $total_expenses;
 }
+/**
+ * PROFIT MARGIN
+ */
+
+$profit_margin = 0;
+
+if ($total_sales > 0) {
+    $profit_margin = ($profit / $total_sales) * 100;
+}
+/**
+ * SALES SNAPSHOT
+ */
+
+$sales_count = 0;
+$sales_fish = 0;
+$sales_weight_kg = 0;
+$average_sale_value = 0;
+
+if ($can_view_financials) {
+
+    // Number of sales transactions
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM sales
+        WHERE farm_id = ?
+    ");
+    $stmt->execute([$farm_id]);
+    $sales_count = (int)$stmt->fetchColumn();
+
+
+    // Fish and weight sold
+    $stmt = $pdo->prepare("
+        SELECT
+            COALESCE(SUM(si.quantity_fish), 0) AS fish_sold,
+            COALESCE(SUM(si.quantity_kg), 0) AS weight_sold
+        FROM sale_items si
+        INNER JOIN sales s
+            ON s.id = si.sale_id
+        WHERE s.farm_id = ?
+    ");
+    $stmt->execute([$farm_id]);
+
+    $sales_snapshot = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $sales_fish = (int)($sales_snapshot['fish_sold'] ?? 0);
+    $sales_weight_kg = (float)($sales_snapshot['weight_sold'] ?? 0);
+
+
+    // Average sale transaction value
+    if ($sales_count > 0) {
+        $average_sale_value = $total_sales / $sales_count;
+    }
+}
+
 // Mortality
 $stmt = $pdo->prepare("
     SELECT COUNT(*)
@@ -251,11 +305,11 @@ $stmt = $pdo->prepare("
 $stmt->execute([$farm_id]);
 $stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $attention = [];
+$intelligence_items = [];
+
 $growth_data = [];
 $feeding_data = [];
 $fcr_data = [];
-
-
 
 /**
  * PRELOAD FEED TODAY (GROUPED)
@@ -274,19 +328,63 @@ foreach ($stmt->fetchAll() as $f) {
 
 /**
  * PRELOAD GROWTH RANGE
+ *
+ * Uses growth_logs, which is the authoritative growth
+ * recording table used by growth_helper.php.
  */
 $stmt = $pdo->prepare("
-    SELECT pond_id, batch_id,
-           MIN(avg_weight_g) AS start_w,
-           MAX(avg_weight_g) AS end_w
-    FROM fish_growth_logs
-    WHERE farm_id = ?
-    GROUP BY pond_id, batch_id
+    SELECT DISTINCT
+        gl.pond_id,
+        gl.batch_id,
+
+        (
+            SELECT gl_start.avg_weight_g
+            FROM growth_logs gl_start
+            WHERE gl_start.farm_id = gl.farm_id
+              AND gl_start.pond_id = gl.pond_id
+              AND gl_start.batch_id = gl.batch_id
+            ORDER BY gl_start.recorded_at ASC, gl_start.id ASC
+            LIMIT 1
+        ) AS start_w,
+
+        (
+            SELECT gl_start.recorded_at
+            FROM growth_logs gl_start
+            WHERE gl_start.farm_id = gl.farm_id
+              AND gl_start.pond_id = gl.pond_id
+              AND gl_start.batch_id = gl.batch_id
+            ORDER BY gl_start.recorded_at ASC, gl_start.id ASC
+            LIMIT 1
+        ) AS start_at,
+
+        (
+            SELECT gl_end.avg_weight_g
+            FROM growth_logs gl_end
+            WHERE gl_end.farm_id = gl.farm_id
+              AND gl_end.pond_id = gl.pond_id
+              AND gl_end.batch_id = gl.batch_id
+            ORDER BY gl_end.recorded_at DESC, gl_end.id DESC
+            LIMIT 1
+        ) AS end_w,
+
+        (
+            SELECT gl_end.recorded_at
+            FROM growth_logs gl_end
+            WHERE gl_end.farm_id = gl.farm_id
+              AND gl_end.pond_id = gl.pond_id
+              AND gl_end.batch_id = gl.batch_id
+            ORDER BY gl_end.recorded_at DESC, gl_end.id DESC
+            LIMIT 1
+        ) AS end_at
+
+    FROM growth_logs gl
+    WHERE gl.farm_id = ?
 ");
 $stmt->execute([$farm_id]);
 
 $growth_map = [];
-foreach ($stmt->fetchAll() as $g) {
+
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $g) {
     $key = $g['pond_id'].'_'.$g['batch_id'];
     $growth_map[$key] = $g;
 }
@@ -349,17 +447,26 @@ foreach ($stocks as $s) {
 
         $recommended = $biomass * $rate;
 
-        $feeding_data[] = [
-            'pond' => $s['pond_code'],
-            'recommended' => $recommended,
-            'actual' => $fed_today
-        ];
+        $feeding_alert = '';
 
         if ($fed_today > $recommended) {
-            $attention[$s['pond_code'].'_feed'] = "{$s['pond_code']}: Overfeeding detected";
+            $feeding_alert = 'Overfeeding detected';
+
+            $attention[$s['pond_code'].'_feed'] =
+                "{$s['pond_code']}: {$feeding_alert}";
+        }
+
+        $feeding_data[] = [
+            'pond'        => $s['pond_code'],
+            'recommended' => $recommended,
+            'actual'      => $fed_today,
+            'alert'       => $feeding_alert
+        ];
+        if ($feeding_alert !== '') {
+            $attention[$s['pond_code'].'_feed'] =
+                "{$s['pond_code']}: {$feeding_alert}";
         }
     }
-
     /**
      * TRUE FCR (SCIENTIFIC)
      */
@@ -370,19 +477,73 @@ foreach ($stocks as $s) {
         if ($g['end_w'] > $g['start_w']) {
 
             $weight_gain = $g['end_w'] - $g['start_w'];
-            $biomass_gain = ($weight_gain * $s['current_count']) / 1000;
+
+            $biomass_gain = (
+                $weight_gain * $s['current_count']
+            ) / 1000;
 
             if ($biomass_gain > 0) {
 
-                $fcr = $feed_total_map[$pond_id] / $biomass_gain;
+                $feed_used = $feed_total_map[$pond_id];
+
+                $fcr = $feed_used / $biomass_gain;
+
+                /**
+                 * FCR CLASSIFICATION
+                 */
+                if ($fcr <= 1.8) {
+
+                    $fcr_efficiency = 'EXCELLENT';
+                    $fcr_alert = '';
+
+                } elseif ($fcr <= 2.0) {
+
+                    $fcr_efficiency = 'GOOD';
+                    $fcr_alert = '';
+
+                } else {
+
+                    $fcr_efficiency = 'POOR';
+                    $fcr_alert = 'Poor FCR';
+                }
 
                 $fcr_data[] = [
+
                     'pond' => $s['pond_code'],
-                    'fcr'  => $fcr
+
+                    'start_weight_g' =>
+                        (float)$g['start_w'],
+
+                    'end_weight_g' =>
+                        (float)$g['end_w'],
+
+                    'weight_gain_g' =>
+                        (float)$weight_gain,
+
+                    'feed_used_kg' =>
+                        (float)$feed_used,
+
+                    'biomass_gain_kg' =>
+                        (float)$biomass_gain,
+
+                    'fcr' =>
+                        (float)$fcr,
+
+                    'efficiency' =>
+                        $fcr_efficiency,
+
+                    'alert' =>
+                        $fcr_alert
                 ];
 
-                if ($fcr > 2) {
-                    $attention[$s['pond_code'].'_fcr'] = "{$s['pond_code']}: Poor FCR";
+                /**
+                 * MANAGEMENT ATTENTION
+                 */
+                if ($fcr_alert !== '') {
+
+                    $attention[
+                        $s['pond_code'].'_fcr'
+                    ] = "{$s['pond_code']}: {$fcr_alert}";
                 }
             }
         }
@@ -409,9 +570,161 @@ foreach ($stmt->fetchAll() as $m) {
 }
 
 /**
+ * FARM HEALTH SUMMARY
+ *
+ * Converts existing operational analysis into
+ * simple dashboard-level health indicators.
+ */
+
+$growth_health = 'Healthy';
+$feeding_health = 'Healthy';
+$fcr_health = 'Healthy';
+$mortality_health = 'Healthy';
+
+
+// ---------------------------------------------------------
+// GROWTH HEALTH
+// ---------------------------------------------------------
+
+$growth_attention_count = 0;
+
+foreach ($growth_data as $growth) {
+
+    if (
+        isset($growth['alert']) &&
+        !empty($growth['alert'])
+    ) {
+        $growth_attention_count++;
+    }
+}
+
+if ($growth_attention_count > 0) {
+    $growth_health = 'Attention';
+}
+
+
+// ---------------------------------------------------------
+// FEEDING HEALTH
+// ---------------------------------------------------------
+
+$feeding_attention_count = 0;
+
+foreach ($feeding_data as $feeding) {
+
+    if (
+        isset($feeding['alert']) &&
+        !empty($feeding['alert'])
+    ) {
+        $feeding_attention_count++;
+    }
+}
+
+if ($feeding_attention_count > 0) {
+    $feeding_health = 'Attention';
+}
+
+
+// ---------------------------------------------------------
+// FCR HEALTH
+// ---------------------------------------------------------
+
+$fcr_attention_count = 0;
+
+foreach ($fcr_data as $fcr) {
+
+    if (
+        isset($fcr['alert']) &&
+        !empty($fcr['alert'])
+    ) {
+        $fcr_attention_count++;
+    }
+}
+
+if ($fcr_attention_count > 0) {
+
+    $fcr_health = 'Attention';
+
+} else {
+
+    $fcr_health = 'Healthy';
+}
+
+
+// ---------------------------------------------------------
+// MORTALITY HEALTH
+// ---------------------------------------------------------
+
+if ($high_mortality > 0) {
+    $mortality_health = 'Attention';
+}
+
+/**
  * FINAL CLEAN ARRAY
  */
-$attention = array_values($attention);
+$attention = array_values(array_map(
+    static function (string $attention_item): array {
+
+        $severity = 'attention';
+
+        if (
+            stripos($attention_item, 'Mortality spike') !== false ||
+            stripos($attention_item, 'Poor FCR') !== false
+        ) {
+            $severity = 'high';
+        }
+
+        return [
+            'title'    => $attention_item,
+            'message'  => $attention_item,
+            'action'   => '',
+            'severity' => $severity,
+        ];
+    },
+    $attention
+));
+
+/**
+ * YOTRIBE INTELLIGENCE SUMMARY
+ */
+
+$intelligence_attention_count = count($attention);
+
+$intelligence_critical_count = 0;
+$intelligence_normal_count = 0;
+
+foreach ($attention as $item) {
+
+    $severity = strtolower(
+        trim($item['severity'] ?? '')
+    );
+
+    if (
+        in_array(
+            $severity,
+            ['critical', 'high'],
+            true
+        )
+    ) {
+        $intelligence_critical_count++;
+    } else {
+        $intelligence_normal_count++;
+    }
+}
+
+
+if ($intelligence_critical_count > 0) {
+
+    $intelligence_status = 'Critical';
+
+} elseif ($intelligence_attention_count > 0) {
+
+    $intelligence_status = 'Attention';
+
+} else {
+
+    $intelligence_status = 'Healthy';
+}
+
 $page_title = "Dashboard";
 /**
  * PASS DATA TO VIEW LAYER
@@ -442,12 +755,28 @@ $view_data = [
     'total_expenses' => $total_expenses,
     'profit'         => $profit,
     'high_mortality' => $high_mortality,
+    
+    'sales_count'          => $sales_count,
+    'sales_fish'           => $sales_fish,
+    'sales_weight_kg'      => $sales_weight_kg,
+    'average_sale_value'   => $average_sale_value,
+    'profit_margin'        => $profit_margin,
 
     'alerts'         => $alerts,
     'growth_data'    => $growth_data,
     'feeding_data'   => $feeding_data,
     'fcr_data'       => $fcr_data,
     'attention'      => $attention,
+
+    'growth_health'  => $growth_health,
+    'feeding_health' => $feeding_health,
+    'fcr_health'     => $fcr_health,
+    'mortality_health' => $mortality_health,
+
+    'intelligence_attention_count' => $intelligence_attention_count,
+    'intelligence_critical_count'  => $intelligence_critical_count,
+    'intelligence_normal_count'    => $intelligence_normal_count,
+    'intelligence_status'          => $intelligence_status,
 ];
 
 /* your queries here */
@@ -571,7 +900,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
         <?php else: ?>
             <ul class="mb-0">
                 <?php foreach ($attention as $a): ?>
-                    <li><?= htmlspecialchars($a) ?></li>
+                    <li><?= htmlspecialchars($a['message'] ?? '', ENT_QUOTES, 'UTF-8') ?></li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>
@@ -1164,10 +1493,826 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 </div>
 
+<!-- =========================================================
+     SALES SNAPSHOT
+     ========================================================= -->
+
+<?php if ($can_view_financials): ?>
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+        <div>
+            <strong>Sales Snapshot</strong>
+            <div class="text-muted small">
+                Current sales activity for this farm
+            </div>
+        </div>
+
+        <span class="badge bg-light text-dark border">
+            <?= number_format($sales_count) ?> Transactions
+        </span>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <!-- SALES VALUE -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Sales Revenue
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                ₦<?= number_format($total_sales, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Total recorded sales
+                            </small>
+                        </div>
+
+                        <i class="bi bi-cash-stack fs-3 text-success"></i>
+
+                    </div>
+
+                </div>
+            </div>
 
 
+            <!-- FISH SOLD -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Fish Sold
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                <?= number_format($sales_fish) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Total fish sold
+                            </small>
+                        </div>
+
+                        <i class="bi bi-fish fs-3 text-primary"></i>
+
+                    </div>
+
+                </div>
+            </div>
 
 
+            <!-- WEIGHT SOLD -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Weight Sold
+                            </small>
+
+                            <h4 class="fw-bold mb-1">
+                                <?= number_format($sales_weight_kg, 2) ?>
+                                <small class="fs-6">kg</small>
+                            </h4>
+
+                            <small class="text-muted">
+                                Total fish weight sold
+                            </small>
+                        </div>
+
+                        <i class="bi bi-box-arrow-up fs-3 text-info"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- AVERAGE SALE -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Average Sale
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-warning">
+                                ₦<?= number_format($average_sale_value, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Average transaction value
+                            </small>
+                        </div>
+
+                        <i class="bi bi-receipt fs-3 text-warning"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<?php endif; ?>
+
+<!-- =========================================================
+     FINANCIAL SNAPSHOT
+     ========================================================= -->
+
+<?php if ($can_view_financials): ?>
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+        <div>
+            <strong>Financial Snapshot</strong>
+            <div class="text-muted small">
+                Financial performance for this farm
+            </div>
+        </div>
+
+        <span class="badge bg-light text-dark border">
+            <?= number_format($profit_margin, 1) ?>% Margin
+        </span>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <!-- TOTAL REVENUE -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Total Revenue
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-success">
+                                ₦<?= number_format($total_sales, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Recorded sales revenue
+                            </small>
+                        </div>
+
+                        <i class="bi bi-graph-up-arrow fs-3 text-success"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- TOTAL EXPENSES -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Total Expenses
+                            </small>
+
+                            <h4 class="fw-bold mb-1 text-danger">
+                                ₦<?= number_format($total_expenses, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Recorded farm expenses
+                            </small>
+                        </div>
+
+                        <i class="bi bi-arrow-down-circle fs-3 text-danger"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- NET PROFIT -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Net Profit
+                            </small>
+
+                            <h4 class="fw-bold mb-1 <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>">
+                                ₦<?= number_format($profit, 2) ?>
+                            </h4>
+
+                            <small class="text-muted">
+                                Revenue minus expenses
+                            </small>
+                        </div>
+
+                        <i class="bi bi-wallet2 fs-3 <?= $profit >= 0 ? 'text-success' : 'text-danger' ?>"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- PROFIT MARGIN -->
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+                            <small class="text-muted">
+                                Profit Margin
+                            </small>
+
+                            <h4 class="fw-bold mb-1 <?= $profit_margin >= 0 ? 'text-success' : 'text-danger' ?>">
+                                <?= number_format($profit_margin, 1) ?>%
+                            </h4>
+
+                            <small class="text-muted">
+                                Net profit / revenue
+                            </small>
+                        </div>
+
+                        <i class="bi bi-percent fs-3 <?= $profit_margin >= 0 ? 'text-success' : 'text-danger' ?>"></i>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<?php endif; ?>
+
+<!-- =========================================================
+     FARM HEALTH SUMMARY
+     ========================================================= -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+        <div>
+            <strong>Farm Health</strong>
+            <div class="text-muted small">
+                Current operational health indicators for this farm
+            </div>
+        </div>
+
+        <?php
+        $health_statuses = [
+            $growth_health,
+            $feeding_health,
+            $fcr_health,
+            $mortality_health
+        ];
+
+        $health_attention_count = count(
+            array_filter(
+                $health_statuses,
+                fn($status) => $status === 'Attention'
+            )
+        );
+        ?>
+
+        <?php if ($health_attention_count > 0): ?>
+
+            <span class="badge bg-warning text-dark">
+                <?= number_format($health_attention_count) ?> Attention
+            </span>
+
+        <?php else: ?>
+
+            <span class="badge bg-success">
+                Healthy
+            </span>
+
+        <?php endif; ?>
+
+    </div>
+
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+
+            <!-- =================================================
+                 GROWTH HEALTH
+                 ================================================= -->
+
+            <div class="col-md-3">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+
+                            <small class="text-muted">
+                                Growth Health
+                            </small>
+
+                            <h5 class="fw-bold mb-1
+                                <?= $growth_health === 'Healthy'
+                                    ? 'text-success'
+                                    : 'text-warning' ?>">
+
+                                <?= htmlspecialchars($growth_health) ?>
+
+                            </h5>
+
+                            <small class="text-muted">
+                                Fish growth performance
+                            </small>
+
+                        </div>
+
+                        <i class="bi bi-graph-up-arrow fs-3
+                            <?= $growth_health === 'Healthy'
+                                ? 'text-success'
+                                : 'text-warning' ?>">
+                        </i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 FEEDING HEALTH
+                 ================================================= -->
+
+            <div class="col-md-3">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+
+                            <small class="text-muted">
+                                Feeding Health
+                            </small>
+
+                            <h5 class="fw-bold mb-1
+                                <?= $feeding_health === 'Healthy'
+                                    ? 'text-success'
+                                    : 'text-warning' ?>">
+
+                                <?= htmlspecialchars($feeding_health) ?>
+
+                            </h5>
+
+                            <small class="text-muted">
+                                Feeding performance
+                            </small>
+
+                        </div>
+
+                        <i class="bi bi-egg-fried fs-3
+                            <?= $feeding_health === 'Healthy'
+                                ? 'text-success'
+                                : 'text-warning' ?>">
+                        </i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 FCR HEALTH
+                 ================================================= -->
+
+            <div class="col-md-3">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+
+                            <small class="text-muted">
+                                FCR Health
+                            </small>
+
+                            <h5 class="fw-bold mb-1
+                                <?= $fcr_health === 'Healthy'
+                                    ? 'text-success'
+                                    : 'text-warning' ?>">
+
+                                <?= htmlspecialchars($fcr_health) ?>
+
+                            </h5>
+
+                            <small class="text-muted">
+                                Feed conversion performance
+                            </small>
+
+                        </div>
+
+                        <i class="bi bi-speedometer2 fs-3
+                            <?= $fcr_health === 'Healthy'
+                                ? 'text-success'
+                                : 'text-warning' ?>">
+                        </i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 MORTALITY HEALTH
+                 ================================================= -->
+
+            <div class="col-md-3">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-start">
+
+                        <div>
+
+                            <small class="text-muted">
+                                Mortality Health
+                            </small>
+
+                            <h5 class="fw-bold mb-1
+                                <?= $mortality_health === 'Healthy'
+                                    ? 'text-success'
+                                    : 'text-warning' ?>">
+
+                                <?= htmlspecialchars($mortality_health) ?>
+
+                            </h5>
+
+                            <small class="text-muted">
+                                Mortality activity
+                            </small>
+
+                        </div>
+
+                        <i class="bi bi-heart-pulse fs-3
+                            <?= $mortality_health === 'Healthy'
+                                ? 'text-success'
+                                : 'text-warning' ?>">
+                        </i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     YOTRIBE INTELLIGENCE
+     ========================================================= -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+        <div>
+            <strong>YOTRIBE Intelligence</strong>
+
+            <div class="text-muted small">
+                Operational conditions requiring management attention
+            </div>
+        </div>
+
+
+        <?php if ($intelligence_status === 'Critical'): ?>
+
+            <span class="badge bg-danger">
+                Critical
+            </span>
+
+        <?php elseif ($intelligence_status === 'Attention'): ?>
+
+            <span class="badge bg-warning text-dark">
+                Attention Required
+            </span>
+
+        <?php else: ?>
+
+            <span class="badge bg-success">
+                Healthy
+            </span>
+
+        <?php endif; ?>
+
+    </div>
+
+
+    <div class="card-body">
+
+
+        <!-- =====================================================
+             INTELLIGENCE SUMMARY
+             ===================================================== -->
+
+        <div class="row g-3 mb-4">
+
+            <!-- TOTAL ATTENTION -->
+            <div class="col-md-4">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-center">
+
+                        <div>
+
+                            <small class="text-muted">
+                                Attention Items
+                            </small>
+
+                            <h4 class="fw-bold mb-0">
+                                <?= number_format($intelligence_attention_count) ?>
+                            </h4>
+
+                        </div>
+
+                        <i class="bi bi-exclamation-circle fs-3 text-warning"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CRITICAL -->
+            <div class="col-md-4">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-center">
+
+                        <div>
+
+                            <small class="text-muted">
+                                Critical / High
+                            </small>
+
+                            <h4 class="fw-bold mb-0 text-danger">
+                                <?= number_format($intelligence_critical_count) ?>
+                            </h4>
+
+                        </div>
+
+                        <i class="bi bi-exclamation-triangle fs-3 text-danger"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- NORMAL -->
+            <div class="col-md-4">
+
+                <div class="border rounded p-3 h-100">
+
+                    <div class="d-flex justify-content-between align-items-center">
+
+                        <div>
+
+                            <small class="text-muted">
+                                Normal Attention
+                            </small>
+
+                            <h4 class="fw-bold mb-0 text-info">
+                                <?= number_format($intelligence_normal_count) ?>
+                            </h4>
+
+                        </div>
+
+                        <i class="bi bi-info-circle fs-3 text-info"></i>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             ATTENTION ITEMS
+             ===================================================== -->
+
+        <?php if (!empty($attention)): ?>
+
+            <div class="mb-3">
+
+                <h6 class="fw-bold mb-3">
+                    Attention Required
+                </h6>
+
+
+                <div class="list-group">
+
+
+                    <?php foreach ($attention as $item): ?>
+
+                        <?php
+                        $severity = strtolower(
+                            trim($item['severity'] ?? '')
+                        );
+
+                        if (
+                            in_array(
+                                $severity,
+                                ['critical', 'high'],
+                                true
+                            )
+                        ) {
+
+                            $severity_class = 'danger';
+                            $severity_icon  = 'bi-exclamation-triangle';
+
+                        } else {
+
+                            $severity_class = 'warning';
+                            $severity_icon  = 'bi-exclamation-circle';
+                        }
+                        ?>
+
+
+                        <div class="list-group-item">
+
+                            <div class="d-flex align-items-start">
+
+                                <div class="me-3">
+
+                                    <i class="bi <?= $severity_icon ?>
+                                        text-<?= $severity_class ?>
+                                        fs-4">
+                                    </i>
+
+                                </div>
+
+
+                                <div class="flex-grow-1">
+
+                                    <div class="d-flex justify-content-between align-items-start">
+
+                                        <strong>
+                                            <?= htmlspecialchars(
+                                                $item['title']
+                                                ?? $item['message']
+                                                ?? 'Operational Attention'
+                                            ) ?>
+                                        </strong>
+
+
+                                        <span class="badge bg-<?= $severity_class ?>
+                                            <?= $severity_class === 'warning'
+                                                ? ' text-dark'
+                                                : '' ?>">
+
+                                            <?= htmlspecialchars(
+                                                ucfirst(
+                                                    $severity !== ''
+                                                        ? $severity
+                                                        : 'attention'
+                                                )
+                                            ) ?>
+
+                                        </span>
+
+                                    </div>
+
+
+                                    <?php if (!empty($item['message'])): ?>
+
+                                        <div class="text-muted small mt-1">
+
+                                            <?= htmlspecialchars(
+                                                $item['message']
+                                            ) ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+
+                                    <?php if (!empty($item['action'])): ?>
+
+                                        <div class="small mt-2">
+
+                                            <strong>
+                                                Recommended Action:
+                                            </strong>
+
+                                            <?= htmlspecialchars(
+                                                $item['action']
+                                            ) ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                    <?php endforeach; ?>
+
+                </div>
+
+            </div>
+
+
+        <?php else: ?>
+
+
+            <!-- =================================================
+                 NO ATTENTION ITEMS
+                 ================================================= -->
+
+            <div class="text-center py-4">
+
+                <i class="bi bi-check-circle text-success fs-1"></i>
+
+                <h6 class="fw-bold mt-2">
+                    No Immediate Attention Required
+                </h6>
+
+                <p class="text-muted small mb-0">
+                    YOTRIBE has not detected any current operational
+                    conditions requiring management attention.
+                </p>
+
+            </div>
+
+
+        <?php endif; ?>
+
+    </div>
+
+</div>
 
 <!-- ANALYTICS TABS -->
 <ul class="nav nav-pills mb-3" id="analyticsTabs">
@@ -1260,39 +2405,148 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
     <!-- FCR -->
     <div class="tab-pane fade" id="fcr">
+
         <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                <strong>Feed Conversion Ratio (Scientific Model)</strong>
+
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+                <div>
+                    <strong>Feed Conversion Ratio Analytics</strong>
+
+                    <div class="text-muted small">
+                        Scientific feed-to-biomass conversion analysis
+                    </div>
+                </div>
+
+                <span class="badge bg-light text-dark border">
+                    <?= number_format(count($fcr_data)) ?> Ponds Analysed
+                </span>
+
             </div>
+
             <div class="card-body table-responsive">
-                <table class="table table-sm align-middle">
+
+                <table class="table table-sm table-hover align-middle">
+
                     <thead>
+
                         <tr>
                             <th>Pond</th>
+                            <th>Start Weight</th>
+                            <th>End Weight</th>
+                            <th>Weight Gain</th>
+                            <th>Feed Used</th>
+                            <th>Biomass Gain</th>
                             <th>FCR</th>
                             <th>Efficiency</th>
                         </tr>
+
                     </thead>
+
                     <tbody>
-                        <?php foreach ($fcr_data as $f): ?>
-                        <tr>
-                            <td class="fw-bold"><?= $f['pond'] ?></td>
-                            <td><?= round($f['fcr'],2) ?></td>
-                            <td>
-                                <?php if ($f['fcr'] <= 1.8): ?>
-                                    <span class="badge bg-success">EXCELLENT</span>
-                                <?php elseif ($f['fcr'] <= 2): ?>
-                                    <span class="badge bg-warning text-dark">GOOD</span>
-                                <?php else: ?>
-                                    <span class="badge bg-danger">POOR</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+
+                        <?php if (empty($fcr_data)): ?>
+
+                            <tr>
+                                <td colspan="8"
+                                    class="text-center text-muted py-4">
+
+                                    No sufficient growth and feeding data
+                                    available for FCR calculation.
+
+                                </td>
+                            </tr>
+
+                        <?php else: ?>
+
+                            <?php foreach ($fcr_data as $f): ?>
+
+                                <tr>
+
+                                    <td class="fw-bold">
+                                        <?= htmlspecialchars($f['pond']) ?>
+                                    </td>
+
+                                    <td>
+                                        <?= number_format(
+                                            $f['start_weight_g'],
+                                            1
+                                        ) ?> g
+                                    </td>
+
+                                    <td>
+                                        <?= number_format(
+                                            $f['end_weight_g'],
+                                            1
+                                        ) ?> g
+                                    </td>
+
+                                    <td>
+                                        <?= number_format(
+                                            $f['weight_gain_g'],
+                                            1
+                                        ) ?> g
+                                    </td>
+
+                                    <td>
+                                        <?= number_format(
+                                            $f['feed_used_kg'],
+                                            2
+                                        ) ?> kg
+                                    </td>
+
+                                    <td>
+                                        <?= number_format(
+                                            $f['biomass_gain_kg'],
+                                            2
+                                        ) ?> kg
+                                    </td>
+
+                                    <td class="fw-bold">
+                                        <?= number_format(
+                                            $f['fcr'],
+                                            2
+                                        ) ?>
+                                    </td>
+
+                                    <td>
+
+                                        <?php if ($f['efficiency'] === 'EXCELLENT'): ?>
+
+                                            <span class="badge bg-success">
+                                                EXCELLENT
+                                            </span>
+
+                                        <?php elseif ($f['efficiency'] === 'GOOD'): ?>
+
+                                            <span class="badge bg-warning text-dark">
+                                                GOOD
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="badge bg-danger">
+                                                POOR
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        <?php endif; ?>
+
                     </tbody>
+
                 </table>
+
             </div>
+
         </div>
+
     </div>
 
 </div>
