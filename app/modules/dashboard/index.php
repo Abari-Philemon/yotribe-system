@@ -305,11 +305,11 @@ $stmt = $pdo->prepare("
 $stmt->execute([$farm_id]);
 $stocks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $attention = [];
-$intelligence_items = [];
-
 $growth_data = [];
 $feeding_data = [];
 $fcr_data = [];
+
+
 
 /**
  * PRELOAD FEED TODAY (GROUPED)
@@ -429,7 +429,12 @@ foreach ($stocks as $s) {
     ];
 
     if ($alert) {
-        $attention[$s['pond_code']] = "{$s['pond_code']}: {$alert}";
+        $attention[$s['pond_code']] = [
+            'title'    => 'Growth Alert',
+            'message'  => "{$s['pond_code']}: {$alert}",
+            'action'   => 'Review growth performance and recent growth measurements.',
+            'severity' => 'high'
+        ];
     }
 
     /**
@@ -447,24 +452,19 @@ foreach ($stocks as $s) {
 
         $recommended = $biomass * $rate;
 
-        $feeding_alert = '';
+        $feeding_data[] = [
+            'pond' => $s['pond_code'],
+            'recommended' => $recommended,
+            'actual' => $fed_today
+        ];
 
         if ($fed_today > $recommended) {
-            $feeding_alert = 'Overfeeding detected';
-
-            $attention[$s['pond_code'].'_feed'] =
-                "{$s['pond_code']}: {$feeding_alert}";
-        }
-
-        $feeding_data[] = [
-            'pond'        => $s['pond_code'],
-            'recommended' => $recommended,
-            'actual'      => $fed_today,
-            'alert'       => $feeding_alert
-        ];
-        if ($feeding_alert !== '') {
-            $attention[$s['pond_code'].'_feed'] =
-                "{$s['pond_code']}: {$feeding_alert}";
+            $attention[$s['pond_code'].'_feed'] = [
+                'title'    => 'Feeding Alert',
+                'message'  => "{$s['pond_code']}: Overfeeding detected",
+                'action'   => 'Review today’s feeding quantity and adjust the next feeding.',
+                'severity' => 'attention'
+            ];
         }
     }
     /**
@@ -543,7 +543,12 @@ foreach ($stocks as $s) {
 
                     $attention[
                         $s['pond_code'].'_fcr'
-                    ] = "{$s['pond_code']}: {$fcr_alert}";
+                    ] = [
+                        'title'    => 'FCR Alert',
+                        'message'  => "{$s['pond_code']}: {$fcr_alert}",
+                        'action'   => 'Review feed usage and investigate the cause of poor feed conversion.',
+                        'severity' => 'high'
+                    ];
                 }
             }
         }
@@ -565,7 +570,12 @@ $stmt->execute([$farm_id]);
 
 foreach ($stmt->fetchAll() as $m) {
     if ($m['deaths'] > 30) {
-        $attention[$m['pond_code'].'_mort'] = "{$m['pond_code']}: Mortality spike ({$m['deaths']})";
+        $attention[$m['pond_code'].'_mort'] = [
+            'title'    => 'Mortality Spike',
+            'message'  => "{$m['pond_code']}: Mortality spike ({$m['deaths']})",
+            'action'   => 'Inspect the pond immediately and investigate the mortality cause.',
+            'severity' => 'high'
+        ];
     }
 }
 
@@ -661,27 +671,7 @@ if ($high_mortality > 0) {
 /**
  * FINAL CLEAN ARRAY
  */
-$attention = array_values(array_map(
-    static function (string $attention_item): array {
-
-        $severity = 'attention';
-
-        if (
-            stripos($attention_item, 'Mortality spike') !== false ||
-            stripos($attention_item, 'Poor FCR') !== false
-        ) {
-            $severity = 'high';
-        }
-
-        return [
-            'title'    => $attention_item,
-            'message'  => $attention_item,
-            'action'   => '',
-            'severity' => $severity,
-        ];
-    },
-    $attention
-));
+$attention = array_values($attention);
 
 /**
  * YOTRIBE INTELLIGENCE SUMMARY
@@ -779,12 +769,358 @@ $view_data = [
     'intelligence_status'          => $intelligence_status,
 ];
 
-/* your queries here */
-
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
+<style>
+    /* =========================================================
+    004-E-1 — DASHBOARD RESPONSIVE UI
+    Presentation layer only
+    ========================================================= */
 
+    .card-header {
+        min-width: 0;
+    }
+
+    .card-header > div {
+        min-width: 0;
+    }
+
+    .card-header .badge {
+        flex-shrink: 0;
+    }
+
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    @media (max-width: 767.98px) {
+
+        .card-header.d-flex {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .card-header.d-flex > div:first-child {
+            flex: 1 1 100%;
+        }
+
+        .card-header.d-flex > .badge {
+            margin-left: 0;
+        }
+
+        .card-body {
+            overflow-wrap: break-word;
+        }
+
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+
+    }
+
+    @media (max-width: 575.98px) {
+
+        .card-header {
+            padding: 0.85rem 1rem;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+    }
+    /* =========================================================
+   004-E-2 — KPI CARD VISUAL CONSISTENCY
+   Presentation layer only
+   ========================================================= */
+
+    .row.g-3.mb-4 > [class*="col-"] > .card {
+        min-height: 132px;
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    .row.g-3.mb-4 > [class*="col-"] > .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .row.g-3.mb-4 > [class*="col-"] > .card .card-body {
+        padding: 1.1rem 1.15rem;
+    }
+
+    .row.g-3.mb-4 > [class*="col-"] > .card h4 {
+        font-size: 1.35rem;
+        line-height: 1.25;
+        margin-top: 0.2rem;
+    }
+
+    .row.g-3.mb-4 > [class*="col-"] > .card small {
+        line-height: 1.35;
+    }
+
+    .row.g-3.mb-4 > [class*="col-"] > .card .bi {
+        line-height: 1;
+    }
+
+    @media (max-width: 575.98px) {
+
+        .row.g-3.mb-4 > [class*="col-"] > .card {
+            min-height: 118px;
+        }
+
+        .row.g-3.mb-4 > [class*="col-"] > .card h4 {
+            font-size: 1.2rem;
+        }
+
+    }
+    /* =========================================================
+   004-E-3 — SNAPSHOT METRIC CARD CONSISTENCY
+   Presentation layer only
+   ========================================================= */
+
+    .card .row.g-3 > [class*="col-"] > .border.rounded {
+        background: #fff;
+        transition:
+            border-color 0.18s ease,
+            box-shadow 0.18s ease,
+            transform 0.18s ease;
+    }
+
+    .card .row.g-3 > [class*="col-"] > .border.rounded:hover {
+        border-color: rgba(13, 110, 253, 0.25) !important;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
+        transform: translateY(-1px);
+    }
+
+    .card .row.g-3 > [class*="col-"] > .border.rounded h4 {
+        line-height: 1.25;
+    }
+
+    .card .row.g-3 > [class*="col-"] > .border.rounded .text-muted {
+        line-height: 1.35;
+    }
+
+    @media (max-width: 767.98px) {
+
+        .card .row.g-3 > [class*="col-"] > .border.rounded {
+            padding: 1rem !important;
+        }
+
+    }
+
+    @media (max-width: 575.98px) {
+
+        .card .row.g-3 > [class*="col-"] > .border.rounded {
+            min-height: 105px;
+        }
+
+    }
+    /* =========================================================
+   004-E-4 — FARM HEALTH & INTELLIGENCE REFINEMENT
+   Presentation layer only
+   ========================================================= */
+
+    /* Farm Health tiles */
+    .card .border.rounded.p-3.h-100 {
+        border-color: #e9ecef !important;
+        background: #fff;
+    }
+
+    .card .border.rounded.p-3.h-100 h5 {
+        line-height: 1.25;
+    }
+
+    .card .border.rounded.p-3.h-100 .bi {
+        opacity: 0.85;
+    }
+
+    /* Intelligence summary tiles */
+    .card .row.g-3.mb-4 > [class*="col-"] > .border.rounded.p-3.h-100 {
+        background: #fdfdfd;
+    }
+
+    .card .row.g-3.mb-4 > [class*="col-"] > .border.rounded.p-3.h-100 h4 {
+        font-size: 1.3rem;
+    }
+
+    /* Intelligence attention list */
+    .list-group-item {
+        border-left: 0;
+        border-right: 0;
+    }
+
+    .list-group-item:first-child {
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+    }
+
+    .list-group-item:last-child {
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+    }
+
+    .list-group-item .badge {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 767.98px) {
+
+        .list-group-item .d-flex {
+            flex-wrap: wrap;
+        }
+
+        .list-group-item .flex-grow-1 {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .list-group-item .flex-grow-1 > .d-flex {
+            gap: 0.5rem;
+        }
+
+    }
+
+    @media (max-width: 575.98px) {
+
+        .list-group-item {
+            padding: 0.85rem;
+        }
+
+        .list-group-item .me-3 {
+            margin-right: 0.65rem !important;
+        }
+
+        .list-group-item .badge {
+            font-size: 0.7rem;
+        }
+
+    }
+    /* =========================================================
+   004-E-5 — ANALYTICS & CHARTS RESPONSIVE REFINEMENT
+   Presentation layer only
+   ========================================================= */
+
+    /* Analytics tabs */
+    #analyticsTabs {
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+
+    #analyticsTabs .nav-link {
+        white-space: nowrap;
+        transition:
+            background-color 0.18s ease,
+            color 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    #analyticsTabs .nav-link:hover {
+        box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.06);
+    }
+
+    /* Analytics tables */
+    .tab-pane .table {
+        margin-bottom: 0;
+    }
+
+    .tab-pane .table th,
+    .tab-pane .table td {
+        vertical-align: middle;
+    }
+
+    .tab-pane .table-responsive {
+        border-radius: 0 0 0.5rem 0.5rem;
+    }
+
+    /* Chart cards */
+    .row.g-3.mt-4 > [class*="col-"] > .card {
+        min-width: 0;
+    }
+
+    .row.g-3.mt-4 > [class*="col-"] > .card .card-body {
+        min-width: 0;
+    }
+
+    /* Existing chart containers */
+    .row.g-3.mt-4 canvas {
+        max-width: 100%;
+    }
+
+    /* Tablet */
+    @media (max-width: 767.98px) {
+
+        #analyticsTabs {
+            width: 100%;
+            margin-bottom: 1rem !important;
+        }
+
+        #analyticsTabs .nav-item {
+            flex: 1 1 auto;
+        }
+
+        #analyticsTabs .nav-link {
+            width: 100%;
+            text-align: center;
+        }
+
+        .tab-pane .card-header {
+            gap: 0.75rem;
+        }
+
+        .tab-pane .table-responsive {
+            overflow-x: auto;
+        }
+
+        .row.g-3.mt-4 > [class*="col-"] {
+            width: 100%;
+        }
+
+    }
+
+    /* Mobile */
+    @media (max-width: 575.98px) {
+
+        #analyticsTabs {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+
+        #analyticsTabs .nav-item,
+        #analyticsTabs .nav-link {
+            width: 100%;
+        }
+
+        .tab-pane .card-header {
+            padding: 0.85rem 1rem;
+        }
+
+        .tab-pane .card-body {
+            padding: 1rem;
+        }
+
+        .tab-pane .table {
+            font-size: 0.85rem;
+        }
+
+        .row.g-3.mt-4 .card-header {
+            padding: 0.85rem 1rem;
+        }
+
+        .row.g-3.mt-4 .card-body {
+            padding: 1rem;
+        }
+
+        /* Give charts more usable space on small screens */
+        .row.g-3.mt-4 [style*="height:320px"] {
+            height: 280px !important;
+        }
+
+    }
+</style>
 <!-- =========================================================
      YOTRIBE EXECUTIVE DASHBOARD HEADER
      ========================================================= -->
@@ -890,21 +1226,193 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 </div>
 
 
-<!-- ALERT STRIP -->
-<div class="alert alert-danger d-flex justify-content-between align-items-start shadow-sm">
-    <div>
-        <strong>System Alerts</strong><br>
+<!-- =========================================================
+     004-C — FARM NOTIFICATIONS
+     ========================================================= -->
+
+<div class="card shadow-sm border-0 mb-4">
+
+    <?php
+    $notification_count = count($attention);
+    $notification_critical_count = 0;
+    $notification_attention_count = 0;
+
+    foreach ($attention as $notification) {
+
+        $severity = strtolower(
+            trim($notification['severity'] ?? '')
+        );
+
+        if (
+            in_array(
+                $severity,
+                ['critical', 'high'],
+                true
+            )
+        ) {
+            $notification_critical_count++;
+        } else {
+            $notification_attention_count++;
+        }
+    }
+    ?>
+
+    <div class="card-header bg-white
+                d-flex justify-content-between
+                align-items-center">
+
+        <div>
+            <strong>
+                <i class="bi bi-bell me-1"></i>
+                Notifications
+            </strong>
+
+            <div class="text-muted small">
+                Important operational conditions for the selected farm
+            </div>
+        </div>
+
+        <?php if ($notification_count > 0): ?>
+
+            <span class="badge
+                <?= $notification_critical_count > 0
+                    ? 'bg-danger'
+                    : 'bg-warning text-dark' ?>">
+
+                <?= number_format($notification_count) ?>
+                <?= $notification_count === 1
+                    ? 'Notification'
+                    : 'Notifications' ?>
+
+            </span>
+
+        <?php else: ?>
+
+            <span class="badge bg-success">
+                All Clear
+            </span>
+
+        <?php endif; ?>
+
+    </div>
+
+
+    <div class="card-body p-0">
 
         <?php if (empty($attention)): ?>
-            <span class="text-muted">All systems stable</span>
+
+            <div class="text-center text-muted py-5">
+
+                <div class="mb-2">
+                    <i class="bi bi-check-circle text-success fs-1"></i>
+                </div>
+
+                <div class="fw-semibold text-dark">
+                    No notifications
+                </div>
+
+                <small>
+                    No operational conditions currently require management attention.
+                </small>
+
+            </div>
+
         <?php else: ?>
-            <ul class="mb-0">
-                <?php foreach ($attention as $a): ?>
-                    <li><?= htmlspecialchars($a['message'] ?? '', ENT_QUOTES, 'UTF-8') ?></li>
+
+            <div class="list-group list-group-flush">
+
+                <?php foreach ($attention as $notification): ?>
+
+                    <?php
+                    $severity = strtolower(
+                        trim($notification['severity'] ?? '')
+                    );
+
+                    if (
+                        in_array(
+                            $severity,
+                            ['critical', 'high'],
+                            true
+                        )
+                    ) {
+                        $icon = 'bi-exclamation-triangle-fill';
+                        $icon_class = 'text-danger';
+                        $badge_class = 'bg-danger';
+                        $badge_text = 'Critical';
+                    } else {
+                        $icon = 'bi-exclamation-circle-fill';
+                        $icon_class = 'text-warning';
+                        $badge_class = 'bg-warning text-dark';
+                        $badge_text = 'Attention';
+                    }
+                    ?>
+
+                    <div class="list-group-item px-4 py-3">
+
+                        <div class="d-flex
+                                    align-items-start
+                                    justify-content-between
+                                    gap-3">
+
+                            <div class="d-flex
+                                        align-items-start
+                                        gap-3">
+
+                                <div class="<?= $icon_class; ?> pt-1">
+                                    <i class="bi <?= $icon; ?> fs-5"></i>
+                                </div>
+
+                                <div>
+
+                                    <div class="fw-semibold">
+                                        <?= htmlspecialchars(
+                                            $notification['title'] ?? 'Notification',
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ); ?>
+                                    </div>
+
+                                    <div class="text-muted small mt-1">
+                                        <?= htmlspecialchars(
+                                            $notification['message'] ?? '',
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ); ?>
+                                    </div>
+
+                                    <?php if (!empty($notification['action'])): ?>
+
+                                        <div class="small mt-2">
+                                            <strong>Recommended action:</strong>
+                                            <?= htmlspecialchars(
+                                                $notification['action'],
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ); ?>
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </div>
+
+                            </div>
+
+                            <span class="badge <?= $badge_class; ?> flex-shrink-0">
+                                <?= $badge_text; ?>
+                            </span>
+
+                        </div>
+
+                    </div>
+
                 <?php endforeach; ?>
-            </ul>
+
+            </div>
+
         <?php endif; ?>
+
     </div>
+
 </div>
 
 <!-- =========================================================
@@ -2550,33 +3058,879 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 
 </div>
-
-<!-- CHART SECTION -->
+    <!-- =========================================================
+    ANALYTICS & CHARTS
+    ========================================================= -->
 <div class="row g-3 mt-4">
 
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                Biomass Trend Analysis
+    <!-- BIOMASS ANALYSIS -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-header bg-white
+                        d-flex justify-content-between align-items-center">
+
+                <div>
+                    <strong>Biomass Analysis</strong>
+
+                    <div class="text-muted small">
+                        Current biomass distribution by active pond
+                    </div>
+                </div>
+
+                <span class="badge bg-light text-dark border">
+                    <?= number_format($total_biomass, 2) ?> kg
+                </span>
+
             </div>
+
             <div class="card-body">
-                <canvas id="biomassChart"></canvas>
+
+                <?php if (!empty($feeding_data)): ?>
+
+                    <div style="height:320px;">
+                        <canvas id="biomassChart"></canvas>
+                    </div>
+
+                <?php else: ?>
+
+                    <div class="text-center text-muted py-5">
+
+                        <i class="bi bi-bar-chart fs-1 d-block mb-2"></i>
+
+                        <div class="fw-semibold">
+                            No biomass analysis available
+                        </div>
+
+                        <small>
+                            Active pond biomass data will appear here.
+                        </small>
+
+                    </div>
+
+                <?php endif; ?>
+
             </div>
+
         </div>
     </div>
 
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                Sales Performance Trend
+
+    <!-- SALES PERFORMANCE -->
+    <?php if ($can_view_financials): ?>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+
+            <div class="card-header bg-white
+                        d-flex justify-content-between align-items-center">
+
+                <div>
+                    <strong>Sales Performance</strong>
+
+                    <div class="text-muted small">
+                        Recorded sales performance for this farm
+                    </div>
+                </div>
+
+                <span class="badge bg-light text-dark border">
+                    <?= number_format($sales_count) ?> Transactions
+                </span>
+
             </div>
+
             <div class="card-body">
-                <canvas id="salesChart"></canvas>
+
+                <?php if ($sales_count > 0): ?>
+
+                    <div style="height:320px;">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+
+                <?php else: ?>
+
+                    <div class="text-center text-muted py-5">
+
+                        <i class="bi bi-graph-up fs-1 d-block mb-2"></i>
+
+                        <div class="fw-semibold">
+                            No sales data available
+                        </div>
+
+                        <small>
+                            Sales performance will appear here after transactions are recorded.
+                        </small>
+
+                    </div>
+
+                <?php endif; ?>
+
             </div>
+
+        </div>
+    </div>
+
+    <?php endif; ?>
+
+</div>
+
+<!-- =========================================================
+     RECENT FARM ACTIVITIES
+     ========================================================= -->
+
+<?php
+
+/**
+ * RECENT ACTIVITIES
+ *
+ * All activity queries are restricted to the
+ * currently selected farm.
+ */
+
+$recent_activities = [];
+
+
+/**
+ * RECENT SALES
+ */
+$stmt = $pdo->prepare("
+    SELECT
+        s.id,
+        s.created_at,
+        s.total_amount
+    FROM sales s
+    WHERE s.farm_id = ?
+    ORDER BY s.created_at DESC, s.id DESC
+    LIMIT 5
+");
+$stmt->execute([$farm_id]);
+
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+
+    $recent_activities[] = [
+        'type'  => 'sale',
+        'icon'  => 'bi-cart-check',
+        'title' => 'Sale Recorded',
+        'description' =>
+            'Sale transaction recorded',
+        'value' =>
+            '₦' . number_format(
+                (float)$row['total_amount'],
+                2
+            ),
+        'date' => $row['created_at']
+    ];
+}
+
+
+/**
+ * RECENT HARVESTS
+ */
+$stmt = $pdo->prepare("
+    SELECT
+        h.id,
+        h.harvest_no,
+        h.harvest_date,
+        h.created_at
+    FROM harvests h
+    WHERE h.farm_id = ?
+    ORDER BY h.created_at DESC, h.id DESC
+    LIMIT 5
+");
+$stmt->execute([$farm_id]);
+
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+
+    $recent_activities[] = [
+        'type'  => 'harvest',
+        'icon'  => 'bi-basket',
+        'title' => 'Harvest Recorded',
+        'description' =>
+            'Harvest ' . htmlspecialchars(
+                $row['harvest_no']
+            ),
+        'value' => $row['harvest_date'],
+        'date'  => $row['created_at']
+    ];
+}
+
+
+/**
+ * RECENT FEEDING
+ */
+$stmt = $pdo->prepare("
+    SELECT
+        fl.id,
+        fl.pond_id,
+        fl.quantity_kg,
+        fl.date,
+        p.pond_code
+    FROM feeding_logs fl
+    INNER JOIN ponds_tanks p
+        ON p.id = fl.pond_id
+    WHERE fl.farm_id = ?
+    ORDER BY fl.date DESC, fl.id DESC
+    LIMIT 5
+");
+$stmt->execute([$farm_id]);
+
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+
+    $recent_activities[] = [
+        'type'  => 'feeding',
+        'icon'  => 'bi-droplet',
+        'title' => 'Feeding Recorded',
+        'description' =>
+            htmlspecialchars(
+                $row['pond_code']
+            ) . ' feeding',
+        'value' =>
+            number_format(
+                (float)$row['quantity_kg'],
+                2
+            ) . ' kg',
+        'date'  => $row['date']
+    ];
+}
+
+
+/**
+ * RECENT GROWTH
+ */
+$stmt = $pdo->prepare("
+    SELECT
+        gl.id,
+        gl.pond_id,
+        gl.batch_id,
+        gl.avg_weight_g,
+        gl.recorded_at,
+        p.pond_code
+    FROM growth_logs gl
+    INNER JOIN ponds_tanks p
+        ON p.id = gl.pond_id
+    WHERE gl.farm_id = ?
+    ORDER BY gl.recorded_at DESC, gl.id DESC
+    LIMIT 5
+");
+$stmt->execute([$farm_id]);
+
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+
+    $recent_activities[] = [
+        'type'  => 'growth',
+        'icon'  => 'bi-graph-up',
+        'title' => 'Growth Recorded',
+        'description' =>
+            htmlspecialchars(
+                $row['pond_code']
+            ) . ' growth measurement',
+        'value' =>
+            number_format(
+                (float)$row['avg_weight_g'],
+                2
+            ) . ' g',
+        'date'  => $row['recorded_at']
+    ];
+}
+
+
+/**
+ * RECENT MORTALITY
+ */
+$stmt = $pdo->prepare("
+    SELECT
+        m.id,
+        m.pond_id,
+        m.dead_count,
+        m.date,
+        p.pond_code
+    FROM mortality_logs m
+    INNER JOIN ponds_tanks p
+        ON p.id = m.pond_id
+    WHERE m.farm_id = ?
+    ORDER BY m.date DESC, m.id DESC
+    LIMIT 5
+");
+$stmt->execute([$farm_id]);
+
+foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+
+    $recent_activities[] = [
+        'type'  => 'mortality',
+        'icon'  => 'bi-exclamation-triangle',
+        'title' => 'Mortality Recorded',
+        'description' =>
+            htmlspecialchars(
+                $row['pond_code']
+            ) . ' mortality record',
+        'value' =>
+            number_format(
+                (int)$row['dead_count']
+            ) . ' fish',
+        'date'  => $row['date']
+    ];
+}
+
+
+/**
+ * SORT ALL ACTIVITIES TOGETHER
+ */
+usort(
+    $recent_activities,
+    function ($a, $b) {
+        return strtotime($b['date'])
+             <=> strtotime($a['date']);
+    }
+);
+
+
+/**
+ * SHOW ONLY THE 10 MOST RECENT EVENTS
+ */
+$recent_activities = array_slice(
+    $recent_activities,
+    0,
+    10
+);
+
+?>
+
+
+<!-- =========================================================
+     RECENT FARM ACTIVITIES
+     ========================================================= -->
+
+<div class="row g-3 mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        Recent Activities
+                    </h6>
+                    <small class="text-muted">
+                        Latest operational activities for the selected farm
+                    </small>
+                </div>
+
+                <span class="badge bg-light text-dark border">
+                    <?= count($recent_activities); ?> activities
+                </span>
+            </div>
+
+            <div class="card-body p-0">
+
+                <?php if (empty($recent_activities)): ?>
+
+                    <div class="text-center text-muted py-5">
+                        <div class="mb-2">
+                            <i class="bi bi-clock-history fs-2"></i>
+                        </div>
+
+                        <div class="fw-semibold">
+                            No recent activities
+                        </div>
+
+                        <small>
+                            Farm activities will appear here as records are created.
+                        </small>
+                    </div>
+
+                <?php else: ?>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Activity</th>
+                                    <th>Details</th>
+                                    <th>Date</th>
+                                    <th class="text-end pe-4">Status</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($recent_activities as $activity): ?>
+
+                                    <?php
+                                    $activity_type = strtolower(
+                                        $activity['type'] ?? ''
+                                    );
+
+                                    $icon = $activity['icon'] ?? 'bi-clock-history';
+
+                                    if ($activity_type === 'mortality') {
+                                        $badge_class = 'bg-warning text-dark';
+                                        $badge_text  = 'Review';
+                                    } else {
+                                        $badge_class = 'bg-success';
+                                        $badge_text  = 'Normal';
+                                    }
+                                    ?>
+
+                                    <tr>
+
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center gap-2">
+
+                                                <div class="text-muted">
+                                                    <i class="bi <?= htmlspecialchars($icon, ENT_QUOTES, 'UTF-8'); ?>"></i>
+                                                </div>
+
+                                                <div>
+                                                    <div class="fw-semibold">
+                                                        <?= htmlspecialchars(
+                                                            $activity['title'] ?? 'Activity',
+                                                            ENT_QUOTES,
+                                                            'UTF-8'
+                                                        ); ?>
+                                                    </div>
+
+                                                    <small class="text-muted">
+                                                        <?= ucfirst(
+                                                            htmlspecialchars(
+                                                                $activity_type,
+                                                                ENT_QUOTES,
+                                                                'UTF-8'
+                                                            )
+                                                        ); ?>
+                                                    </small>
+                                                </div>
+
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                $activity['description'] ?? '',
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ); ?>
+
+                                            <?php if (!empty($activity['value'])): ?>
+                                                <span class="text-muted">
+                                                    — <?= htmlspecialchars(
+                                                        (string)$activity['value'],
+                                                        ENT_QUOTES,
+                                                        'UTF-8'
+                                                    ); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <td>
+                                            <?= htmlspecialchars(
+                                                (string)($activity['date'] ?? ''),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ); ?>
+                                        </td>
+
+                                        <td class="text-end pe-4">
+                                            <span class="badge <?= $badge_class; ?>">
+                                                <?= $badge_text; ?>
+                                            </span>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+                    </div>
+
+                <?php endif; ?>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =========================================================
+     004-D — QUICK ACTIONS
+     ========================================================= -->
+
+<div class="row g-3 mt-4">
+
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+
+            <div class="card-header bg-white
+                        d-flex justify-content-between
+                        align-items-center">
+
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-lightning-charge me-1"></i>
+                        Quick Actions
+                    </h6>
+
+                    <small class="text-muted">
+                        Common operational actions for the selected farm
+                    </small>
+                </div>
+
+            </div>
+
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <!-- RECORD FEEDING -->
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <a
+                            href="/yotribe-system/app/modules/feedng/index.php"
+                            class="btn btn-outline-primary w-100
+                                   d-flex align-items-center
+                                   justify-content-start gap-3
+                                   py-3"
+                        >
+                            <i class="bi bi-droplet fs-4"></i>
+
+                            <span class="text-start">
+                                <span class="d-block fw-semibold">
+                                    Record Feeding
+                                </span>
+
+                                <small class="text-muted">
+                                    Record today's feed
+                                </small>
+                            </span>
+                        </a>
+                    </div>
+
+
+                    <!-- RECORD MORTALITY -->
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <a
+                            href="/yotribe-system/app/modules/mortality/index.php"
+                            class="btn btn-outline-warning w-100
+                                   d-flex align-items-center
+                                   justify-content-start gap-3
+                                   py-3"
+                        >
+                            <i class="bi bi-exclamation-triangle fs-4"></i>
+
+                            <span class="text-start">
+                                <span class="d-block fw-semibold">
+                                    Record Mortality
+                                </span>
+
+                                <small class="text-muted">
+                                    Record fish mortality
+                                </small>
+                            </span>
+                        </a>
+                    </div>
+
+
+                    <!-- RECORD GROWTH -->
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <a
+                            href="/yotribe-system/app/modules/growth/index.php"
+                            class="btn btn-outline-success w-100
+                                   d-flex align-items-center
+                                   justify-content-start gap-3
+                                   py-3"
+                        >
+                            <i class="bi bi-graph-up-arrow fs-4"></i>
+
+                            <span class="text-start">
+                                <span class="d-block fw-semibold">
+                                    Record Growth
+                                </span>
+
+                                <small class="text-muted">
+                                    Record growth measurements
+                                </small>
+                            </span>
+                        </a>
+                    </div>
+
+
+                    <!-- CREATE HARVEST -->
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <a
+                            href="/yotribe-system/app/modules/harvest/create.php"
+                            class="btn btn-outline-primary w-100
+                                   d-flex align-items-center
+                                   justify-content-start gap-3
+                                   py-3"
+                        >
+                            <i class="bi bi-basket2 fs-4"></i>
+
+                            <span class="text-start">
+                                <span class="d-block fw-semibold">
+                                    Create Harvest
+                                </span>
+
+                                <small class="text-muted">
+                                    Start a new harvest
+                                </small>
+                            </span>
+                        </a>
+                    </div>
+
+
+                    <!-- RECORD SALE -->
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <a
+                            href="/yotribe-system/app/modules/sales/dashboard.php"
+                            class="btn btn-outline-success w-100
+                                   d-flex align-items-center
+                                   justify-content-start gap-3
+                                   py-3"
+                        >
+                            <i class="bi bi-cart-check fs-4"></i>
+
+                            <span class="text-start">
+                                <span class="d-block fw-semibold">
+                                    Record Sale
+                                </span>
+
+                                <small class="text-muted">
+                                    Create a sales transaction
+                                </small>
+                            </span>
+                        </a>
+                    </div>
+
+
+                    <!-- VIEW HARVEST -->
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <a
+                            href="/yotribe-system/app/modules/harvest/view.php"
+                            class="btn btn-outline-secondary w-100
+                                   d-flex align-items-center
+                                   justify-content-start gap-3
+                                   py-3"
+                        >
+                            <i class="bi bi-box-seam fs-4"></i>
+
+                            <span class="text-start">
+                                <span class="d-block fw-semibold">
+                                    Harvest Inventory
+                                </span>
+
+                                <small class="text-muted">
+                                    View harvested stock
+                                </small>
+                            </span>
+                        </a>
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
     </div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        /*
+        * =========================================================
+        * BIOMASS ANALYSIS
+        * =========================================================
+        *
+        * Biomass is calculated from:
+        * current fish population × average fish weight.
+        *
+        * Data comes from the existing active stocking records.
+        */
+
+        const biomassLabels = [];
+        const biomassValues = [];
+
+        <?php foreach ($stocks as $stock): ?>
+
+            <?php
+                $pondBiomass = (
+                    (float)$stock['current_count'] *
+                    (float)$stock['avg_weight_g']
+                ) / 1000;
+            ?>
+
+            biomassLabels.push(
+                <?= json_encode($stock['pond_code']) ?>
+            );
+
+            biomassValues.push(
+                <?= json_encode(round($pondBiomass, 2)) ?>
+            );
+
+        <?php endforeach; ?>
+
+
+        const biomassCanvas =
+            document.getElementById('biomassChart');
+
+        if (biomassCanvas && biomassLabels.length > 0) {
+
+            new Chart(biomassCanvas, {
+
+                type: 'bar',
+
+                data: {
+                    labels: biomassLabels,
+
+                    datasets: [{
+                        label: 'Biomass (kg)',
+                        data: biomassValues,
+                        borderWidth: 1
+                    }]
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    plugins: {
+
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+
+                                    return Number(
+                                        context.raw
+                                    ).toLocaleString(
+                                        undefined,
+                                        {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        }
+                                    ) + ' kg';
+
+                                }
+                            }
+                        }
+
+                    },
+
+                    scales: {
+
+                        y: {
+                            beginAtZero: true,
+
+                            title: {
+                                display: true,
+                                text: 'Biomass (kg)'
+                            }
+                        },
+
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Pond'
+                            }
+                        }
+
+                    }
+
+                }
+
+            });
+
+        }
+
+
+        /*
+        * =========================================================
+        * SALES PERFORMANCE
+        * =========================================================
+        */
+
+        const salesCanvas =
+            document.getElementById('salesChart');
+
+        if (salesCanvas) {
+
+            new Chart(salesCanvas, {
+
+                type: 'doughnut',
+
+                data: {
+
+                    labels: [
+                        'Revenue',
+                        'Expenses',
+                        'Profit'
+                    ],
+
+                    datasets: [{
+                        data: [
+                            <?= json_encode(round($total_sales, 2)) ?>,
+                            <?= json_encode(round($total_expenses, 2)) ?>,
+                            <?= json_encode(round(max($profit, 0), 2)) ?>
+                        ],
+
+                        borderWidth: 1
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    plugins: {
+
+                        legend: {
+                            position: 'bottom'
+                        },
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                label: function (context) {
+
+                                    return context.label +
+                                        ': ₦' +
+                                        Number(
+                                            context.raw
+                                        ).toLocaleString(
+                                            undefined,
+                                            {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            }
+                                        );
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+        }
+
+    });
+</script>
 
 <script>
     // Load farms into dropdown
@@ -2645,6 +3999,5 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     loadLiveDashboard();
     setInterval(loadLiveDashboard, 5000); // every 5 seconds
 </script>
-
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

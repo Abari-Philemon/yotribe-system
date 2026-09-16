@@ -32,18 +32,29 @@ $farm_location = $farm['location'] ?? '';
 $farm_size     = ucfirst($farm['size'] ?? '');
 
 /**
- * CURRENT PAGE
+ * =========================================================
+ * CURRENT PAGE / ROUTE
+ * =========================================================
  */
 
-$current = basename($_SERVER['PHP_SELF']);
+$current_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+
+$current_path = '/' . ltrim($current_path, '/');
 
 function nav_active(array $pages)
 {
-    global $current;
+    global $current_path;
 
-    return in_array($current,$pages)
-        ? 'active'
-        : '';
+    foreach ($pages as $page) {
+
+        $page = '/' . ltrim($page, '/');
+
+        if ($current_path === $page) {
+            return 'active';
+        }
+    }
+
+    return '';
 }
 
 ?>
@@ -64,7 +75,7 @@ function nav_active(array $pages)
     left:0;
     bottom:0;
 
-    background: #e1e9ef;
+    background:#e1e9ef;
 
     overflow-y:auto;
 
@@ -76,12 +87,15 @@ function nav_active(array $pages)
 
     z-index:1050;
 }
-.sidebar .dropdown-arrow {
-    transition: transform .25s ease;
+
+.sidebar .dropdown-arrow{
+
+    transition:transform .25s ease;
 }
 
-.sidebar .nav-link:not(.collapsed) .dropdown-arrow {
-    transform: rotate(180deg);
+.sidebar .nav-link:not(.collapsed) .dropdown-arrow{
+
+    transform:rotate(180deg);
 }
 
 .main{
@@ -225,32 +239,34 @@ function nav_active(array $pages)
 
 @media(max-width:991px){
 
-.sidebar{
+    .sidebar{
 
-transform:translateX(-100%);
+        transform:translateX(-100%);
 
-}
+    }
 
-.sidebar.show{
+    .sidebar.show{
 
-transform:translateX(0);
+        transform:translateX(0);
 
-}
+    }
 
-.main{
+    .main{
 
-margin-left:0;
+        margin-left:0;
 
-padding-top:80px;
+        padding-top:80px;
 
-}
+    }
 
 }
 
 </style>
 
 
-<!-- MOBILE TOP BAR -->
+<!-- =========================================================
+     MOBILE TOP BAR
+========================================================= -->
 
 <div class="mobile-topbar d-lg-none">
 
@@ -270,18 +286,29 @@ padding-top:80px;
 </div>
 
 
+<!-- =========================================================
+     SIDEBAR OVERLAY
+========================================================= -->
+
 <div
-class="sidebar-overlay"
-id="sidebarOverlay"
+    class="sidebar-overlay"
+    id="sidebarOverlay"
 ></div>
 
 
+<!-- =========================================================
+     SIDEBAR
+========================================================= -->
+
 <div
-class="sidebar"
-id="sidebar"
+    class="sidebar"
+    id="sidebar"
 >
 
-    <!-- LOGO -->
+
+    <!-- =====================================================
+         LOGO / FARM INFORMATION
+    ====================================================== -->
 
     <div class="text-center mb-4">
 
@@ -306,7 +333,9 @@ id="sidebar"
     </div>
 
 
-    <!-- KPI -->
+    <!-- =====================================================
+         KPI
+    ====================================================== -->
 
     <div class="quick-box">
 
@@ -331,23 +360,35 @@ id="sidebar"
     </div>
 
 
+    <!-- =====================================================
+         OVERVIEW
+    ====================================================== -->
+
     <?php if(canAccess('dashboard')): ?>
 
-    <div class="nav-title">
-        Overview
-    </div>
+        <div class="nav-title">
 
-    <a
-    href="/yotribe-system/app/modules/dashboard/index.php"
-    class="nav-link <?= nav_active(['index.php']) ?>"
-    >
+            Overview
 
-    📊 Dashboard
+        </div>
 
-    </a>
+        <a
+            href="/yotribe-system/app/modules/dashboard/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/dashboard/index.php'
+            ]) ?>"
+        >
+
+            📊 Dashboard
+
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+         OPERATIONS TITLE
+    ====================================================== -->
 
     <?php if(
         canAccess('feeding') ||
@@ -357,276 +398,551 @@ id="sidebar"
         canAccess('growth')
     ): ?>
 
-    <div class="nav-title">
-        Operations
-    </div>
+        <div class="nav-title">
+
+            Operations
+
+        </div>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+        FEEDING
+    ====================================================== -->
 
     <?php if(canAccess('feeding')): ?>
 
-    <a
-    href="/yotribe-system/app/modules/feeding/index.php"
-    class="nav-link">
+        <a
+            href="/yotribe-system/app/modules/feeding/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/feeding/index.php'
+            ]) ?>"
+        >
 
-    🍽 Feeding
+            <i class="bi bi-egg-fried me-2"></i>
 
-    </a>
+            Feeding
+
+        </a>
+
+    <?php endif; ?>
+
+    <!-- =====================================================
+        STOCKING PONDS
+    ====================================================== -->
+
+    <?php if(canAccess('stocking')): ?>
+
+        <a
+            href="/yotribe-system/app/modules/stocking/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/stocking/index.php'
+            ]) ?>"
+        >
+
+            <i class="bi bi-water me-2"></i>
+
+            Stocking Ponds
+
+        </a>
+
+    <?php endif; ?>
+
+    <!-- =====================================================
+         STOCKING BATCHES
+    ====================================================== -->
+
+    <?php if(canAccess('batches')): ?>
+
+        <a
+            href="/yotribe-system/app/modules/batches/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/batches/index.php'
+            ]) ?>"
+        >
+
+            <i class="bi bi-diagram-3-fill me-2"></i>
+
+            Stocking Batches
+
+        </a>
 
     <?php endif; ?>
 
 
-    <?php if(canAccess('stocking')): ?>
-
-    <a
-    href="/yotribe-system/app/modules/stocking/index.php"
-    class="nav-link">
-
-    🐟 Stocking Ponds
-
-    </a>
-     <?php endif; ?>
-
-
-    <?php if(canAccess('stocking')): ?>
-
-    <a
-    href="/yotribe-system/app/modules/batches/index.php"
-    class="nav-link">
-
-    🐟 Stocking batches
-
-    </a>
-
-    <?php endif; ?>
-
+    <!-- =====================================================
+        PONDS
+    ====================================================== -->
 
     <?php if(canAccess('ponds')): ?>
 
-    <a
-    href="/yotribe-system/app/modules/ponds/index.php"
-    class="nav-link">
+        <a
+            href="/yotribe-system/app/modules/ponds/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/ponds/index.php'
+            ]) ?>"
+        >
 
-    🏞 Ponds
+            <i class="bi bi-droplet me-2"></i>
 
-    </a>
+            Ponds
+
+        </a>
 
     <?php endif; ?>
 
+
+
+    <!-- =====================================================
+        MORTALITY
+    ====================================================== -->
 
     <?php if(canAccess('mortality')): ?>
 
-    <a
-    href="/yotribe-system/app/modules/mortality/index.php"
-    class="nav-link">
+        <a
+            href="/yotribe-system/app/modules/mortality/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/mortality/index.php'
+            ]) ?>"
+        >
 
-    ☠ Mortality
+            <i class="bi bi-heart-pulse me-2"></i>
 
-    </a>
+            Mortality
+
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+        GROWTH
+    ====================================================== -->
 
     <?php if(canAccess('growth')): ?>
 
-    <a
-    href="/yotribe-system/app/modules/growth/index.php"
-    class="nav-link">
+        <a
+            href="/yotribe-system/app/modules/growth/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/growth/index.php'
+            ]) ?>"
+        >
 
-    📈 Growth
+            <i class="bi bi-graph-up-arrow me-2"></i>
 
-    </a>
+            Growth
+
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+        FEED STORE
+    ====================================================== -->
 
     <?php if(canAccess('feed_store')): ?>
 
-    <div class="nav-title">
-        Feed System
-    </div>
+        <a
+            href="/yotribe-system/app/modules/feed_store/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/feed_store/index.php'
+            ]) ?>"
+        >
 
-    <a
-    href="/yotribe-system/app/modules/feed_store/index.php"
-    class="nav-link">
+            <i class="bi bi-shop me-2"></i>
 
-    📦 Feed Store
+            Feed Store
 
-    </a>
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+        HATCHERY
+    ====================================================== -->
 
     <?php if(canAccess('hatchery')): ?>
 
-    <div class="nav-title">
+        <a
+            href="/yotribe-system/app/modules/hatchery/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/hatchery/index.php'
+            ]) ?>"
+        >
 
-        Production
+            <i class="bi bi-egg me-2"></i>
 
-    </div>
+            Hatchery
 
-    <a
-    href="/yotribe-system/app/modules/hatchery/index.php"
-    class="nav-link">
-
-    🥚 Hatchery
-
-    </a>
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+         MAGGOT PRODUCTION
+    ====================================================== -->
+
+    <?php if(canAccess('maggot')): ?>
+
+        <a
+            href="/yotribe-system/app/modules/maggot/index.php"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/maggot/index.php'
+            ]) ?>"
+        >
+
+            <i class="bi bi-bug-fill me-2"></i>
+
+            Maggot Production
+
+        </a>
+
+    <?php endif; ?>
+
+
     <!-- ===========================================================
-HARVEST MANAGEMENT
-=========================================================== -->
+         HARVEST MANAGEMENT
+    ============================================================ -->
 
-<?php if (canAccess('harvest')): ?>
+    <?php if(canAccess('harvest')): ?>
 
-<?php
-$harvestPages = [
-    'create.php',
-    'save.php',
-    'history.php',
-    'view.php',
-    'report.php',
-    'print.php',
-    'close.php'
-];
-?>
+        <?php
 
-<li class="nav-item">
+        $harvestPages = [
 
-    <a class="nav-link d-flex justify-content-between align-items-center <?= nav_active($harvestPages) ? '' : 'collapsed' ?>"
-       data-bs-toggle="collapse"
-       href="#harvestMenu"
-       role="button"
-       aria-expanded="<?= nav_active($harvestPages) ? 'true' : 'false' ?>"
-       aria-controls="harvestMenu">
+            '/yotribe-system/app/modules/harvest/create.php',
 
-        <span>
-            <i class="bi bi-basket-fill me-2"></i>
-            Harvest
-        </span>
+            '/yotribe-system/app/modules/harvest/save.php',
 
-        <i class="bi bi-chevron-down dropdown-arrow"></i>
+            '/yotribe-system/app/modules/harvest/history.php',
 
-    </a>
+            '/yotribe-system/app/modules/harvest/view.php',
 
-    <div id="harvestMenu"
-         class="collapse <?= nav_active($harvestPages) ? 'show' : '' ?>">
+            '/yotribe-system/app/modules/harvest/report.php',
 
-        <ul class="btn-toggle-nav list-unstyled fw-normal small">
+            '/yotribe-system/app/modules/harvest/print.php',
 
-            <li>
-                <a href="/yotribe-system/app/modules/harvest/create.php"
-                   class="nav-link <?= nav_active(['create.php','save.php']) ? 'active' : '' ?>">
-                    <i class="bi bi-plus-circle-fill me-2"></i>
-                    New Harvest
-                </a>
-            </li>
+            '/yotribe-system/app/modules/harvest/close.php'
 
-            <li>
-                <a href="/yotribe-system/app/modules/harvest/history.php"
-                   class="nav-link <?= nav_active(['history.php']) ? 'active' : '' ?>">
-                    <i class="bi bi-clock-history me-2"></i>
-                    Harvest History
-                </a>
-            </li>
+        ];
 
-            <li>
-                <a href="/yotribe-system/app/modules/harvest/view.php"
-                   class="nav-link <?= nav_active(['view.php']) ? 'active' : '' ?>">
-                    <i class="bi bi-eye-fill me-2"></i>
-                    View Harvest
-                </a>
-            </li>
+        ?>
 
-            <li>
-                <a href="/yotribe-system/app/modules/harvest/report.php"
-                   class="nav-link <?= nav_active(['report.php']) ? 'active' : '' ?>">
-                    <i class="bi bi-file-earmark-bar-graph-fill me-2"></i>
-                    Harvest Reports
-                </a>
-            </li>
+        <li class="nav-item">
 
-            <li>
-                <a href="/yotribe-system/app/modules/harvest/print.php"
-                   class="nav-link <?= nav_active(['print.php']) ? 'active' : '' ?>">
-                    <i class="bi bi-printer-fill me-2"></i>
-                    Print Harvest
-                </a>
-            </li>
+            <a
+                class="nav-link d-flex justify-content-between align-items-center <?= nav_active($harvestPages) ? '' : 'collapsed' ?>"
+                data-bs-toggle="collapse"
+                href="#harvestMenu"
+                role="button"
+                aria-expanded="<?= nav_active($harvestPages) ? 'true' : 'false' ?>"
+                aria-controls="harvestMenu"
+            >
 
-            <li>
-                <a href="/yotribe-system/app/modules/harvest/close.php"
-                   class="nav-link <?= nav_active(['close.php']) ? 'active' : '' ?>">
-                    <i class="bi bi-lock-fill me-2"></i>
-                    Close Harvest
-                </a>
-            </li>
+                <span>
 
-        </ul>
+                    <i class="bi bi-basket-fill me-2"></i>
 
-    </div>
+                    Harvest
 
-</li>
+                </span>
 
-<?php endif; ?>
-    
-    <?php if (canAccess('sales')): ?>
+                <i class="bi bi-chevron-down dropdown-arrow"></i>
+
+            </a>
+
+
+            <div
+                id="harvestMenu"
+                class="collapse <?= nav_active($harvestPages) ? 'show' : '' ?>"
+            >
+
+                <ul class="btn-toggle-nav list-unstyled fw-normal small">
+
+
+                    <!-- NEW HARVEST -->
+
+                    <li>
+
+                        <a
+                            href="/yotribe-system/app/modules/harvest/create.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/harvest/create.php',
+                                '/yotribe-system/app/modules/harvest/save.php'
+                            ]) ? 'active' : '' ?>"
+                        >
+
+                            <i class="bi bi-plus-circle-fill me-2"></i>
+
+                            New Harvest
+
+                        </a>
+
+                    </li>
+
+
+                    <!-- HARVEST HISTORY -->
+
+                    <li>
+
+                        <a
+                            href="/yotribe-system/app/modules/harvest/history.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/harvest/history.php'
+                            ]) ? 'active' : '' ?>"
+                        >
+
+                            <i class="bi bi-clock-history me-2"></i>
+
+                            Harvest History
+
+                        </a>
+
+                    </li>
+
+
+                    <!-- VIEW HARVEST -->
+
+                    <li>
+
+                        <a
+                            href="/yotribe-system/app/modules/harvest/view.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/harvest/view.php'
+                            ]) ? 'active' : '' ?>"
+                        >
+
+                            <i class="bi bi-eye-fill me-2"></i>
+
+                            View Harvest
+
+                        </a>
+
+                    </li>
+
+
+                    <!-- HARVEST REPORTS -->
+
+                    <li>
+
+                        <a
+                            href="/yotribe-system/app/modules/harvest/report.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/harvest/report.php'
+                            ]) ? 'active' : '' ?>"
+                        >
+
+                            <i class="bi bi-file-earmark-bar-graph-fill me-2"></i>
+
+                            Harvest Reports
+
+                        </a>
+
+                    </li>
+
+
+                    <!-- PRINT HARVEST -->
+
+                    <li>
+
+                        <a
+                            href="/yotribe-system/app/modules/harvest/print.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/harvest/print.php'
+                            ]) ? 'active' : '' ?>"
+                        >
+
+                            <i class="bi bi-printer-fill me-2"></i>
+
+                            Print Harvest
+
+                        </a>
+
+                    </li>
+
+
+                    <!-- CLOSE HARVEST -->
+
+                    <li>
+
+                        <a
+                            href="/yotribe-system/app/modules/harvest/close.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/harvest/close.php'
+                            ]) ? 'active' : '' ?>"
+                        >
+
+                            <i class="bi bi-lock-fill me-2"></i>
+
+                            Close Harvest
+
+                        </a>
+
+                    </li>
+
+
+                </ul>
+
+            </div>
+
+        </li>
+
+    <?php endif; ?>
+
+
+    <!-- =====================================================
+         SALES MANAGEMENT
+    ====================================================== -->
+
+    <?php if(canAccess('sales')): ?>
 
         <div class="nav-title">
+
             Sales
+
         </div>
+
 
         <div class="accordion" id="salesMenu">
 
+            <?php
+
+            $salesPages = [
+
+                '/yotribe-system/app/modules/sales/dashboard.php',
+
+                '/yotribe-system/app/modules/sales/create.php',
+
+                '/yotribe-system/app/modules/customers/index.php',
+
+                '/yotribe-system/app/modules/sales/returns.php',
+
+                '/yotribe-system/app/modules/sales/reports.php'
+
+            ];
+
+            $salesActive = nav_active($salesPages);
+
+            ?>
+
+
             <div class="accordion-item border-0 bg-transparent">
+
 
                 <h2 class="accordion-header">
 
+
                     <button
-                        class="accordion-button collapsed shadow-none bg-transparent px-3 py-2"
+                        class="accordion-button <?= $salesActive ? '' : 'collapsed' ?> shadow-none bg-transparent px-3 py-2"
                         type="button"
                         data-bs-toggle="collapse"
-                        data-bs-target="#salesCollapse">
+                        data-bs-target="#salesCollapse"
+                        aria-expanded="<?= $salesActive ? 'true' : 'false' ?>"
+                        aria-controls="salesCollapse"
+                    >
 
-                        💵 Sales
+                        <i class="bi bi-cash-stack me-2"></i>
+
+                        Sales
 
                     </button>
 
+
                 </h2>
+
 
                 <div
                     id="salesCollapse"
-                    class="accordion-collapse collapse">
+                    class="accordion-collapse collapse <?= $salesActive ? 'show' : '' ?>"
+                >
+
 
                     <div class="accordion-body p-0">
 
-                        <a href="/yotribe-system/app/modules/sales/dashboard.php"
-                        class="nav-link <?= nav_active(['dashboard.php']) ?>">
-                            📋 Dashboard
+
+                        <!-- SALES DASHBOARD -->
+
+                        <a
+                            href="/yotribe-system/app/modules/sales/dashboard.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/sales/dashboard.php'
+                            ]) ?>"
+                        >
+
+                            <i class="bi bi-clipboard-data me-2"></i>
+
+                            Dashboard
+
                         </a>
 
-                        <a href="/yotribe-system/app/modules/sales/create.php"
-                        class="nav-link <?= nav_active(['create.php']) ?>">
-                            ➕ New Sale
+
+                        <!-- NEW SALE -->
+
+                        <a
+                            href="/yotribe-system/app/modules/sales/create.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/sales/create.php'
+                            ]) ?>"
+                        >
+
+                            <i class="bi bi-plus-circle me-2"></i>
+
+                            New Sale
+
                         </a>
 
-                        <a href="/yotribe-system/app/modules/customers/index.php"
-                        class="nav-link <?= nav_active(['customers.php']) ?>">
-                            👥 Customers
+
+                        <!-- CUSTOMERS -->
+
+                        <a
+                            href="/yotribe-system/app/modules/customers/index.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/customers/index.php'
+                            ]) ?>"
+                        >
+
+                            <i class="bi bi-people-fill me-2"></i>
+
+                            Customers
+
                         </a>
 
-                        <a href="/yotribe-system/app/modules/sales/returns.php"
-                        class="nav-link <?= nav_active(['returns.php']) ?>">
-                            ↩ Returns
+
+                        <!-- RETURNS -->
+
+                        <a
+                            href="/yotribe-system/app/modules/sales/returns.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/sales/returns.php'
+                            ]) ?>"
+                        >
+
+                            <i class="bi bi-arrow-return-left me-2"></i>
+
+                            Returns
+
                         </a>
 
-                        <a href="/yotribe-system/app/modules/sales/reports.php"
-                        class="nav-link <?= nav_active(['reports.php']) ?>">
-                            📊 Sales Reports
+
+                        <!-- SALES REPORTS -->
+
+                        <a
+                            href="/yotribe-system/app/modules/sales/reports.php"
+                            class="nav-link <?= nav_active([
+                                '/yotribe-system/app/modules/sales/reports.php'
+                            ]) ?>"
+                        >
+
+                            <i class="bi bi-bar-chart-fill me-2"></i>
+
+                            Sales Reports
+
                         </a>
+
 
                     </div>
 
@@ -639,84 +955,112 @@ $harvestPages = [
     <?php endif; ?>
 
 
+    <!-- =====================================================
+         FINANCE
+    ====================================================== -->
 
     <?php if(canAccess('finance')): ?>
 
-    <div class="nav-title">
+        <div class="nav-title">
 
-        Finance
+            Finance
 
-    </div>
+        </div>
 
-    <a
-    href="/yotribe-system/app/modules/finance/index.php"
-    class="nav-link">
 
-    💰 Finance
+        <a
+            href="/yotribe-system/app/modules/finance/index.php"
+            class="nav-link"
+        >
 
-    </a>
+            💰 Finance
+
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+         REPORTS
+    ====================================================== -->
 
     <?php if(canAccess('reports')): ?>
 
-    <div class="nav-title">
+        <div class="nav-title">
 
-        Reports
+            Reports
 
-    </div>
+        </div>
 
-    <a
-    href="/yotribe-system/app/modules/reports/index.php"
-    class="nav-link">
 
-    📑 Reports
+        <a
+            href="/yotribe-system/app/modules/reports/index.php"
+            class="nav-link"
+        >
 
-    </a>
+            📑 Reports
+
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+         WATER QUALITY
+    ====================================================== -->
 
     <?php if(canAccess('water')): ?>
 
-    <a
-    href="/yotribe-system/app/modules/water/index.php"
-    class="nav-link">
+        <a
+            href="/yotribe-system/app/modules/water/index.php"
+            class="nav-link"
+        >
 
-    💧 Water Quality
+            💧 Water Quality
 
-    </a>
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+         ADMINISTRATION
+    ====================================================== -->
 
     <?php if(canAccess('staff')): ?>
 
-    <div class="nav-title">
+        <div class="nav-title">
 
-        Administration
+            Administration
 
-    </div>
+        </div>
 
-    <a
-    href="/yotribe-system/app/modules/staff/manage.php"
-    class="nav-link">
 
-    👥 Staff
+        <a
+            href="/yotribe-system/app/modules/staff/manage.php"
+            class="nav-link"
+        >
 
-    </a>
+            👥 Staff
 
-    <a
-    href="/yotribe-system/app/modules/staff/register.php"
-    class="nav-link">
+        </a>
 
-    ➕ Register
 
-    </a>
+        <a
+            href="/yotribe-system/app/modules/staff/register.php"
+            class="nav-link"
+        >
+
+            ➕ Register
+
+        </a>
 
     <?php endif; ?>
 
+
+    <!-- =====================================================
+         ACCOUNT
+    ====================================================== -->
 
     <div class="nav-title">
 
@@ -724,79 +1068,101 @@ $harvestPages = [
 
     </div>
 
-    <a
-    href="/yotribe-system/app/modules/profile/index.php"
-    class="nav-link">
 
-    👤 Profile
+    <a
+        href="/yotribe-system/app/modules/profile/index.php"
+        class="nav-link"
+    >
+
+        👤 Profile
 
     </a>
 
-    <a
-    href="/yotribe-system/app/auth/logout.php"
-    class="nav-link text-danger">
 
-    🚪 Logout
+    <a
+        href="/yotribe-system/app/auth/logout.php"
+        class="nav-link text-danger"
+    >
+
+        🚪 Logout
 
     </a>
+
 
 </div>
 
+
+<!-- =========================================================
+     MAIN CONTENT WRAPPER
+========================================================= -->
 
 <div class="main">
 
 
 <script>
 
+/* =========================================================
+   SIDEBAR MOBILE CONTROLS
+========================================================= */
+
 const sidebar =
-document.getElementById('sidebar');
+    document.getElementById('sidebar');
 
 const overlay =
-document.getElementById('sidebarOverlay');
+    document.getElementById('sidebarOverlay');
 
 const toggle =
-document.getElementById('menuToggle');
+    document.getElementById('menuToggle');
+
 
 function closeSidebar(){
 
-sidebar.classList.remove('show');
+    sidebar.classList.remove('show');
 
-overlay.classList.remove('show');
+    overlay.classList.remove('show');
 
 }
+
 
 if(toggle){
 
-toggle.addEventListener('click',()=>{
+    toggle.addEventListener('click',()=>{
 
-sidebar.classList.toggle('show');
+        sidebar.classList.toggle('show');
 
-overlay.classList.toggle('show');
+        overlay.classList.toggle('show');
 
-});
+    });
 
 }
 
-overlay.addEventListener(
-'click',
-closeSidebar
-);
+
+if(overlay){
+
+    overlay.addEventListener(
+        'click',
+        closeSidebar
+    );
+
+}
+
 
 document
 .querySelectorAll('.sidebar .nav-link')
 .forEach(link=>{
 
-link.addEventListener(
-'click',
-()=>{
+    link.addEventListener(
+        'click',
+        ()=>{
 
-if(window.innerWidth<992){
+            if(window.innerWidth < 992){
 
-closeSidebar();
+                closeSidebar();
 
-}
+            }
 
-});
+        }
+    );
 
 });
 

@@ -5,13 +5,15 @@
  * SYSTEM ROLE PERMISSIONS
  * =========================================================
  *
- * Each role can access only the listed modules.
+ * Each role can access only the listed modules and
+ * dashboard features.
  *
- * Module Keys:
+ * MODULE KEYS:
  *
  * dashboard
  * staff
  * stocking
+ * batches
  * ponds
  * mortality
  * growth
@@ -22,6 +24,16 @@
  * finance
  * reports
  * water
+ * harvest
+ * sales
+ *
+ * DASHBOARD FEATURE KEYS:
+ *
+ * analytics
+ * intelligence
+ * farm_health
+ * notifications
+ * quick_actions
  *
  */
 
@@ -36,6 +48,15 @@ return [
     'super_admin' => [
 
         'dashboard',
+
+        // Dashboard Features
+        'analytics',
+        'intelligence',
+        'farm_health',
+        'notifications',
+        'quick_actions',
+
+        // System Modules
         'staff',
         'stocking',
         'batches',
@@ -49,7 +70,8 @@ return [
         'finance',
         'reports',
         'water',
-        'harvest'
+        'harvest',
+        'sales'
 
     ],
 
@@ -63,6 +85,15 @@ return [
     'owner' => [
 
         'dashboard',
+
+        // Dashboard Features
+        'analytics',
+        'intelligence',
+        'farm_health',
+        'notifications',
+        'quick_actions',
+
+        // System Modules
         'staff',
         'stocking',
         'batches',
@@ -76,7 +107,8 @@ return [
         'finance',
         'reports',
         'water',
-        'harvest'
+        'harvest',
+        'sales'
 
     ],
 
@@ -90,6 +122,15 @@ return [
     'manager' => [
 
         'dashboard',
+
+        // Dashboard Features
+        'analytics',
+        'intelligence',
+        'farm_health',
+        'notifications',
+        'quick_actions',
+
+        // System Modules
         'batches',
         'stocking',
         'ponds',
@@ -115,6 +156,14 @@ return [
     'storekeeper' => [
 
         'dashboard',
+
+        // Dashboard Features
+        'analytics',
+        'farm_health',
+        'notifications',
+        'quick_actions',
+
+        // System Modules
         'feed_store',
         'feeding',
         'reports'
@@ -131,6 +180,14 @@ return [
     'hatchery' => [
 
         'dashboard',
+
+        // Dashboard Features
+        'analytics',
+        'farm_health',
+        'notifications',
+        'quick_actions',
+
+        // System Modules
         'hatchery',
         'stocking',
         'growth',
@@ -148,6 +205,14 @@ return [
     'production' => [
 
         'dashboard',
+
+        // Dashboard Features
+        'analytics',
+        'farm_health',
+        'notifications',
+        'quick_actions',
+
+        // System Modules
         'feeding',
         'growth',
         'mortality',
