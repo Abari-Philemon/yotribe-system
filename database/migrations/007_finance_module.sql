@@ -33,195 +33,6 @@ One Record Per Company
 ==============================================================================
 */
 
-CREATE TABLE finance_settings (
-
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    uuid CHAR(36) NOT NULL,
-
-    company_id BIGINT UNSIGNED NOT NULL,
-
-    default_currency CHAR(3)
-        NOT NULL DEFAULT 'NGN',
-
-    currency_symbol VARCHAR(10)
-        NOT NULL DEFAULT '₦',
-
-    decimal_places TINYINT
-        NOT NULL DEFAULT 2,
-
-    financial_year_start_month
-        TINYINT NOT NULL DEFAULT 1,
-
-    financial_year_start_day
-        TINYINT NOT NULL DEFAULT 1,
-
-    default_tax_rate
-        DECIMAL(10,2)
-        NOT NULL DEFAULT 0.00,
-
-    allow_backdated_entries
-        TINYINT(1)
-        NOT NULL DEFAULT 0,
-
-    allow_negative_cash
-        TINYINT(1)
-        NOT NULL DEFAULT 0,
-
-    auto_post_journals
-        TINYINT(1)
-        NOT NULL DEFAULT 1,
-
-    default_cash_account_id
-        BIGINT UNSIGNED NULL,
-
-    default_bank_account_id
-        BIGINT UNSIGNED NULL,
-
-    created_by BIGINT UNSIGNED NULL,
-
-    updated_by BIGINT UNSIGNED NULL,
-
-    created_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY uk_company_finance(company_id),
-
-    UNIQUE KEY uk_finance_uuid(uuid)
-
-) ENGINE=InnoDB
-DEFAULT CHARSET=utf8mb4
-COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE finance_document_types (
-
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    uuid CHAR(36) NOT NULL,
-
-    company_id BIGINT UNSIGNED NOT NULL,
-
-    code VARCHAR(20) NOT NULL,
-
-    name VARCHAR(100) NOT NULL,
-
-    prefix VARCHAR(20) NOT NULL,
-
-    description TEXT NULL,
-
-    is_system TINYINT(1)
-        DEFAULT 1,
-
-    is_active TINYINT(1)
-        DEFAULT 1,
-
-    created_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY uk_document_type(
-        company_id,
-        code
-    )
-
-) ENGINE=InnoDB
-DEFAULT CHARSET=utf8mb4;
-
-/*
-==============================================================================
-TABLE
-
-finance_document_sequences
-
-Maintains running numbers for all financial documents.
-
-One record per:
-
-Company
-+
-Document Type
-+
-Financial Year
-
-==============================================================================
-*/
-
-CREATE TABLE finance_document_sequences (
-
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    uuid CHAR(36) NOT NULL,
-
-    company_id BIGINT UNSIGNED NOT NULL,
-
-    document_type_id BIGINT UNSIGNED NOT NULL,
-
-    financial_year SMALLINT NOT NULL,
-
-    prefix VARCHAR(20) NOT NULL,
-
-    last_number BIGINT UNSIGNED
-        NOT NULL DEFAULT 0,
-
-    number_length TINYINT
-        NOT NULL DEFAULT 6,
-
-    `separator` VARCHAR(5)
-        NOT NULL DEFAULT '-',
-
-    reset_annually TINYINT(1)
-        NOT NULL DEFAULT 1,
-
-    is_active TINYINT(1)
-        NOT NULL DEFAULT 1,
-
-    created_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY uk_document_sequence (
-
-        company_id,
-
-        document_type_id,
-
-        financial_year
-
-    ),
-
-    UNIQUE KEY uk_sequence_uuid (
-
-        uuid
-
-    )
-
-) ENGINE=InnoDB
-DEFAULT CHARSET=utf8mb4
-COLLATE=utf8mb4_unicode_ci;
-
-
-/*
-==============================================================================
-TABLE
-
-account_types
-
-One Chart of Accounts Structure Per Company
-
-==============================================================================
-*/
-
 CREATE TABLE account_types (
 
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -290,17 +101,6 @@ CREATE TABLE account_types (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-/*
-==============================================================================
-TABLE
-
-account_classes
-
-Classifies accounts within an account type.
-
-==============================================================================
-*/
-
 CREATE TABLE account_classes (
 
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -348,17 +148,6 @@ CREATE TABLE account_classes (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE
-
-accounts
-
-Company Chart of Accounts
-
-==============================================================================
-*/
 
 CREATE TABLE accounts (
 
@@ -466,10 +255,104 @@ CREATE TABLE accounts (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-/*
-==============================================================================
-TABLE : financial_years
-==============================================================================*/
+CREATE TABLE finance_document_types (
+
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    uuid CHAR(36) NOT NULL,
+
+    company_id BIGINT UNSIGNED NOT NULL,
+
+    code VARCHAR(20) NOT NULL,
+
+    name VARCHAR(100) NOT NULL,
+
+    prefix VARCHAR(20) NOT NULL,
+
+    description TEXT NULL,
+
+    is_system TINYINT(1)
+        DEFAULT 1,
+
+    is_active TINYINT(1)
+        DEFAULT 1,
+
+    created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uk_document_type(
+        company_id,
+        code
+    )
+
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE finance_document_sequences (
+
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    uuid CHAR(36) NOT NULL,
+
+    company_id BIGINT UNSIGNED NOT NULL,
+
+    document_type_id BIGINT UNSIGNED NOT NULL,
+
+    financial_year SMALLINT NOT NULL,
+
+    prefix VARCHAR(20) NOT NULL,
+
+    last_number BIGINT UNSIGNED
+        NOT NULL DEFAULT 0,
+
+    number_length TINYINT
+        NOT NULL DEFAULT 6,
+
+    `separator` VARCHAR(5)
+        NOT NULL DEFAULT '-',
+
+    reset_annually TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    is_active TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uk_document_sequence (
+
+        company_id,
+
+        document_type_id,
+
+        financial_year
+
+    ),
+
+    UNIQUE KEY uk_sequence_uuid (
+
+        uuid
+
+    )
+,
+
+    CONSTRAINT fk_document_sequence_document_type
+        FOREIGN KEY (document_type_id)
+        REFERENCES finance_document_types(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE financial_years (
 
@@ -519,11 +402,6 @@ CREATE TABLE financial_years (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE : financial_periods
-==============================================================================*/
 
 CREATE TABLE financial_periods (
 
@@ -589,10 +467,137 @@ CREATE TABLE financial_periods (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-/*
-==============================================================================
-TABLE : finance_posting_rules
-==============================================================================*/
+CREATE TABLE bank_accounts (
+
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    uuid CHAR(36) NOT NULL,
+
+    company_id BIGINT UNSIGNED NOT NULL,
+
+    ledger_account_id BIGINT UNSIGNED NOT NULL,
+
+    bank_code VARCHAR(20) NULL,
+
+    bank_name VARCHAR(100) NOT NULL,
+
+    account_name VARCHAR(150) NOT NULL,
+
+    account_number VARCHAR(30) NOT NULL,
+
+    branch_name VARCHAR(100) NULL,
+
+    currency_code CHAR(3) NOT NULL DEFAULT 'NGN',
+
+    opening_balance DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+
+    current_balance DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+
+    is_default TINYINT(1) NOT NULL DEFAULT 0,
+
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+
+    created_by BIGINT UNSIGNED NULL,
+
+    updated_by BIGINT UNSIGNED NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uk_company_account (
+        company_id,
+        account_number
+    ),
+
+    UNIQUE KEY uk_bank_uuid (uuid)
+,
+
+    CONSTRAINT fk_bank_ledger_account
+        FOREIGN KEY (ledger_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE finance_settings (
+
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    uuid CHAR(36) NOT NULL,
+
+    company_id BIGINT UNSIGNED NOT NULL,
+
+    default_currency CHAR(3)
+        NOT NULL DEFAULT 'NGN',
+
+    currency_symbol VARCHAR(10)
+        NOT NULL DEFAULT '₦',
+
+    decimal_places TINYINT
+        NOT NULL DEFAULT 2,
+
+    financial_year_start_month
+        TINYINT NOT NULL DEFAULT 1,
+
+    financial_year_start_day
+        TINYINT NOT NULL DEFAULT 1,
+
+    default_tax_rate
+        DECIMAL(10,2)
+        NOT NULL DEFAULT 0.00,
+
+    allow_backdated_entries
+        TINYINT(1)
+        NOT NULL DEFAULT 0,
+
+    allow_negative_cash
+        TINYINT(1)
+        NOT NULL DEFAULT 0,
+
+    auto_post_journals
+        TINYINT(1)
+        NOT NULL DEFAULT 1,
+
+    default_cash_account_id
+        BIGINT UNSIGNED NULL,
+
+    default_bank_account_id
+        BIGINT UNSIGNED NULL,
+
+    created_by BIGINT UNSIGNED NULL,
+
+    updated_by BIGINT UNSIGNED NULL,
+
+    created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uk_company_finance(company_id),
+
+    UNIQUE KEY uk_finance_uuid(uuid)
+,
+
+    CONSTRAINT fk_finance_settings_cash_account
+        FOREIGN KEY (default_cash_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT fk_finance_settings_bank_account
+        FOREIGN KEY (default_bank_account_id)
+        REFERENCES bank_accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE finance_posting_rules (
 
@@ -627,15 +632,22 @@ CREATE TABLE finance_posting_rules (
         company_id,
         transaction_code
     )
+,
 
+    CONSTRAINT fk_posting_rule_debit_account
+        FOREIGN KEY (debit_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_posting_rule_credit_account
+        FOREIGN KEY (credit_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE : journal_entries
-==============================================================================*/
 
 CREATE TABLE journal_entries (
 
@@ -721,15 +733,40 @@ CREATE TABLE journal_entries (
     ),
 
     UNIQUE KEY uk_journal_uuid (uuid)
+,
 
+    CONSTRAINT fk_journal_financial_year
+        FOREIGN KEY (financial_year_id)
+        REFERENCES financial_years(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_journal_financial_period
+        FOREIGN KEY (financial_period_id)
+        REFERENCES financial_periods(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_journal_document_sequence
+        FOREIGN KEY (document_sequence_id)
+        REFERENCES finance_document_sequences(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_journal_document_type
+        FOREIGN KEY (document_type_id)
+        REFERENCES finance_document_types(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_journal_reversal
+        FOREIGN KEY (reversal_journal_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE : journal_entry_lines
-==============================================================================*/
 
 CREATE TABLE journal_entry_lines (
 
@@ -771,16 +808,22 @@ CREATE TABLE journal_entry_lines (
     ),
 
     UNIQUE KEY uk_journal_line_uuid (uuid)
+,
 
+    CONSTRAINT fk_journal_line_journal
+        FOREIGN KEY (journal_entry_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_journal_line_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE : ledger_balances
-==============================================================================
-*/
 
 CREATE TABLE ledger_balances (
 
@@ -825,72 +868,28 @@ CREATE TABLE ledger_balances (
     ),
 
     UNIQUE KEY uk_ledger_balance_uuid (uuid)
+,
 
+    CONSTRAINT fk_ledger_year
+        FOREIGN KEY (financial_year_id)
+        REFERENCES financial_years(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_ledger_period
+        FOREIGN KEY (financial_period_id)
+        REFERENCES financial_periods(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_ledger_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE : bank_accounts
-==============================================================================
-*/
-
-CREATE TABLE bank_accounts (
-
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    uuid CHAR(36) NOT NULL,
-
-    company_id BIGINT UNSIGNED NOT NULL,
-
-    ledger_account_id BIGINT UNSIGNED NOT NULL,
-
-    bank_code VARCHAR(20) NULL,
-
-    bank_name VARCHAR(100) NOT NULL,
-
-    account_name VARCHAR(150) NOT NULL,
-
-    account_number VARCHAR(30) NOT NULL,
-
-    branch_name VARCHAR(100) NULL,
-
-    currency_code CHAR(3) NOT NULL DEFAULT 'NGN',
-
-    opening_balance DECIMAL(18,2) NOT NULL DEFAULT 0.00,
-
-    current_balance DECIMAL(18,2) NOT NULL DEFAULT 0.00,
-
-    is_default TINYINT(1) NOT NULL DEFAULT 0,
-
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-
-    created_by BIGINT UNSIGNED NULL,
-
-    updated_by BIGINT UNSIGNED NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    UNIQUE KEY uk_company_account (
-        company_id,
-        account_number
-    ),
-
-    UNIQUE KEY uk_bank_uuid (uuid)
-
-) ENGINE=InnoDB
-DEFAULT CHARSET=utf8mb4
-COLLATE=utf8mb4_unicode_ci;
-
-/*
-==============================================================================
-TABLE : bank_transactions
-==============================================================================
-*/
 
 CREATE TABLE bank_transactions (
 
@@ -931,15 +930,22 @@ CREATE TABLE bank_transactions (
         ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_bank_transaction_uuid (uuid)
+,
 
+    CONSTRAINT fk_bank_transaction_bank
+        FOREIGN KEY (bank_account_id)
+        REFERENCES bank_accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_bank_transaction_journal
+        FOREIGN KEY (journal_entry_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-/*
-==============================================================================
-TABLE : cash_book
-==============================================================================
-*/
 
 CREATE TABLE cash_book (
 
@@ -973,15 +979,22 @@ CREATE TABLE cash_book (
         ON UPDATE CURRENT_TIMESTAMP,
 
     UNIQUE KEY uk_cash_book_uuid (uuid)
+,
 
+    CONSTRAINT fk_cashbook_journal
+        FOREIGN KEY (journal_entry_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_cashbook_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-/*
-==============================================================================
-TABLE : income_categories
-==============================================================================
-*/
 
 CREATE TABLE income_categories (
 
@@ -1018,15 +1031,16 @@ CREATE TABLE income_categories (
     ),
 
     UNIQUE KEY uk_income_category_uuid (uuid)
+,
 
+    CONSTRAINT fk_income_category_account
+        FOREIGN KEY (ledger_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-/*
-==============================================================================
-TABLE : expense_categories
-==============================================================================
-*/
 
 CREATE TABLE expense_categories (
 
@@ -1065,18 +1079,16 @@ CREATE TABLE expense_categories (
     ),
 
     UNIQUE KEY uk_expense_category_uuid (uuid)
+,
 
+    CONSTRAINT fk_expense_category_account
+        FOREIGN KEY (ledger_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-/*
-
-
-/*
-==============================================================================
-TABLE : finance_audit_log
-==============================================================================
-*/
 
 CREATE TABLE finance_audit_log (
 
@@ -1121,165 +1133,6 @@ CREATE TABLE finance_audit_log (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-
-/* ============================================================================
-   DEFERRED FOREIGN KEY CONSTRAINTS
-   All referenced tables are created before these constraints are applied.
-   ============================================================================ */
-
-ALTER TABLE finance_settings
-    ADD CONSTRAINT fk_finance_settings_cash_account
-        FOREIGN KEY (default_cash_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL,
-
-    ADD CONSTRAINT fk_finance_settings_bank_account
-        FOREIGN KEY (default_bank_account_id)
-        REFERENCES bank_accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL;
-
-ALTER TABLE finance_document_sequences
-    ADD CONSTRAINT fk_document_sequence_document_type
-        FOREIGN KEY (document_type_id)
-        REFERENCES finance_document_types(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE finance_posting_rules
-    ADD CONSTRAINT fk_posting_rule_debit_account
-        FOREIGN KEY (debit_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_posting_rule_credit_account
-        FOREIGN KEY (credit_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE journal_entries
-
-
-    ADD CONSTRAINT fk_journal_financial_year
-        FOREIGN KEY (financial_year_id)
-        REFERENCES financial_years(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_journal_financial_period
-        FOREIGN KEY (financial_period_id)
-        REFERENCES financial_periods(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_journal_document_sequence
-        FOREIGN KEY (document_sequence_id)
-        REFERENCES finance_document_sequences(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_journal_document_type
-        FOREIGN KEY (document_type_id)
-        REFERENCES finance_document_types(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE journal_entries
-    ADD CONSTRAINT fk_journal_reversal
-        FOREIGN KEY (reversal_journal_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL;
-
-ALTER TABLE journal_entry_lines
-
-    ADD CONSTRAINT fk_journal_line_journal
-        FOREIGN KEY (journal_entry_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    ADD CONSTRAINT fk_journal_line_account
-        FOREIGN KEY (account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE ledger_balances
-
-    ADD CONSTRAINT fk_ledger_year
-        FOREIGN KEY (financial_year_id)
-        REFERENCES financial_years(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_ledger_period
-        FOREIGN KEY (financial_period_id)
-        REFERENCES financial_periods(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_ledger_account
-        FOREIGN KEY (account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE bank_accounts
-
-    ADD CONSTRAINT fk_bank_ledger_account
-        FOREIGN KEY (ledger_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE bank_transactions
-
-    ADD CONSTRAINT fk_bank_transaction_bank
-        FOREIGN KEY (bank_account_id)
-        REFERENCES bank_accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_bank_transaction_journal
-        FOREIGN KEY (journal_entry_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL;
-
-ALTER TABLE cash_book
-
-    ADD CONSTRAINT fk_cashbook_journal
-        FOREIGN KEY (journal_entry_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_cashbook_account
-        FOREIGN KEY (account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE income_categories
-
-    ADD CONSTRAINT fk_income_category_account
-        FOREIGN KEY (ledger_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-ALTER TABLE expense_categories
-
-    ADD CONSTRAINT fk_expense_category_account
-        FOREIGN KEY (ledger_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 
 COMMIT;
 
