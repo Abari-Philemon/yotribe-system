@@ -174,7 +174,7 @@ CREATE TABLE finance_document_sequences (
     number_length TINYINT
         NOT NULL DEFAULT 6,
 
-    separator VARCHAR(5)
+    `separator` VARCHAR(5)
         NOT NULL DEFAULT '-',
 
     reset_annually TINYINT(1)
