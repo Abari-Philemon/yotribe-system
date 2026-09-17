@@ -59,32 +59,60 @@ function nav_active(array $pages)
 
 ?>
 
+
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+>
+
 <style>
 
 /* ===========================
    SIDEBAR
 =========================== */
-
 .sidebar{
-
     width:280px;
-
     position:fixed;
-
     top:0;
     left:0;
     bottom:0;
 
-    background:#e1e9ef;
+    /* Light agricultural-tech background */
+    background-color:#dce8e3;
+
+    background-image:
+        radial-gradient(
+            circle at 15% 10%,
+            rgba(25, 135, 84, .12),
+            transparent 38%
+        ),
+        radial-gradient(
+            circle at 90% 85%,
+            rgba(52, 152, 219, .08),
+            transparent 35%
+        ),
+        linear-gradient(
+            rgba(25, 135, 84, .035) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(25, 135, 84, .035) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        auto,
+        auto,
+        24px 24px,
+        24px 24px;
 
     overflow-y:auto;
-
     padding:20px;
 
-    border-right:1px solid #283e2f;
+    border-right:1px solid rgba(25, 135, 84, .28);
 
     transition:.3s;
-
     z-index:1050;
 }
 
@@ -233,6 +261,54 @@ function nav_active(array $pages)
 }
 
 
+/* =========================================================
+   011-B — SIDEBAR SPACING & ALIGNMENT
+   ========================================================= */
+
+.sidebar-nav .nav-link {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 9px 14px;
+    gap: 0;
+}
+
+.sidebar-nav .nav-link .bi {
+    width: 20px;
+    min-width: 20px;
+    margin-right: 10px !important;
+    text-align: center;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.sidebar-nav .nav-link span {
+    line-height: 1.3;
+}
+
+.sidebar-nav .nav-item {
+    margin-bottom: 2px;
+}
+
+.sidebar-nav .collapse .nav-link {
+    min-height: 38px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+}
+
+.sidebar-nav .collapse .nav-link .bi {
+    font-size: 0.9rem;
+}
+
+.sidebar-nav .nav-section {
+    margin-top: 18px;
+    margin-bottom: 7px;
+}
+
+.sidebar-nav .nav-section:first-child {
+    margin-top: 4px;
+}
+
 /* ===========================
    MOBILE
 =========================== */
@@ -259,6 +335,354 @@ function nav_active(array $pages)
 
     }
 
+}
+/* =========================================================
+   011-C — ACTIVE & HOVER STATES
+   ========================================================= */
+
+/* Normal sidebar links */
+.sidebar .nav-link {
+    position: relative;
+    transition:
+        background-color .2s ease,
+        color .2s ease,
+        transform .2s ease;
+}
+
+/* Hover state */
+.sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, .55);
+    color: #198754;
+    transform: translateX(2px);
+}
+
+/* Active page */
+.sidebar .nav-link.active {
+    background: #198754;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 3px 8px rgba(25, 135, 84, .18);
+}
+
+/* Active page icon */
+.sidebar .nav-link.active .bi {
+    color: #fff;
+}
+
+/* Keep active link stable when hovered */
+.sidebar .nav-link.active:hover {
+    background: #198754;
+    color: #fff;
+    transform: translateX(2px);
+}
+
+/* Accordion parent */
+.sidebar .accordion-button {
+    transition:
+        background-color .2s ease,
+        color .2s ease;
+}
+
+/* Accordion parent hover */
+.sidebar .accordion-button:hover {
+    background: rgba(255, 255, 255, .55) !important;
+    color: #198754;
+}
+
+/* Expanded accordion parent */
+.sidebar .accordion-button:not(.collapsed) {
+    background: #198754 !important;
+    color: #fff !important;
+    border-radius: 10px;
+    box-shadow: 0 3px 8px rgba(25, 135, 84, .18);
+}
+
+/* Expanded accordion parent icon */
+.sidebar .accordion-button:not(.collapsed) .bi {
+    color: #fff;
+}
+
+/* Accordion arrow when expanded */
+.sidebar .accordion-button:not(.collapsed)::after {
+    filter: brightness(0) invert(1);
+}
+
+/* Accordion submenu links */
+.sidebar .accordion-body .nav-link {
+    margin-left: 8px;
+}
+
+/* Active submenu item */
+.sidebar .accordion-body .nav-link.active {
+    background: #198754;
+    color: #fff;
+}
+
+/* Submenu hover */
+.sidebar .accordion-body .nav-link:hover {
+    background: rgba(255, 255, 255, .55);
+    color: #198754;
+}
+
+/* =========================================================
+   011-E — SECTION HEADINGS
+   ========================================================= */
+
+/* Section heading base */
+.sidebar .nav-title {
+    margin: 18px 4px 7px;
+    padding: 0 10px;
+    font-size: .70rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: #5f6f68;
+    text-transform: uppercase;
+}
+
+/* Keep section headings visually quiet and non-interactive */
+.sidebar .nav-title {
+    pointer-events: none;
+}
+
+/* =========================================================
+   011-D — SUBMENU / ACCORDION STYLING
+   ========================================================= */
+
+/* Operations / Harvest / Sales dropdown parents */
+.sidebar .operations-dropdown,
+.sidebar .accordion-button {
+    min-height: 42px;
+    border-radius: 10px;
+}
+
+/* Bootstrap accordion containers remain transparent */
+.sidebar .accordion-item,
+.sidebar .accordion-header {
+    background: transparent;
+    border: 0;
+}
+
+/* Dropdown submenu containers */
+.sidebar #operationsMenu,
+.sidebar #harvestMenu,
+.sidebar #salesCollapse {
+    position: relative;
+    padding: 5px 0 6px 0;
+}
+
+/* Subtle vertical submenu guide */
+.sidebar #operationsMenu::before,
+.sidebar #harvestMenu::before,
+.sidebar #salesCollapse::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 8px;
+    left: 18px;
+    width: 1px;
+    background: rgba(25, 135, 84, .18);
+}
+
+/* Operations / Harvest / Sales child links */
+.sidebar #operationsMenu .nav-link,
+.sidebar #harvestMenu .nav-link,
+.sidebar #salesCollapse .nav-link {
+    position: relative;
+    min-height: 38px;
+    margin: 2px 0 2px 28px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: .94rem;
+}
+
+/* Horizontal connector from guide to child */
+.sidebar #operationsMenu .nav-link::before,
+.sidebar #harvestMenu .nav-link::before,
+.sidebar #salesCollapse .nav-link::before {
+    content: "";
+    position: absolute;
+    left: -11px;
+    top: 50%;
+    width: 9px;
+    height: 1px;
+    background: rgba(25, 135, 84, .18);
+}
+
+/* Child icons */
+.sidebar #operationsMenu .nav-link .bi,
+.sidebar #harvestMenu .nav-link .bi,
+.sidebar #salesCollapse .nav-link .bi {
+    width: 18px;
+    min-width: 18px;
+    margin-right: 8px !important;
+    font-size: .88rem;
+}
+
+/* Active child */
+.sidebar #operationsMenu .nav-link.active,
+.sidebar #harvestMenu .nav-link.active,
+.sidebar #salesCollapse .nav-link.active {
+    margin-left: 24px;
+}
+
+/* Active child connector */
+.sidebar #operationsMenu .nav-link.active::before,
+.sidebar #harvestMenu .nav-link.active::before,
+.sidebar #salesCollapse .nav-link.active::before {
+    background: #198754;
+}
+
+/* Operations dropdown parent */
+.sidebar .operations-dropdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    border: 0;
+    text-align: left;
+    color: #333;
+    text-decoration: none;
+    background: transparent;
+    padding: 9px 14px;
+    font-weight: 600;
+}
+
+/* Operations dropdown hover */
+.sidebar .operations-dropdown:hover {
+    background: rgba(255, 255, 255, .55);
+    color: #198754;
+}
+
+/* Expanded Operations parent */
+.sidebar .operations-dropdown:not(.collapsed) {
+    background: #198754;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(25, 135, 84, .18);
+}
+
+/* Expanded Operations icon and arrow */
+.sidebar .operations-dropdown:not(.collapsed) .bi {
+    color: #fff;
+}
+
+.sidebar .operations-dropdown:not(.collapsed) .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+/* Small-screen submenu refinement */
+@media(max-width:991px){
+    .sidebar #operationsMenu .nav-link,
+    .sidebar #harvestMenu .nav-link,
+    .sidebar #salesCollapse .nav-link {
+        margin-left: 24px;
+    }
+}
+
+/* =========================================================
+   011-F — FINAL SIDEBAR VISUAL PASS
+   ========================================================= */
+
+/* Final box-sizing and scrollbar refinement */
+.sidebar,
+.sidebar * {
+    box-sizing: border-box;
+}
+
+.sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(25, 135, 84, .35) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(25, 135, 84, .35);
+    border-radius: 10px;
+}
+
+/* Final navigation rhythm */
+.sidebar .nav-link {
+    min-height: 42px;
+    margin-bottom: 4px;
+    border-radius: 10px;
+}
+
+/* Keep dropdown parents aligned with normal navigation */
+.sidebar .operations-dropdown,
+.sidebar .accordion-button {
+    min-height: 42px;
+    border-radius: 10px;
+}
+
+/* Prevent hover movement from disturbing dropdown layout */
+.sidebar .operations-dropdown:hover,
+.sidebar .accordion-button:hover {
+    transform: none;
+}
+
+/* Keep expanded dropdown parents visually stable */
+.sidebar .operations-dropdown:not(.collapsed),
+.sidebar .accordion-button:not(.collapsed) {
+    transform: none;
+}
+
+/* Final submenu spacing */
+.sidebar #operationsMenu,
+.sidebar #harvestMenu,
+.sidebar #salesCollapse {
+    margin-bottom: 4px;
+}
+
+.sidebar #operationsMenu .nav-link,
+.sidebar #harvestMenu .nav-link,
+.sidebar #salesCollapse .nav-link {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+/* Final mobile topbar consistency */
+.mobile-topbar {
+    background: #dce8e3;
+    border-bottom: 1px solid rgba(25, 135, 84, .28);
+}
+
+.mobile-brand {
+    color: #198754;
+}
+
+.menu-toggle {
+    color: #198754;
+    cursor: pointer;
+}
+
+/* Final responsive refinement */
+@media(max-width:991px){
+    .sidebar {
+        width: 280px;
+        padding: 16px;
+    }
+
+    .main {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+
+@media(min-width:992px){
+    .sidebar {
+        width: 280px;
+    }
+
+    .main {
+        margin-left: 280px;
+    }
 }
 
 </style>
@@ -387,153 +811,130 @@ function nav_active(array $pages)
 
 
     <!-- =====================================================
-         OPERATIONS TITLE
-    ====================================================== -->
+         OPERATIONS DROPDOWN
+    ===================================================== -->
 
-    <?php if(
+    <?php
+    $operationsPages = [
+        '/yotribe-system/app/modules/feeding/index.php',
+        '/yotribe-system/app/modules/stocking/index.php',
+        '/yotribe-system/app/modules/batches/index.php',
+        '/yotribe-system/app/modules/ponds/index.php',
+        '/yotribe-system/app/modules/mortality/index.php',
+        '/yotribe-system/app/modules/growth/index.php'
+    ];
+
+    $operationsActive = nav_active($operationsPages);
+
+    $operationsVisible =
         canAccess('feeding') ||
         canAccess('stocking') ||
+        canAccess('batches') ||
         canAccess('ponds') ||
         canAccess('mortality') ||
-        canAccess('growth')
-    ): ?>
+        canAccess('growth');
+    ?>
+
+    <?php if($operationsVisible): ?>
 
         <div class="nav-title">
-
             Operations
-
         </div>
 
-    <?php endif; ?>
-
-
-    <!-- =====================================================
-        FEEDING
-    ====================================================== -->
-
-    <?php if(canAccess('feeding')): ?>
-
         <a
-            href="/yotribe-system/app/modules/feeding/index.php"
-            class="nav-link <?= nav_active([
-                '/yotribe-system/app/modules/feeding/index.php'
-            ]) ?>"
+            class="operations-dropdown nav-link <?= $operationsActive ? '' : 'collapsed' ?>"
+            data-bs-toggle="collapse"
+            href="#operationsMenu"
+            role="button"
+            aria-expanded="<?= $operationsActive ? 'true' : 'false' ?>"
+            aria-controls="operationsMenu"
         >
+            <span>
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                Operations
+            </span>
 
-            <i class="bi bi-egg-fried me-2"></i>
-
-            Feeding
-
+            <i class="bi bi-chevron-down dropdown-arrow"></i>
         </a>
 
-    <?php endif; ?>
-
-    <!-- =====================================================
-        STOCKING PONDS
-    ====================================================== -->
-
-    <?php if(canAccess('stocking')): ?>
-
-        <a
-            href="/yotribe-system/app/modules/stocking/index.php"
-            class="nav-link <?= nav_active([
-                '/yotribe-system/app/modules/stocking/index.php'
-            ]) ?>"
+        <div
+            id="operationsMenu"
+            class="collapse <?= $operationsActive ? 'show' : '' ?>"
         >
 
-            <i class="bi bi-water me-2"></i>
+            <?php if(canAccess('feeding')): ?>
+                <a
+                    href="/yotribe-system/app/modules/feeding/index.php"
+                    class="nav-link <?= nav_active([
+                        '/yotribe-system/app/modules/feeding/index.php'
+                    ]) ?>"
+                >
+                    <i class="bi bi-egg-fried me-2"></i>
+                    Feeding
+                </a>
+            <?php endif; ?>
 
-            Stocking Ponds
+            <?php if(canAccess('stocking')): ?>
+                <a
+                    href="/yotribe-system/app/modules/stocking/index.php"
+                    class="nav-link <?= nav_active([
+                        '/yotribe-system/app/modules/stocking/index.php'
+                    ]) ?>"
+                >
+                    <i class="bi bi-water me-2"></i>
+                    Stocking Ponds
+                </a>
+            <?php endif; ?>
 
-        </a>
+            <?php if(canAccess('batches')): ?>
+                <a
+                    href="/yotribe-system/app/modules/batches/index.php"
+                    class="nav-link <?= nav_active([
+                        '/yotribe-system/app/modules/batches/index.php'
+                    ]) ?>"
+                >
+                    <i class="bi bi-diagram-3-fill me-2"></i>
+                    Stocking Batches
+                </a>
+            <?php endif; ?>
 
-    <?php endif; ?>
+            <?php if(canAccess('ponds')): ?>
+                <a
+                    href="/yotribe-system/app/modules/ponds/index.php"
+                    class="nav-link <?= nav_active([
+                        '/yotribe-system/app/modules/ponds/index.php'
+                    ]) ?>"
+                >
+                    <i class="bi bi-droplet me-2"></i>
+                    Ponds
+                </a>
+            <?php endif; ?>
 
-    <!-- =====================================================
-         STOCKING BATCHES
-    ====================================================== -->
+            <?php if(canAccess('mortality')): ?>
+                <a
+                    href="/yotribe-system/app/modules/mortality/index.php"
+                    class="nav-link <?= nav_active([
+                        '/yotribe-system/app/modules/mortality/index.php'
+                    ]) ?>"
+                >
+                    <i class="bi bi-heart-pulse me-2"></i>
+                    Mortality
+                </a>
+            <?php endif; ?>
 
-    <?php if(canAccess('batches')): ?>
+            <?php if(canAccess('growth')): ?>
+                <a
+                    href="/yotribe-system/app/modules/growth/index.php"
+                    class="nav-link <?= nav_active([
+                        '/yotribe-system/app/modules/growth/index.php'
+                    ]) ?>"
+                >
+                    <i class="bi bi-graph-up-arrow me-2"></i>
+                    Growth
+                </a>
+            <?php endif; ?>
 
-        <a
-            href="/yotribe-system/app/modules/batches/index.php"
-            class="nav-link <?= nav_active([
-                '/yotribe-system/app/modules/batches/index.php'
-            ]) ?>"
-        >
-
-            <i class="bi bi-diagram-3-fill me-2"></i>
-
-            Stocking Batches
-
-        </a>
-
-    <?php endif; ?>
-
-
-    <!-- =====================================================
-        PONDS
-    ====================================================== -->
-
-    <?php if(canAccess('ponds')): ?>
-
-        <a
-            href="/yotribe-system/app/modules/ponds/index.php"
-            class="nav-link <?= nav_active([
-                '/yotribe-system/app/modules/ponds/index.php'
-            ]) ?>"
-        >
-
-            <i class="bi bi-droplet me-2"></i>
-
-            Ponds
-
-        </a>
-
-    <?php endif; ?>
-
-
-
-    <!-- =====================================================
-        MORTALITY
-    ====================================================== -->
-
-    <?php if(canAccess('mortality')): ?>
-
-        <a
-            href="/yotribe-system/app/modules/mortality/index.php"
-            class="nav-link <?= nav_active([
-                '/yotribe-system/app/modules/mortality/index.php'
-            ]) ?>"
-        >
-
-            <i class="bi bi-heart-pulse me-2"></i>
-
-            Mortality
-
-        </a>
-
-    <?php endif; ?>
-
-
-    <!-- =====================================================
-        GROWTH
-    ====================================================== -->
-
-    <?php if(canAccess('growth')): ?>
-
-        <a
-            href="/yotribe-system/app/modules/growth/index.php"
-            class="nav-link <?= nav_active([
-                '/yotribe-system/app/modules/growth/index.php'
-            ]) ?>"
-        >
-
-            <i class="bi bi-graph-up-arrow me-2"></i>
-
-            Growth
-
-        </a>
+        </div>
 
     <?php endif; ?>
 
@@ -817,7 +1218,7 @@ function nav_active(array $pages)
 
                 '/yotribe-system/app/modules/sales/create.php',
 
-                '/yotribe-system/app/modules/customers/index.php',
+                '/yotribe-system/app/modules/sale/payments.php',
 
                 '/yotribe-system/app/modules/sales/returns.php',
 
@@ -898,16 +1299,18 @@ function nav_active(array $pages)
 
                         <!-- CUSTOMERS -->
 
+                        <!-- PAYMENTS -->
+
                         <a
-                            href="/yotribe-system/app/modules/customers/index.php"
+                            href="/yotribe-system/app/modules/sale/payments.php"
                             class="nav-link <?= nav_active([
-                                '/yotribe-system/app/modules/customers/index.php'
+                                '/yotribe-system/app/modules/sale/payments.php'
                             ]) ?>"
                         >
 
-                            <i class="bi bi-people-fill me-2"></i>
+                            <i class="bi bi-credit-card-fill me-2"></i>
 
-                            Customers
+                            Payments
 
                         </a>
 
@@ -972,8 +1375,8 @@ function nav_active(array $pages)
             href="/yotribe-system/app/modules/finance/index.php"
             class="nav-link"
         >
-
-            💰 Finance
+        <i class="bi bi-cash-stack me-2"></i>
+        Finance
 
         </a>
 
@@ -998,7 +1401,8 @@ function nav_active(array $pages)
             class="nav-link"
         >
 
-            📑 Reports
+            <i class="bi bi-bar-chart-fill me-2"></i>
+            Reports
 
         </a>
 
@@ -1016,7 +1420,8 @@ function nav_active(array $pages)
             class="nav-link"
         >
 
-            💧 Water Quality
+            <i class="bi bi-droplet-fill me-2"></i>
+            Water Quality
 
         </a>
 
@@ -1027,34 +1432,29 @@ function nav_active(array $pages)
          ADMINISTRATION
     ====================================================== -->
 
-    <?php if(canAccess('staff')): ?>
-
-        <div class="nav-title">
-
-            Administration
-
-        </div>
-
+        <?php if(canAccess('staff')): ?>
+        <div class="nav-title">Administration</div>
 
         <a
             href="/yotribe-system/app/modules/staff/manage.php"
-            class="nav-link"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/staff/manage.php'
+            ]) ?>"
         >
-
-            👥 Staff
-
+            <i class="bi bi-people-fill me-2"></i>
+            Staff
         </a>
 
 
         <a
             href="/yotribe-system/app/modules/staff/register.php"
-            class="nav-link"
+            class="nav-link <?= nav_active([
+                '/yotribe-system/app/modules/staff/register.php'
+            ]) ?>"
         >
-
-            ➕ Register
-
+            <i class="bi bi-person-plus-fill me-2"></i>
+            Register Staff
         </a>
-
     <?php endif; ?>
 
 
@@ -1068,24 +1468,22 @@ function nav_active(array $pages)
 
     </div>
 
-
     <a
         href="/yotribe-system/app/modules/profile/index.php"
-        class="nav-link"
+        class="nav-link <?= nav_active([
+            '/yotribe-system/app/modules/profile/index.php'
+        ]) ?>"
     >
-
-        👤 Profile
-
+        <i class="bi bi-person-circle me-2"></i>
+        Profile
     </a>
-
 
     <a
         href="/yotribe-system/app/auth/logout.php"
-        class="nav-link text-danger"
+        class="nav-link"
     >
-
-        🚪 Logout
-
+        <i class="bi bi-box-arrow-right me-2"></i>
+        Logout
     </a>
 
 

@@ -98,19 +98,6 @@ DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
 
-ALTER TABLE finance_settings
-    ADD CONSTRAINT fk_finance_settings_cash_account
-        FOREIGN KEY (default_cash_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL,
-
-    ADD CONSTRAINT fk_finance_settings_bank_account
-        FOREIGN KEY (default_bank_account_id)
-        REFERENCES bank_accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL;
-
 CREATE TABLE finance_document_types (
 
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -223,13 +210,6 @@ CREATE TABLE finance_document_sequences (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-
-ALTER TABLE finance_document_sequences
-    ADD CONSTRAINT fk_document_sequence_document_type
-        FOREIGN KEY (document_type_id)
-        REFERENCES finance_document_types(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 
 /*
 ==============================================================================
@@ -652,19 +632,6 @@ CREATE TABLE finance_posting_rules (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE finance_posting_rules
-    ADD CONSTRAINT fk_posting_rule_debit_account
-        FOREIGN KEY (debit_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_posting_rule_credit_account
-        FOREIGN KEY (credit_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
 /*
 ==============================================================================
 TABLE : journal_entries
@@ -759,42 +726,6 @@ CREATE TABLE journal_entries (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE journal_entries
-
-
-    ADD CONSTRAINT fk_journal_financial_year
-        FOREIGN KEY (financial_year_id)
-        REFERENCES financial_years(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_journal_financial_period
-        FOREIGN KEY (financial_period_id)
-        REFERENCES financial_periods(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_journal_document_sequence
-        FOREIGN KEY (document_sequence_id)
-        REFERENCES finance_document_sequences(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_journal_document_type
-        FOREIGN KEY (document_type_id)
-        REFERENCES finance_document_types(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
-
-
-
-ALTER TABLE journal_entries
-    ADD CONSTRAINT fk_journal_reversal
-        FOREIGN KEY (reversal_journal_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL;
 /*
 ==============================================================================
 TABLE : journal_entry_lines
@@ -845,19 +776,6 @@ CREATE TABLE journal_entry_lines (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE journal_entry_lines
-
-    ADD CONSTRAINT fk_journal_line_journal
-        FOREIGN KEY (journal_entry_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    ADD CONSTRAINT fk_journal_line_account
-        FOREIGN KEY (account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 /*
 ==============================================================================
 TABLE : ledger_balances
@@ -911,26 +829,6 @@ CREATE TABLE ledger_balances (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE ledger_balances
-
-    ADD CONSTRAINT fk_ledger_year
-        FOREIGN KEY (financial_year_id)
-        REFERENCES financial_years(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_ledger_period
-        FOREIGN KEY (financial_period_id)
-        REFERENCES financial_periods(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_ledger_account
-        FOREIGN KEY (account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 
 /*
 ==============================================================================
@@ -988,14 +886,6 @@ CREATE TABLE bank_accounts (
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE bank_accounts
-
-    ADD CONSTRAINT fk_bank_ledger_account
-        FOREIGN KEY (ledger_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
-
 /*
 ==============================================================================
 TABLE : bank_transactions
@@ -1045,19 +935,6 @@ CREATE TABLE bank_transactions (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-ALTER TABLE bank_transactions
-
-    ADD CONSTRAINT fk_bank_transaction_bank
-        FOREIGN KEY (bank_account_id)
-        REFERENCES bank_accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_bank_transaction_journal
-        FOREIGN KEY (journal_entry_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL;
 /*
 ==============================================================================
 TABLE : cash_book
@@ -1100,19 +977,6 @@ CREATE TABLE cash_book (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-ALTER TABLE cash_book
-
-    ADD CONSTRAINT fk_cashbook_journal
-        FOREIGN KEY (journal_entry_id)
-        REFERENCES journal_entries(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    ADD CONSTRAINT fk_cashbook_account
-        FOREIGN KEY (account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 /*
 ==============================================================================
 TABLE : income_categories
@@ -1158,13 +1022,6 @@ CREATE TABLE income_categories (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-ALTER TABLE income_categories
-
-    ADD CONSTRAINT fk_income_category_account
-        FOREIGN KEY (ledger_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 /*
 ==============================================================================
 TABLE : expense_categories
@@ -1212,13 +1069,6 @@ CREATE TABLE expense_categories (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
-ALTER TABLE expense_categories
-
-    ADD CONSTRAINT fk_expense_category_account
-        FOREIGN KEY (ledger_account_id)
-        REFERENCES accounts(id)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT;
 /*
 
 
@@ -1271,6 +1121,165 @@ CREATE TABLE finance_audit_log (
 ) ENGINE=InnoDB
 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_unicode_ci;
+
+
+/* ============================================================================
+   DEFERRED FOREIGN KEY CONSTRAINTS
+   All referenced tables are created before these constraints are applied.
+   ============================================================================ */
+
+ALTER TABLE finance_settings
+    ADD CONSTRAINT fk_finance_settings_cash_account
+        FOREIGN KEY (default_cash_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    ADD CONSTRAINT fk_finance_settings_bank_account
+        FOREIGN KEY (default_bank_account_id)
+        REFERENCES bank_accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL;
+
+ALTER TABLE finance_document_sequences
+    ADD CONSTRAINT fk_document_sequence_document_type
+        FOREIGN KEY (document_type_id)
+        REFERENCES finance_document_types(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE finance_posting_rules
+    ADD CONSTRAINT fk_posting_rule_debit_account
+        FOREIGN KEY (debit_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_posting_rule_credit_account
+        FOREIGN KEY (credit_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE journal_entries
+
+
+    ADD CONSTRAINT fk_journal_financial_year
+        FOREIGN KEY (financial_year_id)
+        REFERENCES financial_years(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_journal_financial_period
+        FOREIGN KEY (financial_period_id)
+        REFERENCES financial_periods(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_journal_document_sequence
+        FOREIGN KEY (document_sequence_id)
+        REFERENCES finance_document_sequences(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_journal_document_type
+        FOREIGN KEY (document_type_id)
+        REFERENCES finance_document_types(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE journal_entries
+    ADD CONSTRAINT fk_journal_reversal
+        FOREIGN KEY (reversal_journal_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL;
+
+ALTER TABLE journal_entry_lines
+
+    ADD CONSTRAINT fk_journal_line_journal
+        FOREIGN KEY (journal_entry_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    ADD CONSTRAINT fk_journal_line_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE ledger_balances
+
+    ADD CONSTRAINT fk_ledger_year
+        FOREIGN KEY (financial_year_id)
+        REFERENCES financial_years(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_ledger_period
+        FOREIGN KEY (financial_period_id)
+        REFERENCES financial_periods(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_ledger_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE bank_accounts
+
+    ADD CONSTRAINT fk_bank_ledger_account
+        FOREIGN KEY (ledger_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE bank_transactions
+
+    ADD CONSTRAINT fk_bank_transaction_bank
+        FOREIGN KEY (bank_account_id)
+        REFERENCES bank_accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_bank_transaction_journal
+        FOREIGN KEY (journal_entry_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL;
+
+ALTER TABLE cash_book
+
+    ADD CONSTRAINT fk_cashbook_journal
+        FOREIGN KEY (journal_entry_id)
+        REFERENCES journal_entries(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    ADD CONSTRAINT fk_cashbook_account
+        FOREIGN KEY (account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE income_categories
+
+    ADD CONSTRAINT fk_income_category_account
+        FOREIGN KEY (ledger_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+
+ALTER TABLE expense_categories
+
+    ADD CONSTRAINT fk_expense_category_account
+        FOREIGN KEY (ledger_account_id)
+        REFERENCES accounts(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
 
 COMMIT;
 

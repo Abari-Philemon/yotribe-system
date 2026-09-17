@@ -1225,7 +1225,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 </div>
 
-
+<?php if (canAccess('notifications')): ?>
 <!-- =========================================================
      004-C — FARM NOTIFICATIONS
      ========================================================= -->
@@ -1414,7 +1414,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 
 </div>
-
+<?php endif; ?>
 <!-- =========================================================
      KPI GRID — YOTRIBE EXECUTIVE METRICS
      ========================================================= -->
@@ -2294,6 +2294,8 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 <?php endif; ?>
 
+<?php if (canAccess('farm_health')): ?>
+
 <!-- =========================================================
      FARM HEALTH SUMMARY
      ========================================================= -->
@@ -2527,7 +2529,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 
 </div>
-
+<?php endif; ?>
 <!-- =========================================================
      YOTRIBE INTELLIGENCE
      ========================================================= -->
@@ -2569,7 +2571,11 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
 
     <div class="card-body">
+            <?php if (canAccess('intelligence')): ?>
 
+        <!-- =========================================================
+        YOTRIBE INTELLIGENCE
+        ========================================================= -->
 
         <!-- =====================================================
              INTELLIGENCE SUMMARY
@@ -2662,7 +2668,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
 
         </div>
 
-
+        <?php endif; ?>
         <!-- =====================================================
              ATTENTION ITEMS
              ===================================================== -->
@@ -2821,6 +2827,8 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     </div>
 
 </div>
+
+<?php if (canAccess('analytics')): ?>
 
 <!-- ANALYTICS TABS -->
 <ul class="nav nav-pills mb-3" id="analyticsTabs">
@@ -3173,7 +3181,7 @@ require_once __DIR__ . '/../../includes/sidebar.php';
     <?php endif; ?>
 
 </div>
-
+<?php endif; ?>
 <!-- =========================================================
      RECENT FARM ACTIVITIES
      ========================================================= -->
@@ -3550,7 +3558,7 @@ $recent_activities = array_slice(
         </div>
     </div>
 </div>
-
+<?php if (canAccess('quick_actions')): ?>
 <!-- =========================================================
      004-D — QUICK ACTIONS
      ========================================================= -->
@@ -3732,6 +3740,7 @@ $recent_activities = array_slice(
     </div>
 
 </div>
+<?php endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
