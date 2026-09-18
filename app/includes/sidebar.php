@@ -1218,11 +1218,11 @@ function nav_active(array $pages)
 
                 '/yotribe-system/app/modules/sales/create.php',
 
-                '/yotribe-system/app/modules/sale/payments.php',
+                '/yotribe-system/app/modules/sales/payment.php',
 
-                '/yotribe-system/app/modules/sales/returns.php',
+                '/yotribe-system/app/modules/sales/refund.php',
 
-                '/yotribe-system/app/modules/sales/reports.php'
+                '/yotribe-system/app/modules/sales/report.php'
 
             ];
 
@@ -1302,9 +1302,9 @@ function nav_active(array $pages)
                         <!-- PAYMENTS -->
 
                         <a
-                            href="/yotribe-system/app/modules/sale/payments.php"
+                            href="/yotribe-system/app/modules/sales/payment.php"
                             class="nav-link <?= nav_active([
-                                '/yotribe-system/app/modules/sale/payments.php'
+                                '/yotribe-system/app/modules/sales/payment.php'
                             ]) ?>"
                         >
 
@@ -1318,9 +1318,9 @@ function nav_active(array $pages)
                         <!-- RETURNS -->
 
                         <a
-                            href="/yotribe-system/app/modules/sales/returns.php"
+                            href="/yotribe-system/app/modules/sales/refund.php"
                             class="nav-link <?= nav_active([
-                                '/yotribe-system/app/modules/sales/returns.php'
+                                '/yotribe-system/app/modules/sales/refund.php'
                             ]) ?>"
                         >
 
@@ -1334,9 +1334,9 @@ function nav_active(array $pages)
                         <!-- SALES REPORTS -->
 
                         <a
-                            href="/yotribe-system/app/modules/sales/reports.php"
+                            href="/yotribe-system/app/modules/sales/report.php"
                             class="nav-link <?= nav_active([
-                                '/yotribe-system/app/modules/sales/reports.php'
+                                '/yotribe-system/app/modules/sales/report.php'
                             ]) ?>"
                         >
 

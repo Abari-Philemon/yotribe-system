@@ -428,6 +428,7 @@ $generatedAt = date('d M Y H:i:s');
 */
 
 require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 
 ?>
 
@@ -480,7 +481,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <div class="mb-4">
 
-        <a href="index.php"
+        <a href="dashboard.php"
            class="btn btn-secondary">
 
             ← Back
