@@ -3592,7 +3592,7 @@ $recent_activities = array_slice(
                     <!-- RECORD FEEDING -->
                     <div class="col-12 col-sm-6 col-lg-4">
                         <a
-                            href="/yotribe-system/app/modules/feedng/index.php"
+                            href="/yotribe-system/app/modules/feeding/index.php"
                             class="btn btn-outline-primary w-100
                                    d-flex align-items-center
                                    justify-content-start gap-3

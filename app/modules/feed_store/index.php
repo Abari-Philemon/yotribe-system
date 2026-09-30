@@ -98,125 +98,101 @@ function statusColor($status){
         default    => 'dark'
     };
 }
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Feed Store Control Center</title>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
+?>
 
 <style>
-:root{
---bg:#eef2f7;
---card:#ffffff;
---line:#e5e7eb;
---text:#0f172a;
---muted:#64748b;
-}
+    :root{
+    --bg:#eef2f7;
+    --card:#ffffff;
+    --line:#e5e7eb;
+    --text:#0f172a;
+    --muted:#64748b;
+    }
 
-body{
-background:var(--bg);
-font-family:Inter,Segoe UI,Arial,sans-serif;
-color:var(--text);
-}
+    body{
+    background:var(--bg);
+    font-family:Inter,Segoe UI,Arial,sans-serif;
+    color:var(--text);
+    }
 
-.sidebar{
-min-height:100vh;
-background:#fff;
-border-right:1px solid var(--line);
-}
+    .sidebar{
+    min-height:100vh;
+    background:#fff;
+    border-right:1px solid var(--line);
+    }
 
-.brand{
-font-weight:800;
-font-size:24px;
-}
+    .brand{
+    font-weight:800;
+    font-size:24px;
+    }
 
-.nav-link{
-color:#334155;
-padding:11px 14px;
-border-radius:12px;
-}
+    .nav-link{
+    color:#334155;
+    padding:11px 14px;
+    border-radius:12px;
+    }
 
-.nav-link:hover{
-background:#eff6ff;
-}
+    .nav-link:hover{
+    background:#eff6ff;
+    }
 
-.nav-link.active{
-background:linear-gradient(135deg,#2563eb,#1d4ed8);
-color:#fff !important;
-}
+    .nav-link.active{
+    background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    color:#fff !important;
+    }
 
-.hero{
-background:linear-gradient(135deg,#0f172a,#1d4ed8);
-color:#fff;
-border-radius:22px;
-padding:28px;
-box-shadow:0 15px 35px rgba(0,0,0,.08);
-}
+    .hero{
+    background:linear-gradient(135deg,#0f172a,#1d4ed8);
+    color:#fff;
+    border-radius:22px;
+    padding:28px;
+    box-shadow:0 15px 35px rgba(0,0,0,.08);
+    }
 
-.cardx{
-background:#fff;
-border:none;
-border-radius:20px;
-box-shadow:0 10px 30px rgba(0,0,0,.05);
-}
+    .cardx{
+    background:#fff;
+    border:none;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+    }
 
-.metric{
-font-size:30px;
-font-weight:800;
-}
+    .metric{
+    font-size:30px;
+    font-weight:800;
+    }
 
-.table thead th{
-white-space:nowrap;
-background:#111827;
-color:#fff;
-border:none;
-font-size:13px;
-}
+    .table thead th{
+    white-space:nowrap;
+    background:#111827;
+    color:#fff;
+    border:none;
+    font-size:13px;
+    }
 
-.table td{
-vertical-align:middle;
-}
+    .table td{
+    vertical-align:middle;
+    }
 
-.badge-soft{
-padding:8px 12px;
-border-radius:50px;
-}
+    .badge-soft{
+    padding:8px 12px;
+    border-radius:50px;
+    }
 
-.search{
-border-radius:14px;
-padding:11px 14px;
-}
+    .search{
+    border-radius:14px;
+    padding:11px 14px;
+    }
 
-.small-muted{
-font-size:12px;
-color:#64748b;
-}
+    .small-muted{
+    font-size:12px;
+    color:#64748b;
+    }
 </style>
-</head>
-<body>
 
-<div class="container-fluid">
-<div class="row">
 
-<!-- SIDEBAR -->
-<div class="col-md-2 sidebar p-4">
-
-<div class="brand mb-4">Yotribe Agro</div>
-
-<ul class="nav flex-column gap-2">
-<li><a href="../dashboard/index.php" class="nav-link">Dashboard</a></li>
-<li><a href="../feeding/index.php" class="nav-link">Feeding</a></li>
-<li><a href="index.php" class="nav-link active">Feed Store</a></li>
-<li><a href="receive.php" class="nav-link">Receive Feed</a></li>
-<li><a href="issue.php" class="nav-link">Issue Feed</a></li>
-<li><a href="logs.php" class="nav-link">Logs</a></li>
-</ul>
-
-</div>
 
 <!-- MAIN -->
 <div class="col-md-10 p-4">

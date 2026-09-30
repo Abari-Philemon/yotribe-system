@@ -179,7 +179,7 @@ New Sale
 
 <h2>
 
-<?= number_format($today['total_sales']) ?>
+<?= number_format((int)$today['total_sales']) ?>
 
 </h2>
 
@@ -703,14 +703,18 @@ $recentSales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $stmt = $pdo->prepare("
 SELECT
-    DATE_FORMAT(sale_date,'%b') AS month_name,
+    MONTH(sale_date) AS month_number,
+    DATE_FORMAT(sale_date, '%b') AS month_name,
     SUM(total_amount) AS revenue
 FROM sales
 WHERE farm_id = ?
-AND YEAR(sale_date)=YEAR(CURDATE())
-AND status='completed'
-GROUP BY MONTH(sale_date)
-ORDER BY MONTH(sale_date)
+AND YEAR(sale_date) = YEAR(CURDATE())
+AND status = 'completed'
+GROUP BY
+    MONTH(sale_date),
+    DATE_FORMAT(sale_date, '%b')
+ORDER BY
+    MONTH(sale_date)
 ");
 $stmt->execute([$farm_id]);
 $salesTrend = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1153,7 +1157,7 @@ Total Sales Today:
 
 <strong>
 
-<?= number_format($today['total_sales']) ?>
+<?= number_format((float)$today['total_sales']) ?>
 
 </strong>
 
