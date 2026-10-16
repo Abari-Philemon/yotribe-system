@@ -6,7 +6,67 @@ namespace Composer\Autoload;
 
 class ComposerStaticInit40c5a6881bf0bed76873646b006d19da
 {
+    public static $files = array (
+        '0f6e7752307bbff1cc85eba86cb64aa3' => __DIR__ . '/../..' . '/app/helpers/uuid_helper.php',
+    );
+
+    public static $prefixLengthsPsr4 = array (
+        'A' =>
+        array (
+            'App\\Modules\\Finance\\' => 20,
+            'App\\Core\\' => 9,
+        ),
+    );
+
+    public static $prefixDirsPsr4 = array (
+        'App\\Modules\\Finance\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/app/modules/finance',
+        ),
+        'App\\Core\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/app/Core',
+        ),
+    );
+
     public static $classMap = array (
+        'App\\Core\\BaseEntity' => __DIR__ . '/../..' . '/app/Core/BaseEntity.php',
+        'App\\Core\\Contracts\\RepositoryInterface' => __DIR__ . '/../..' . '/app/Core/Contracts/RepositoryInterface.php',
+        'App\\Core\\Contracts\\ServiceInterface' => __DIR__ . '/../..' . '/app/Core/Contracts/ServiceInterface.php',
+        'App\\Core\\Database' => __DIR__ . '/../..' . '/app/Core/Database.php',
+        'App\\Core\\Entity' => __DIR__ . '/../..' . '/app/Core/Entity.php',
+        'App\\Core\\Exceptions\\ApplicationException' => __DIR__ . '/../..' . '/app/Core/Exceptions/ApplicationException.php',
+        'App\\Core\\Exceptions\\AuthenticationException' => __DIR__ . '/../..' . '/app/Core/Exceptions/AuthenticationException.php',
+        'App\\Core\\Exceptions\\AuthorizationException' => __DIR__ . '/../..' . '/app/Core/Exceptions/AuthorizationException.php',
+        'App\\Core\\Exceptions\\BusinessRuleException' => __DIR__ . '/../..' . '/app/Core/Exceptions/BusinessRuleException.php',
+        'App\\Core\\Exceptions\\ConfigurationException' => __DIR__ . '/../..' . '/app/Core/Exceptions/ConfigurationException.php',
+        'App\\Core\\Exceptions\\DatabaseException' => __DIR__ . '/../..' . '/app/Core/Exceptions/DatabaseException.php',
+        'App\\Core\\Exceptions\\NotFoundException' => __DIR__ . '/../..' . '/app/Core/Exceptions/NotFoundException.php',
+        'App\\Core\\Exceptions\\ValidationException' => __DIR__ . '/../..' . '/app/Core/Exceptions/ValidationException.php',
+        'App\\Core\\Repository' => __DIR__ . '/../..' . '/app/Core/Repository.php',
+        'App\\Core\\Service' => __DIR__ . '/../..' . '/app/Core/Service.php',
+        'App\\Core\\TransactionManager' => __DIR__ . '/../..' . '/app/Core/TransactionManager.php',
+        'App\\Modules\\Finance\\Entities\\Account' => __DIR__ . '/../..' . '/app/modules/finance/Entities/Account.php',
+        'App\\Modules\\Finance\\Entities\\FinanceSettings' => __DIR__ . '/../..' . '/app/modules/finance/Entities/FinanceSettings.php',
+        'App\\Modules\\Finance\\Entities\\FinancialYear' => __DIR__ . '/../..' . '/app/modules/finance/Entities/FinancialYear.php',
+        'App\\Modules\\Finance\\Entities\\JournalEntry' => __DIR__ . '/../..' . '/app/modules/finance/Entities/JournalEntry.php',
+        'App\\Modules\\Finance\\Repositories\\AccountClassRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/AccountClassRepository.php',
+        'App\\Modules\\Finance\\Repositories\\AccountRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/AccountRepository.php',
+        'App\\Modules\\Finance\\Repositories\\AccountTypeRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/AccountTypeRepository.php',
+        'App\\Modules\\Finance\\Repositories\\FinanceSettingsRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/FinanceSettingsRepository.php',
+        'App\\Modules\\Finance\\Repositories\\FinancialPeriodRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/FinancialPeriodRepository.php',
+        'App\\Modules\\Finance\\Repositories\\FinancialYearRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/FinancialYearRepository.php',
+        'App\\Modules\\Finance\\Repositories\\JournalEntryRepository' => __DIR__ . '/../..' . '/app/modules/finance/Repositories/JournalEntryRepository.php',
+        'App\\Modules\\Finance\\Requests\\AccountRequest' => __DIR__ . '/../..' . '/app/modules/finance/Requests/AccountRequest.php',
+        'App\\Modules\\Finance\\Requests\\FinanceSettingsRequest' => __DIR__ . '/../..' . '/app/modules/finance/Requests/FinanceSettingsRequest.php',
+        'App\\Modules\\Finance\\Requests\\FinancialYearRequest' => __DIR__ . '/../..' . '/app/modules/finance/Requests/FinancialYearRequest.php',
+        'App\\Modules\\Finance\\Requests\\JournalEntryRequest' => __DIR__ . '/../..' . '/app/modules/finance/Requests/JournalEntryRequest.php',
+        'App\\Modules\\Finance\\Services\\AccountService' => __DIR__ . '/../..' . '/app/modules/finance/Services/AccountService.php',
+        'App\\Modules\\Finance\\Services\\CompanyContext' => __DIR__ . '/../..' . '/app/modules/finance/Services/CompanyContext.php',
+        'App\\Modules\\Finance\\Services\\FinanceSettingsService' => __DIR__ . '/../..' . '/app/modules/finance/Services/FinanceSettingsService.php',
+        'App\\Modules\\Finance\\Services\\FinancialPeriodService' => __DIR__ . '/../..' . '/app/modules/finance/Services/FinancialPeriodService.php',
+        'App\\Modules\\Finance\\Services\\FinancialYearService' => __DIR__ . '/../..' . '/app/modules/finance/Services/FinancialYearService.php',
+        'App\\Modules\\Finance\\Services\\JournalEntryService' => __DIR__ . '/../..' . '/app/modules/finance/Services/JournalEntryService.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Datamatrix' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/datamatrix.php',
         'PDF417' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/pdf417.php',
@@ -25,6 +85,8 @@ class ComposerStaticInit40c5a6881bf0bed76873646b006d19da
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
+            $loader->prefixLengthsPsr4 = ComposerStaticInit40c5a6881bf0bed76873646b006d19da::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit40c5a6881bf0bed76873646b006d19da::$prefixDirsPsr4;
             $loader->classMap = ComposerStaticInit40c5a6881bf0bed76873646b006d19da::$classMap;
 
         }, null, ClassLoader::class);
