@@ -1,148 +1,292 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../middleware/auth_guard.php';
 require_once __DIR__ . '/../../middleware/farm_guard.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../helpers/stocking_helper.php';
 
-$farm_id = farm_id();
+$farm_id = (int) farm_id();
+
+/*
+|--------------------------------------------------------------------------
+| Redirect with an error message
+|--------------------------------------------------------------------------
+*/
+function stockingRedirectError(string $message): void
+{
+    header(
+        'Location: create.php?error=' . rawurlencode($message)
+    );
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Validate the submitted average weight
+|--------------------------------------------------------------------------
+*/
+$pond_id = filter_input(INPUT_POST, 'pond_id', FILTER_VALIDATE_INT);
+$batch_id = filter_input(INPUT_POST, 'batch_id', FILTER_VALIDATE_INT);
+$qty = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT);
+
+$weightInput = $_POST['avg_weight_g'] ?? null;
+
+if (
+    $pond_id === false ||
+    $pond_id === null ||
+    $pond_id < 1
+) {
+    stockingRedirectError('Select a valid pond.');
+}
+
+if (
+    $batch_id === false ||
+    $batch_id === null ||
+    $batch_id < 1
+) {
+    stockingRedirectError('Select a valid fish batch.');
+}
+
+if (
+    $qty === false ||
+    $qty === null ||
+    $qty < 1
+) {
+    stockingRedirectError('Quantity must be a positive whole number.');
+}
+
+if (
+    !is_scalar($weightInput) ||
+    !is_numeric((string) $weightInput)
+) {
+    stockingRedirectError('Enter a valid average fish weight.');
+}
+
+$avg_weight_g = (float) $weightInput;
+
+if (
+    !is_finite($avg_weight_g) ||
+    $avg_weight_g < 10
+) {
+    stockingRedirectError(
+        'Average fish weight must be at least 10 grams.'
+    );
+}
 
 try {
-
     $pdo->beginTransaction();
 
-    /**
-     * -----------------------------------------
-     * SAFE INPUTS
-     * -----------------------------------------
-     */
-    $pond_id  = isset($_POST['pond_id']) ? (int)$_POST['pond_id'] : 0;
-    $batch_id = isset($_POST['batch_id']) ? (int)$_POST['batch_id'] : 0;
-    $qty      = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 0;
-
-    if ($pond_id <= 0) {
-        throw new Exception("Pond is required");
-    }
-
-    if ($batch_id <= 0) {
-        throw new Exception("Batch is required");
-    }
-
-    if ($qty <= 0) {
-        throw new Exception("Invalid quantity");
-    }
-
-    /**
-     * -----------------------------------------
-     * LOCK BATCH (CRITICAL)
-     * -----------------------------------------
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Lock and validate the batch
+    |--------------------------------------------------------------------------
+    */
     $stmt = $pdo->prepare("
-        SELECT id, current_count, status, avg_weight_g
+        SELECT
+            id,
+            farm_id,
+            current_count,
+            avg_weight_g,
+            status
         FROM fish_batches
-        WHERE id = ? AND farm_id = ?
+        WHERE id = ?
+          AND farm_id = ?
         FOR UPDATE
     ");
-    $stmt->execute([$batch_id, $farm_id]);
+
+    $stmt->execute([
+        (int) $batch_id,
+        $farm_id
+    ]);
 
     $batch = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$batch) {
-        throw new Exception("Invalid batch");
+        throw new RuntimeException('The selected fish batch was not found.');
     }
 
     if ($batch['status'] !== 'active') {
-        throw new Exception("Batch is not active");
+        throw new RuntimeException('The selected fish batch is not active.');
     }
 
-    if ($qty > $batch['current_count']) {
-        throw new Exception("Batch has only {$batch['current_count']} fish left");
+    $batchAvailable = (int) $batch['current_count'];
+
+    if ($batchAvailable < 1) {
+        throw new RuntimeException(
+            'The selected batch has no fish available.'
+        );
     }
 
-    /**
-     * -----------------------------------------
-     * LOCK POND (CRITICAL)
-     * -----------------------------------------
-     * We call helper AFTER lock to avoid race conditions
-     */
+    if ((int) $qty > $batchAvailable) {
+        throw new RuntimeException(
+            'The batch has only ' .
+            number_format($batchAvailable) .
+            ' fish available.'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Lock and validate the destination pond
+    |--------------------------------------------------------------------------
+    */
     $stmt = $pdo->prepare("
-        SELECT id
+        SELECT
+            id,
+            farm_id,
+            pond_type,
+            size_label,
+            length_ft,
+            width_ft,
+            capacity,
+            status
         FROM ponds_tanks
-        WHERE id = ? AND farm_id = ?
+        WHERE id = ?
+          AND farm_id = ?
         FOR UPDATE
     ");
-    $stmt->execute([$pond_id, $farm_id]);
 
-    if (!$stmt->fetch()) {
-        throw new Exception("Invalid pond");
+    $stmt->execute([
+        (int) $pond_id,
+        $farm_id
+    ]);
+
+    $pond = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$pond) {
+        throw new RuntimeException(
+            'The selected pond does not belong to this farm.'
+        );
     }
 
-    /**
-     * -----------------------------------------
-     * VALIDATE STOCKING (CENTRAL ENGINE)
-     * -----------------------------------------
-     */
-    validateStocking($pdo, $pond_id, $farm_id, $qty);
+    if ($pond['status'] !== 'active') {
+        throw new RuntimeException(
+            'The selected pond is not active.'
+        );
+    }
 
-    /**
-     * -----------------------------------------
-     * INSERT STOCKING RECORD
-     * -----------------------------------------
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Validate using the entered average weight
+    |--------------------------------------------------------------------------
+    |
+    | This applies the helper's stage rules and effective capacity:
+    | MIN(database capacity, stage-specific capacity).
+    |
+    */
+    validateStocking(
+        $pdo,
+        (int) $pond_id,
+        $farm_id,
+        (int) $qty,
+        $avg_weight_g
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Insert the stocking record
+    |--------------------------------------------------------------------------
+    |
+    | Store the weight entered for this stocking operation.
+    | Do not silently replace it with the batch's old average weight.
+    |
+    */
     $stmt = $pdo->prepare("
-        INSERT INTO pond_stocking
-        (farm_id, pond_id, batch_id, stocked_count, current_count, avg_weight_g, stocking_date, status)
+        INSERT INTO pond_stocking (
+            farm_id,
+            pond_id,
+            batch_id,
+            stocked_count,
+            current_count,
+            avg_weight_g,
+            stocking_date,
+            status
+        )
         VALUES (?, ?, ?, ?, ?, ?, CURDATE(), 'active')
     ");
 
     $stmt->execute([
         $farm_id,
-        $pond_id,
-        $batch_id,
-        $qty,
-        $qty,
-        $batch['avg_weight_g'] ?? 0
+        (int) $pond_id,
+        (int) $batch_id,
+        (int) $qty,
+        (int) $qty,
+        $avg_weight_g
     ]);
 
-    /**
-     * -----------------------------------------
-     * UPDATE BATCH INVENTORY
-     * -----------------------------------------
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | 5. Deduct stocked fish from batch inventory
+    |--------------------------------------------------------------------------
+    |
+    | The batch row is already locked. The conditional update provides
+    | an additional safeguard against reducing inventory below zero.
+    |
+    */
     $stmt = $pdo->prepare("
         UPDATE fish_batches
         SET current_count = current_count - ?
         WHERE id = ?
+          AND farm_id = ?
+          AND status = 'active'
+          AND current_count >= ?
     ");
-    $stmt->execute([$qty, $batch_id]);
 
-    /**
-     * -----------------------------------------
-     * AUTO CLOSE BATCH IF EMPTY
-     * -----------------------------------------
-     */
+    $stmt->execute([
+        (int) $qty,
+        (int) $batch_id,
+        $farm_id,
+        (int) $qty
+    ]);
+
+    if ($stmt->rowCount() !== 1) {
+        throw new RuntimeException(
+            'Batch inventory could not be updated. No stocking was saved.'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 6. Close the batch when no fish remain
+    |--------------------------------------------------------------------------
+    */
     $stmt = $pdo->prepare("
         UPDATE fish_batches
         SET status = 'closed'
         WHERE id = ?
-        AND current_count <= 0
+          AND farm_id = ?
+          AND current_count = 0
+          AND status = 'active'
     ");
-    $stmt->execute([$batch_id]);
 
-    /**
-     * -----------------------------------------
-     * COMMIT TRANSACTION
-     * -----------------------------------------
-     */
+    $stmt->execute([
+        (int) $batch_id,
+        $farm_id
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 7. Commit everything together
+    |--------------------------------------------------------------------------
+    |
+    | If any operation fails, the transaction is rolled back.
+    |
+    */
     $pdo->commit();
 
-    header("Location: index.php?success=1");
+    header('Location: index.php?success=1');
     exit;
 
-} catch (Exception $e) {
-
+} catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
 
-    die("Stocking Error: " . $e->getMessage());
+    error_log(
+        'Fish stocking error for farm ' .
+        $farm_id . ': ' . $e->getMessage()
+    );
+
+    stockingRedirectError($e->getMessage());
 }

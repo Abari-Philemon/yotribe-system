@@ -1024,13 +1024,13 @@ No customer sales.
 
 <td class="text-end">
 
-<?= number_format($customer['total_sales']) ?>
+<?= number_format((float)($customer['total_sales'])) ?>
 
 </td>
 
 <td class="text-end">
 
-₦<?= number_format((float)$customer['total_amount'],2) ?>
+₦<?= number_format((float)($customer['total_amount']) )?>
 
 </td>
 

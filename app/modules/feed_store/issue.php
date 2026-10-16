@@ -258,145 +258,451 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$farm_id]);
 $today_issue = $stmt->fetchColumn();
+
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Issue Feed</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<title>Issue Feed | YOTRIBE IFMS</title>
 
 <style>
-body{background:#f5f7fb}
-.cardx{
-border:none;
-border-radius:18px;
-box-shadow:0 15px 35px rgba(0,0,0,.05);
+:root{
+    --if-bg:#f5f7fb;
+    --if-card:#ffffff;
+    --if-text:#172033;
+    --if-muted:#667085;
+    --if-border:#e4e8ef;
+    --if-primary:#173b63;
+    --if-primary-2:#245b91;
+    --if-success:#16845b;
+    --if-danger:#c63d4f;
+    --if-warning:#c77a12;
+    --if-shadow:0 12px 30px rgba(15,23,42,.07);
 }
-.hero{
-background:linear-gradient(135deg,#0d6efd,#20c997);
-color:#fff;
-padding:28px;
-border-radius:18px;
+
+.issue-page{
+    width:100%;
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 20px 48px;
+    color:var(--if-text);
+    font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
 }
-.form-control,.form-select{
-border-radius:12px;
-padding:12px;
+
+.issue-hero{
+    background:linear-gradient(135deg,#173b63 0%,#245b91 58%,#3478a9 100%);
+    color:#fff;
+    border-radius:22px;
+    padding:26px 28px;
+    box-shadow:var(--if-shadow);
+    margin-bottom:20px;
 }
-.btnx{
-border-radius:12px;
-padding:12px 18px;
-font-weight:600;
+
+.issue-hero-main{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
 }
-.kpi{
-font-size:30px;
-font-weight:700;
+
+.issue-hero-title{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    min-width:0;
+}
+
+.issue-hero-icon{
+    width:52px;
+    height:52px;
+    border-radius:15px;
+    display:grid;
+    place-items:center;
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.18);
+    font-size:25px;
+    flex:0 0 auto;
+}
+
+.issue-hero h1{
+    font-size:24px;
+    line-height:1.2;
+    margin:0 0 5px;
+    font-weight:800;
+}
+
+.issue-hero p{
+    margin:0;
+    color:rgba(255,255,255,.78);
+    font-size:12px;
+}
+
+.issue-back{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:42px;
+    padding:0 17px;
+    border-radius:11px;
+    background:#fff;
+    color:var(--if-primary);
+    text-decoration:none;
+    font-weight:800;
+    font-size:12px;
+    white-space:nowrap;
+}
+
+.issue-back:hover{
+    color:var(--if-primary-2);
+    text-decoration:none;
+}
+
+.issue-notice{
+    border:1px solid var(--if-border);
+    border-radius:14px;
+    padding:13px 15px;
+    margin-bottom:18px;
+    background:#fff;
+    box-shadow:0 5px 16px rgba(15,23,42,.04);
+}
+
+.issue-notice.success{
+    border-color:#bce8d5;
+    background:#f2fcf7;
+    color:#126b4b;
+}
+
+.issue-notice.danger{
+    border-color:#f1c4cb;
+    background:#fff5f6;
+    color:#a72d3e;
+}
+
+.issue-kpis{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+    margin-bottom:18px;
+}
+
+.issue-kpi{
+    background:var(--if-card);
+    border:1px solid var(--if-border);
+    border-radius:18px;
+    padding:20px;
+    box-shadow:var(--if-shadow);
+}
+
+.issue-kpi-label{
+    color:var(--if-muted);
+    font-size:11px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.55px;
+}
+
+.issue-kpi-value{
+    margin-top:8px;
+    font-size:28px;
+    line-height:1.1;
+    font-weight:800;
+    color:var(--if-primary);
+}
+
+.issue-kpi-value.success{
+    color:var(--if-success);
+}
+
+.issue-card{
+    background:var(--if-card);
+    border:1px solid var(--if-border);
+    border-radius:18px;
+    box-shadow:var(--if-shadow);
+    overflow:hidden;
+}
+
+.issue-card-head{
+    padding:18px 20px;
+    border-bottom:1px solid var(--if-border);
+}
+
+.issue-card-head h2{
+    font-size:15px;
+    margin:0;
+    font-weight:800;
+}
+
+.issue-card-head p{
+    margin:4px 0 0;
+    color:var(--if-muted);
+    font-size:11px;
+}
+
+.issue-card-body{
+    padding:20px;
+}
+
+.issue-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+}
+
+.issue-field label{
+    display:block;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.65px;
+    text-transform:uppercase;
+    color:#64748b;
+    margin-bottom:7px;
+}
+
+.issue-control{
+    width:100%;
+    height:45px;
+    border:1px solid #d8dee8;
+    border-radius:10px;
+    padding:0 12px;
+    background:#fff;
+    color:var(--if-text);
+    font:inherit;
+    font-size:13px;
+    outline:none;
+}
+
+.issue-control:focus{
+    border-color:#6c98bf;
+    box-shadow:0 0 0 3px rgba(36,91,145,.10);
+}
+
+.issue-control::placeholder{
+    color:#98a2b3;
+}
+
+.issue-submit-wrap{
+    grid-column:1/-1;
+    margin-top:4px;
+    padding-top:18px;
+    border-top:1px solid var(--if-border);
+}
+
+.issue-submit{
+    width:100%;
+    min-height:48px;
+    border:0;
+    border-radius:12px;
+    background:linear-gradient(135deg,#173b63,#245b91);
+    color:#fff;
+    font-weight:800;
+    font-size:13px;
+    cursor:pointer;
+    box-shadow:0 8px 18px rgba(23,59,99,.18);
+}
+
+.issue-submit:hover{
+    filter:brightness(.97);
+}
+
+.issue-helper{
+    margin-top:9px;
+    color:var(--if-muted);
+    font-size:11px;
+    line-height:1.5;
+}
+
+@media (min-width:1200px){
+    .issue-page{max-width:1240px}
+}
+
+@media (max-width:700px){
+    .issue-page{
+        padding:18px 12px 35px;
+    }
+
+    .issue-hero{
+        padding:20px;
+        border-radius:17px;
+    }
+
+    .issue-hero-main{
+        align-items:flex-start;
+    }
+
+    .issue-hero-title{
+        align-items:flex-start;
+    }
+
+    .issue-hero-icon{
+        width:44px;
+        height:44px;
+        font-size:20px;
+    }
+
+    .issue-hero h1{
+        font-size:20px;
+    }
+
+    .issue-kpis{
+        grid-template-columns:1fr;
+    }
+
+    .issue-card{
+        border-radius:15px;
+    }
+
+    .issue-card-head,
+    .issue-card-body{
+        padding:16px;
+    }
+
+    .issue-grid{
+        grid-template-columns:1fr;
+        gap:14px;
+    }
+
+    .issue-submit-wrap{
+        grid-column:auto;
+    }
+}
+
+@media (max-width:480px){
+    .issue-hero-main{
+        display:block;
+    }
+
+    .issue-back{
+        margin-top:15px;
+        width:100%;
+    }
+
+    .issue-kpi-value{
+        font-size:24px;
+    }
 }
 </style>
-</head>
-<body>
 
-<div class="container py-5">
+<main class="issue-page">
 
-<div class="hero mb-4">
-<div class="row align-items-center">
-<div class="col-md-8">
-<h2 class="mb-1">Automated Feed Issue Center</h2>
-<div class="opacity-75">Universal Store • FIFO Engine • Multi Farm</div>
-</div>
-<div class="col-md-4 text-md-end mt-3 mt-md-0">
-<a href="index.php" class="btn btn-light btnx">← Back Store</a>
-</div>
-</div>
-</div>
+    <section class="issue-hero">
+        <div class="issue-hero-main">
+            <div class="issue-hero-title">
+                <div class="issue-hero-icon">🚀</div>
+                <div>
+                    <h1>Automated Feed Issue Center</h1>
+                    <p>Universal Store • FIFO Engine • Multi Farm</p>
+                </div>
+            </div>
 
-<div class="row g-4 mb-4">
+            <a href="index.php" class="issue-back">← Back to Feed Store</a>
+        </div>
+    </section>
 
-<div class="col-md-6">
-<div class="cardx p-4 bg-white">
-<small class="text-muted">Total Store Stock</small>
-<div class="kpi text-primary"><?= number_format($total_stock,2) ?> kg</div>
-</div>
-</div>
+    <?php if($message): ?>
+        <div class="issue-notice <?= htmlspecialchars($alert) ?>">
+            <?= htmlspecialchars($message) ?>
+        </div>
+    <?php endif; ?>
 
-<div class="col-md-6">
-<div class="cardx p-4 bg-white">
-<small class="text-muted">Your Farm Used Today</small>
-<div class="kpi text-success"><?= number_format($today_issue,2) ?> kg</div>
-</div>
-</div>
+    <section class="issue-kpis">
+        <div class="issue-kpi">
+            <div class="issue-kpi-label">Total Store Stock</div>
+            <div class="issue-kpi-value">
+                <?= number_format((float)$total_stock,2) ?> kg
+            </div>
+        </div>
 
-</div>
+        <div class="issue-kpi">
+            <div class="issue-kpi-label">Your Farm Used Today</div>
+            <div class="issue-kpi-value success">
+                <?= number_format((float)$today_issue,2) ?> kg
+            </div>
+        </div>
+    </section>
 
-<?php if($message): ?>
-<div class="alert alert-<?= $alert ?> rounded-4 shadow-sm">
-<?= htmlspecialchars($message) ?>
-</div>
-<?php endif; ?>
+    <section class="issue-card">
+        <div class="issue-card-head">
+            <h2>Issue Feed Automatically</h2>
+            <p>Select the feed and destination pond. The system will issue stock using FIFO.</p>
+        </div>
 
-<div class="cardx bg-white">
-<div class="p-4">
+        <div class="issue-card-body">
+            <form method="POST" autocomplete="off">
 
-<h4 class="mb-4">Issue Feed Automatically</h4>
+                <input type="hidden"
+                       name="csrf_token"
+                       value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 
-<form method="POST">
+                <div class="issue-grid">
 
-<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <div class="issue-field">
+                        <label for="feed_type">Feed Type</label>
+                        <select id="feed_type"
+                                name="feed_type"
+                                class="issue-control"
+                                required>
+                            <option value="">Select Feed</option>
 
-<div class="row g-4">
+                            <?php foreach($feeds as $f): ?>
+                                <option value="<?= htmlspecialchars($f) ?>">
+                                    <?= htmlspecialchars($f) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-<div class="col-md-6">
-<label class="mb-2 fw-semibold">Feed Type</label>
-<select name="feed_type" class="form-select" required>
-<option value="">Select Feed</option>
-<?php foreach($feeds as $f): ?>
-<option value="<?= htmlspecialchars($f) ?>">
-<?= htmlspecialchars($f) ?>
-</option>
-<?php endforeach; ?>
-</select>
-</div>
+                    <div class="issue-field">
+                        <label for="pond_id">Destination Pond</label>
+                        <select id="pond_id"
+                                name="pond_id"
+                                class="issue-control"
+                                required>
+                            <option value="">Select Pond</option>
 
-<div class="col-md-6">
-<label class="mb-2 fw-semibold">Destination Pond</label>
-<select name="pond_id" class="form-select" required>
-<option value="">Select Pond</option>
-<?php foreach($ponds as $p): ?>
-<option value="<?= $p['id'] ?>">
-<?= $p['pond_code'] ?> (<?= $p['pond_type'] ?>)
-</option>
-<?php endforeach; ?>
-</select>
-</div>
+                            <?php foreach($ponds as $p): ?>
+                                <option value="<?= (int)$p['id'] ?>">
+                                    <?= htmlspecialchars($p['pond_code']) ?>
+                                    (<?= htmlspecialchars($p['pond_type']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-<div class="col-md-6">
-<label class="mb-2 fw-semibold">Quantity (kg)</label>
-<input type="number" step="0.01" min="0.01" name="quantity_kg"
-class="form-control" required>
-</div>
+                    <div class="issue-field">
+                        <label for="quantity_kg">Quantity (kg)</label>
+                        <input id="quantity_kg"
+                               type="number"
+                               step="0.01"
+                               min="0.01"
+                               name="quantity_kg"
+                               class="issue-control"
+                               placeholder="Enter quantity"
+                               required>
+                    </div>
 
-<div class="col-md-6">
-<label class="mb-2 fw-semibold">Remarks</label>
-<input type="text" name="remarks" class="form-control"
-placeholder="Optional note">
-</div>
+                    <div class="issue-field">
+                        <label for="remarks">Remarks</label>
+                        <input id="remarks"
+                               type="text"
+                               name="remarks"
+                               class="issue-control"
+                               placeholder="Optional note">
+                    </div>
 
-<div class="col-12">
-<button class="btn btn-primary btnx w-100">
-🚀 Auto Issue Feed (FIFO)
-</button>
-</div>
+                    <div class="issue-submit-wrap">
+                        <button type="submit" class="issue-submit">
+                            🚀 Auto Issue Feed (FIFO)
+                        </button>
 
-</div>
+                        <div class="issue-helper">
+                            The system will select available stock in receiving-date order,
+                            reduce the selected feed inventory and record the issue movement.
+                        </div>
+                    </div>
 
-</form>
+                </div>
+            </form>
+        </div>
+    </section>
 
-</div>
-</div>
-
-</div>
-</body>
-</html>
+</main>

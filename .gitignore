@@ -1,0 +1,27 @@
+﻿# Environment variables and secrets
+/.env
+/.env.*
+!/.env.example
+
+# Composer dependencies and local executable
+/vendor/
+/composer.phar
+
+# Local backup files
+*.bak
+*.bak-*
+*.backup
+*.backup_*
+*.backup-*
+*.pre_encoding_fix_*
+
+# Project archive used for local reference
+/app/modules/financess.zip
+
+# Logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.idea/

@@ -341,8 +341,13 @@ Operation Successful
 
 <!-- QUICK ACTIONS -->
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-5">
 
+<div class="col-md-3">
+    <a href="bulk_create.php" class="card p-4 text-decoration-none shadow-sm">
+    <i class="bi bi-layers"></i> Bulk Stocking
+</a>
+</div>
 
 <div class="col-md-3">
 

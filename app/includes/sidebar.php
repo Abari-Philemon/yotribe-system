@@ -4,30 +4,32 @@ require_once __DIR__ . '/../helpers/permission.php';
 
 /**
  * =========================================================
- * FARM CONTEXT
+ * =========================================================
+ * OPTIONAL FARM CONTEXT
  * =========================================================
  */
 
-$farm_id = farm_id();
+$farm_id = isset($_SESSION['active_farm_id'])
+    ? (int) $_SESSION['active_farm_id']
+    : null;
 
-/**
- * FARM DETAILS
- */
+$farm = null;
 
-$stmt = $pdo->prepare("
-    SELECT
-        name,
-        location,
-        size
-    FROM farms
-    WHERE id = ?
-");
+if ($farm_id !== null && $farm_id > 0 && isset($pdo) && $pdo instanceof PDO) {
+    $stmt = $pdo->prepare("
+        SELECT
+            name,
+            location,
+            size
+        FROM farms
+        WHERE id = ?
+    ");
 
-$stmt->execute([$farm_id]);
+    $stmt->execute([$farm_id]);
+    $farm = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+}
 
-$farm = $stmt->fetch(PDO::FETCH_ASSOC);
-
-$farm_name     = $farm['name'] ?? 'Unknown Farm';
+$farm_name     = $farm['name'] ?? 'Company-wide Finance';
 $farm_location = $farm['location'] ?? '';
 $farm_size     = ucfirst($farm['size'] ?? '');
 
@@ -262,7 +264,7 @@ function nav_active(array $pages)
 
 
 /* =========================================================
-   011-B — SIDEBAR SPACING & ALIGNMENT
+   011-B â€” SIDEBAR SPACING & ALIGNMENT
    ========================================================= */
 
 .sidebar-nav .nav-link {
@@ -337,7 +339,7 @@ function nav_active(array $pages)
 
 }
 /* =========================================================
-   011-C — ACTIVE & HOVER STATES
+   011-C â€” ACTIVE & HOVER STATES
    ========================================================= */
 
 /* Normal sidebar links */
@@ -425,7 +427,7 @@ function nav_active(array $pages)
 }
 
 /* =========================================================
-   011-E — SECTION HEADINGS
+   011-E â€” SECTION HEADINGS
    ========================================================= */
 
 /* Section heading base */
@@ -446,7 +448,7 @@ function nav_active(array $pages)
 }
 
 /* =========================================================
-   011-D — SUBMENU / ACCORDION STYLING
+   011-D â€” SUBMENU / ACCORDION STYLING
    ========================================================= */
 
 /* Operations / Harvest / Sales dropdown parents */
@@ -580,7 +582,7 @@ function nav_active(array $pages)
 }
 
 /* =========================================================
-   011-F — FINAL SIDEBAR VISUAL PASS
+   011-F â€” FINAL SIDEBAR VISUAL PASS
    ========================================================= */
 
 /* Final box-sizing and scrollbar refinement */
@@ -698,7 +700,7 @@ function nav_active(array $pages)
         id="menuToggle"
         class="menu-toggle"
     >
-        ☰
+        â˜°
     </button>
 
     <div class="mobile-brand">
@@ -803,7 +805,7 @@ function nav_active(array $pages)
             ]) ?>"
         >
 
-            📊 Dashboard
+            ðŸ“Š Dashboard
 
         </a>
 
@@ -1379,6 +1381,16 @@ function nav_active(array $pages)
         Finance
 
         </a>
+        <a
+            href="/yotribe-system/app/modules/financess/index.php"
+            class="nav-link <?= nav_active(['/yotribe-system/app/modules/financess/index.php']) ?>"
+        >
+            <i class="bi bi-journal-text me-2"></i>
+            Chart of Accounts
+        </a>
+        <a href="/yotribe-system/app/modules/financess/periods.php" class="nav-link">Financial Years &amp; Periods</a>
+
+
 
     <?php endif; ?>
 
